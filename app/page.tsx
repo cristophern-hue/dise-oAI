@@ -306,7 +306,15 @@ export default function Home() {
       productDescription, personDescription,
       refineImage, refineHistory, refineImageHistory,
     };
-    try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
+    try {
+      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
+    } catch {
+      // Quota exceeded — images too large for localStorage, save without image data
+      try {
+        const light = { ...session, concepts: [], selectedConcepts: [], refineImage: null, refineImageHistory: [] };
+        localStorage.setItem(SESSION_KEY, JSON.stringify(light));
+      } catch { /* nothing we can do */ }
+    }
   }, [step, brief, selectedClient, peopleMode, concepts, selectedConcepts, productDescription, personDescription, refineIndex, refineImage, refineHistory, refineImageHistory]);
 
   // Restore session from localStorage on mount
@@ -348,12 +356,15 @@ export default function Home() {
       productDescription, personDescription,
       refineImage, refineHistory, refineImageHistory,
     };
-    const blob = new Blob([JSON.stringify(session, null, 2)], { type: 'application/json' });
+    const blob = new Blob([JSON.stringify(session)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blob);
+    a.href = url;
     a.download = `sesion-${selectedClient?.name || 'disenoai'}-${Date.now()}.json`;
+    document.body.appendChild(a);
     a.click();
-    URL.revokeObjectURL(a.href);
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
   };
 
   const importSession = (e: React.ChangeEvent<HTMLInputElement>) => {
