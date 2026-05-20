@@ -12,20 +12,30 @@ interface ConceptItem {
   image_prompt: string;
 }
 
+const PRODUCT_DESCRIPTION_PROMPT = `Sos un técnico de producto de moda de alta gama. Analizá esta prenda y describila con precisión quirúrgica para que pueda ser reproducida EXACTAMENTE por un modelo de IA generativa. Imaginá que quien lee tu descripción no puede ver la foto — tu texto es el único recurso.
+
+Describí en este orden exacto:
+
+1. TIPO DE PRENDA: categoría (remera, vestido, campera, etc.), silueta y corte (oversize, entallado, recto, etc.), largo
+2. COLOR BASE Y FONDO: tono exacto y profundidad (no "azul" sino "azul marino oscuro casi negro", "blanco roto cálido", etc.)
+3. ESTAMPADO / PRINT (es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, qué tamaño relativo al total de la prenda, cómo se distribuye (all-over, centrado, borde, repetición, etc.), orientación, y cómo contrasta con el fondo. Si hay texto, copialo exactamente.
+4. MATERIALES Y TEXTURA: acabado (mate, satinado, brillante), peso visual, transparencia
+5. DETALLES DE CONFECCIÓN: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños, bolsillos, costuras decorativas, piping, botones, cierres, terminaciones
+6. ELEMENTOS ÚNICOS: cualquier detalle que diferencie esta prenda de una genérica
+
+IMPORTANTE sobre el estampado: nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición. El nivel de especificidad del estampado determina si la IA lo reproduce correctamente.`;
+
 async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): Promise<string> {
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [{
       role: 'user',
       content: [
-        {
-          type: 'text',
-          text: 'Describí este producto de ropa con MÁXIMO detalle para reproducirlo exactamente en una imagen generada por IA. Incluí: tipo de prenda, corte exacto, color base, estampado/print (describe cada elemento del patrón, sus colores, tamaño y distribución), materiales o texturas visibles, detalles de confección (costuras, piping, botones, bolsillos, cuello, puños), y cualquier elemento distintivo. Sé extremadamente específico — esta descripción es la única guía para reproducir el producto exacto.',
-        },
+        { type: 'text', text: PRODUCT_DESCRIPTION_PROMPT },
         { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
       ],
     }],
-    max_tokens: 400,
+    max_tokens: 600,
   });
   return response.choices[0].message.content || '';
 }
@@ -82,7 +92,19 @@ async function addPersonToImage(
   fashionSuffix: string,
 ): Promise<string> {
   const imageDataUrl = `data:image/png;base64,${imageBase64}`;
-  const prompt = `Agregá una persona a esta imagen de moda. Características de la persona: ${personDescription}. La persona está usando el producto que ya aparece en la imagen — NO lo modifiques, no cambies su color, estampado ni silueta. Conservá el fondo, la composición y el estilo visual de la imagen original. ${fashionSuffix}`;
+  const prompt = `Esta imagen muestra un producto de indumentaria. Integrá una persona que lo esté usando, siguiendo estas instrucciones con precisión:
+
+PERSONA: ${personDescription}
+POSE Y ACTITUD: pose natural de editorial de moda — de pie, caminando o posando con confianza. Mirada segura, actitud aspiracional.
+
+REGLAS ABSOLUTAS sobre el producto:
+- La persona LLEVA PUESTO el producto que ya aparece en la imagen
+- El producto debe verse EXACTAMENTE igual: mismo color base, mismo estampado con todos sus elementos, misma silueta y mismos detalles de confección
+- NO simplificar, NO cambiar, NO interpretar el producto — reproducirlo tal cual
+- Si el estampado tiene colores y formas específicas, deben aparecer exactamente iguales en la prenda que lleva la persona
+
+COMPOSICIÓN: mantené la paleta de colores del fondo original, el estilo fotográfico y el mood general de la imagen.
+${fashionSuffix}`;
 
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -203,7 +225,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
 
   // Step 2: Generate 6 product-only images in parallel
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const fullPrompt = `${concept.image_prompt}${productDescription ? ` PRODUCTO EXACTO: ${productDescription}.` : ''} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
+    const fullPrompt = `${concept.image_prompt}${productDescription ? ` PRODUCTO OBLIGATORIO — reproducir exactamente, sin simplificar ni interpretar: ${productDescription}. Cada detalle del estampado, color y confección debe ser idéntico al original.` : ''} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
 
     const base64 = await generateWithGptImage2(openai, fullPrompt, inputImages);
 
