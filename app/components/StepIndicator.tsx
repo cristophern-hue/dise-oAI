@@ -6,11 +6,10 @@ const STEPS: { key: Step; label: string }[] = [
   { key: 'brief', label: 'Brief' },
   { key: 'concepts', label: '6 Conceptos' },
   { key: 'refine', label: 'Afinación' },
-  { key: 'adjust', label: 'Ajustes' },
   { key: 'done', label: 'Listo' },
 ];
 
-const ORDER: Step[] = ['brief', 'concepts', 'refine', 'adjust', 'done'];
+const ORDER: Step[] = ['brief', 'concepts', 'refine', 'done'];
 
 interface Props {
   currentStep: Step;
