@@ -25,6 +25,11 @@ export default function Home() {
   const [variations, setVariations] = useState<GeneratedImage[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<GeneratedImage | null>(null);
 
+  const [refineImage, setRefineImage] = useState<GeneratedImage | null>(null);
+  const [refineInput, setRefineInput] = useState('');
+  const [refineHistory, setRefineHistory] = useState<string[]>([]);
+  const refineInputRef = useRef<HTMLInputElement>(null);
+
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
   const [adjustment, setAdjustment] = useState('');
   const [adjustHistory, setAdjustHistory] = useState<string[]>([]);
@@ -103,15 +108,47 @@ export default function Home() {
     }
   };
 
+  const enterRefine = () => {
+    if (!selectedConcept) return;
+    setRefineImage(selectedConcept);
+    setRefineHistory([]);
+    setStep('refine');
+  };
+
+  const applyRefinement = async () => {
+    if (!refineImage || !refineInput.trim()) return;
+    setLoading(true);
+    setError('');
+    const instruction = refineInput.trim();
+    setRefineInput('');
+    try {
+      const res = await fetch('/api/adjust-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: refineImage.base64, instruction }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setRefineImage(prev => prev ? { ...prev, id: Math.random().toString(36).slice(2), base64: data.base64 } : prev);
+      setRefineHistory(prev => [...prev, instruction]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error aplicando refinamiento');
+    } finally {
+      setLoading(false);
+      setTimeout(() => refineInputRef.current?.focus(), 100);
+    }
+  };
+
   const generateVariations = async () => {
-    if (!selectedConcept || !selectedClient) return;
+    if ((!selectedConcept && !refineImage) || !selectedClient) return;
+    const conceptToUse = refineImage || selectedConcept!;
     setLoading(true);
     setError('');
     try {
       const res = await fetch('/api/generate-variations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedConcept, brandKit: selectedClient, peopleMode }),
+        body: JSON.stringify({ selectedConcept: conceptToUse, brandKit: selectedClient, peopleMode }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -173,12 +210,16 @@ export default function Home() {
     setBrief('');
     setConcepts([]);
     setSelectedConcept(null);
+    setRefineImage(null);
+    setRefineHistory([]);
+    setRefineInput('');
     setVariations([]);
     setSelectedVariation(null);
     setCurrentImage(null);
     setAdjustHistory([]);
     setError('');
     setPeopleMode('none');
+    setProductDetailImages([]);
     setReferenceImages([]);
   };
 
@@ -409,11 +450,11 @@ export default function Home() {
                     {selectedConcept ? `Seleccionado: ${selectedConcept.conceptName}` : 'Hacé click en un concepto para seleccionarlo'}
                   </p>
                   <button
-                    onClick={generateVariations}
+                    onClick={enterRefine}
                     disabled={!selectedConcept || loading}
                     className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors flex items-center gap-2"
                   >
-                    Ver 4 variaciones
+                    Afinar concepto
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
@@ -421,6 +462,95 @@ export default function Home() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Step: REFINE */}
+        {step === 'refine' && refineImage && (
+          <div className="space-y-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-2xl font-bold mb-1">Afiná el concepto</h2>
+                <p className="text-white/50 text-sm">Ajustá estampado, colores, modelo, composición — o avanzá directo a variaciones</p>
+              </div>
+              <button onClick={() => setStep('concepts')} className="text-white/40 hover:text-white/70 text-sm transition-colors">
+                ← Volver
+              </button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 items-start">
+              {/* Image preview */}
+              <div className="rounded-xl overflow-hidden border border-white/10">
+                <img
+                  src={`data:image/png;base64,${refineImage.base64}`}
+                  alt="Concepto a afinar"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Refinement panel */}
+              <div className="space-y-5">
+                {refineHistory.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Refinamientos aplicados</p>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {refineHistory.map((h, i) => (
+                        <div key={i} className="bg-white/5 rounded-lg px-3 py-2 text-sm text-white/60 flex items-start gap-2">
+                          <span className="text-indigo-400 mt-0.5">✓</span>
+                          {h}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Instrucción de refinamiento</p>
+                  <input
+                    ref={refineInputRef}
+                    type="text"
+                    value={refineInput}
+                    onChange={e => setRefineInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !loading && applyRefinement()}
+                    placeholder="Ej: hacer el estampado más pequeño, cambiar fondo a negro, modelo rubia de 25 años..."
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 text-sm disabled:opacity-50"
+                  />
+                  <button
+                    onClick={applyRefinement}
+                    disabled={!refineInput.trim() || loading}
+                    className="w-full bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-4 py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Aplicando...
+                      </>
+                    ) : 'Aplicar refinamiento'}
+                  </button>
+                </div>
+
+                <button
+                  onClick={generateVariations}
+                  disabled={loading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Generando variaciones...
+                    </>
+                  ) : (
+                    <>
+                      Generar 4 variaciones
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -432,7 +562,7 @@ export default function Home() {
                 <h2 className="text-2xl font-bold mb-1">Elegí una variación</h2>
                 <p className="text-white/50 text-sm">4 versiones del concepto &ldquo;{selectedConcept?.conceptName}&rdquo;</p>
               </div>
-              <button onClick={() => setStep('concepts')} className="text-white/40 hover:text-white/70 text-sm transition-colors">
+              <button onClick={() => setStep('refine')} className="text-white/40 hover:text-white/70 text-sm transition-colors">
                 ← Volver
               </button>
             </div>
