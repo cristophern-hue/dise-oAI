@@ -19,78 +19,56 @@ function buildPeopleInstruction(peopleMode: PeopleMode, referenceDescription?: s
   return 'Incluir personas que representen la audiencia target de la marca.';
 }
 
-async function generateImageWithReferences(
+async function generateImageWithProduct(
   openai: OpenAI,
   prompt: string,
-  referenceImages: string[],
-  productImages: string[] = []
+  productImage: string
 ): Promise<string> {
-  const allRefs = [
-    ...referenceImages.slice(0, 2),
-    ...productImages.slice(0, 1),
-  ];
-  const productInstruction = productImages.length > 0
-    ? 'CRÍTICO: Preservar el producto EXACTO de la imagen de referencia — mismo estampado, mismo diseño, mismos colores, mismo corte. No inventar ni modificar ningún detalle del producto. '
-    : '';
-  const fullPrompt = `${productInstruction}${prompt}`;
+  const fullPrompt = `CRÍTICO: Preservar el producto EXACTO de la imagen de referencia — mismo estampado, mismo diseño, mismos colores, mismo corte. No inventar ni modificar ningún detalle del producto. ${prompt}`;
+  const raw = productImage.includes(',') ? productImage.split(',')[1] : productImage;
+  const imageFile = await toFile(Buffer.from(raw, 'base64'), 'reference.png', { type: 'image/png' });
+  const response = await openai.images.edit({
+    model: 'gpt-image-1',
+    image: imageFile,
+    prompt: fullPrompt,
+    size: '1024x1024',
+    quality: 'high',
+    n: 1,
+  });
+  return response.data?.[0]?.b64_json || '';
+}
 
-  // Try Responses API (gpt-image-2 with input_fidelity)
+async function generateImageWithStyleRefs(
+  openai: OpenAI,
+  prompt: string,
+  styleRefs: string[]
+): Promise<string> {
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.responses.create as any)({
       model: 'gpt-image-2',
-      input: [
-        {
-          role: 'user',
-          content: [
-            ...allRefs.map(img => ({
-              type: 'input_image',
-              image_url: img,
-            })),
-            { type: 'input_text', text: fullPrompt },
-          ],
-        },
-      ],
+      input: [{
+        role: 'user',
+        content: [
+          ...styleRefs.map(img => ({ type: 'input_image', image_url: img })),
+          { type: 'input_text', text: prompt },
+        ],
+      }],
       tools: [{
         type: 'image_generation',
         model: 'gpt-image-2',
         quality: 'medium',
         size: '1024x1536',
-        input_fidelity: 'high',
       }],
     });
-
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const block of (response.output || [])) {
-      if (block.type === 'image_generation_call' && block.result) {
-        return block.result;
-      }
+      if (block.type === 'image_generation_call' && block.result) return block.result;
     }
-    console.error('Responses API returned no image_generation_call block');
   } catch (err) {
     console.error('Responses API failed:', err);
   }
-
-  // Fallback: if we have a product/person reference image, use images.edit() so the product is never lost
-  if (productImages.length > 0) {
-    try {
-      const raw = productImages[0].includes(',') ? productImages[0].split(',')[1] : productImages[0];
-      const imageFile = await toFile(Buffer.from(raw, 'base64'), 'reference.png', { type: 'image/png' });
-      const editResponse = await openai.images.edit({
-        model: 'gpt-image-1',
-        image: imageFile,
-        prompt: fullPrompt,
-        size: '1024x1024',
-        quality: 'medium',
-        n: 1,
-      });
-      return editResponse.data?.[0]?.b64_json || '';
-    } catch (err) {
-      console.error('images.edit fallback failed:', err);
-    }
-  }
-
-  return generateImageFromText(openai, fullPrompt);
+  return generateImageFromText(openai, prompt);
 }
 
 async function generateImageFromText(
@@ -196,9 +174,16 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
     const fullPrompt = `${concept.image_prompt}. Use brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
 
-    const base64 = hasVisualRefs
-      ? await generateImageWithReferences(openai, fullPrompt, visualRefs, productRefs)
-      : await generateImageFromText(openai, fullPrompt);
+    let base64: string;
+    if (productRefs.length > 0) {
+      // Product image provided — images.edit() guarantees the model receives the exact product
+      base64 = await generateImageWithProduct(openai, fullPrompt, productRefs[0]);
+    } else if (visualRefs.length > 0) {
+      // Only brand kit style refs — use Responses API for style guidance
+      base64 = await generateImageWithStyleRefs(openai, fullPrompt, visualRefs);
+    } else {
+      base64 = await generateImageFromText(openai, fullPrompt);
+    }
 
     return {
       id: Math.random().toString(36).slice(2),
