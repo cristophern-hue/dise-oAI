@@ -15,6 +15,10 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  type PeopleMode = 'none' | 'ai' | 'real';
+  const [peopleMode, setPeopleMode] = useState<PeopleMode>('none');
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
+
   const [concepts, setConcepts] = useState<GeneratedImage[]>([]);
   const [selectedConcept, setSelectedConcept] = useState<GeneratedImage | null>(null);
 
@@ -31,6 +35,18 @@ export default function Home() {
     if (stored) setClients(JSON.parse(stored));
   }, []);
 
+  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setReferenceImages(prev => prev.length < 3 ? [...prev, reader.result as string] : prev);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
+
   const generateConcepts = async () => {
     if (!selectedClient || !brief.trim()) return;
     setLoading(true);
@@ -39,7 +55,12 @@ export default function Home() {
       const res = await fetch('/api/generate-concepts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brief, brandKit: selectedClient }),
+        body: JSON.stringify({
+          brief,
+          brandKit: selectedClient,
+          peopleMode,
+          referenceImages: peopleMode === 'real' ? referenceImages : [],
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -127,6 +148,8 @@ export default function Home() {
     setCurrentImage(null);
     setAdjustHistory([]);
     setError('');
+    setPeopleMode('none');
+    setReferenceImages([]);
   };
 
   return (
@@ -215,6 +238,63 @@ export default function Home() {
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 resize-none text-sm leading-relaxed"
               />
               <p className="text-xs text-white/30">GPT-4o va a refinar este brief y generar 6 conceptos visuales distintos.</p>
+            </div>
+
+            {/* People mode */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-white/70">Personas en la imagen</label>
+              <div className="grid grid-cols-3 gap-3">
+                {([
+                  { value: 'none', label: 'Sin personas', desc: 'Producto, flat lay o composición', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
+                  { value: 'ai', label: 'Personas AI', desc: 'Figuras generadas por IA', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2' },
+                  { value: 'real', label: 'Subir fotos', desc: 'Usar imágenes de referencia', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+                ] as const).map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); }}
+                    className={`p-4 rounded-xl border text-left transition-all ${
+                      peopleMode === opt.value
+                        ? 'border-indigo-500 bg-indigo-500/10'
+                        : 'border-white/10 hover:border-white/20 bg-white/5'
+                    }`}
+                  >
+                    <svg className={`w-5 h-5 mb-2 ${peopleMode === opt.value ? 'text-indigo-400' : 'text-white/40'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={opt.icon} />
+                    </svg>
+                    <p className="text-sm font-medium">{opt.label}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+
+              {/* Reference image upload */}
+              {peopleMode === 'real' && (
+                <div className="space-y-3">
+                  <p className="text-xs text-white/40">Subí hasta 3 fotos de referencia. Se usan para describir el estilo de la persona al generar.</p>
+                  <div className="flex gap-3 flex-wrap">
+                    {referenceImages.map((img, i) => (
+                      <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
+                        <img src={img} alt={`ref ${i+1}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setReferenceImages(prev => prev.filter((_, idx) => idx !== i))}
+                          className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {referenceImages.length < 3 && (
+                      <label className="w-20 h-20 rounded-xl border border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center cursor-pointer transition-colors gap-1">
+                        <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="text-xs text-white/30">Foto</span>
+                        <input type="file" accept="image/*" multiple onChange={handleReferenceImageUpload} className="hidden" />
+                      </label>
+                    )}
+                  </div>
+                </div>
+              )}
             </div>
 
             <button
