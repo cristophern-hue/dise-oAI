@@ -31,7 +31,7 @@ async function generateImageWithReferences(
   ];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const response = await (openai.responses.create as any)({
-    model: 'gpt-image-1',
+    model: 'gpt-image-2',
     input: [
       {
         role: 'user',
@@ -66,7 +66,7 @@ async function generateImageFromText(
   quality: 'low' | 'medium' | 'high'
 ): Promise<string> {
   const imageResponse = await openai.images.generate({
-    model: 'gpt-image-1',
+    model: 'gpt-image-2',
     prompt,
     size: '1024x1536',
     quality,

@@ -44,7 +44,7 @@ Respondé SOLO con JSON válido: { "variations": [ { "variation_name": "...", "i
   const imagePromises = variations.map(async (variation: VariationItem) => {
     const prompt = `${variation.image_prompt} ${fashionSuffix}`.trim();
     const imageResponse = await openai.images.generate({
-      model: 'gpt-image-1',
+      model: 'gpt-image-2',
       prompt,
       size: '1024x1536',
       quality: 'high',

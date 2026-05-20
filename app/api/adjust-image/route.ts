@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
   const imageFile = await toFile(buffer, 'image.png', { type: 'image/png' });
 
   const response = await openai.images.edit({
-    model: 'gpt-image-1',
+    model: 'gpt-image-2',
     image: imageFile,
     prompt: instruction,
     size: '1024x1536',
