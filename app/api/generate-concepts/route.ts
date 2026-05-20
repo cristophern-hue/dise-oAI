@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI, { toFile } from 'openai';
+import OpenAI from 'openai';
 import { BrandKit } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
@@ -14,89 +14,69 @@ interface ConceptItem {
 
 function buildPeopleInstruction(peopleMode: PeopleMode, referenceDescription?: string): string {
   if (peopleMode === 'none') return 'NO incluir personas. Enfocarse en producto, composición, flat lay o elementos gráficos.';
-  if (peopleMode === 'ai') return 'Incluir figuras humanas generadas por IA, naturales, estilizadas y coherentes con el estilo de la marca.';
   if (peopleMode === 'real' && referenceDescription) return `Incluir una persona con estas características: ${referenceDescription}.`;
   return 'Incluir personas que representen la audiencia target de la marca.';
 }
 
-async function generateImageWithProduct(
-  openai: OpenAI,
-  prompt: string,
-  productImage: string
-): Promise<string> {
-  const fullPrompt = `CRÍTICO: Preservar el producto EXACTO de la imagen de referencia — mismo estampado, mismo diseño, mismos colores, mismo corte. No inventar ni modificar ningún detalle del producto. ${prompt}`;
-  const raw = productImage.includes(',') ? productImage.split(',')[1] : productImage;
-  const imageFile = await toFile(Buffer.from(raw, 'base64'), 'reference.png', { type: 'image/png' });
-  const response = await openai.images.edit({
-    model: 'gpt-image-1',
-    image: imageFile,
-    prompt: fullPrompt,
-    size: '1024x1024',
-    quality: 'high',
-    n: 1,
+async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): Promise<string> {
+  const response = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [{
+      role: 'user',
+      content: [
+        {
+          type: 'text',
+          text: 'Describí este producto de ropa con MÁXIMO detalle para reproducirlo exactamente en una imagen generada por IA. Incluí: tipo de prenda, corte exacto, color base, estampado/print (describe cada elemento del patrón, sus colores, tamaño y distribución), materiales o texturas visibles, detalles de confección (costuras, piping, botones, bolsillos, cuello, puños), y cualquier elemento distintivo. Sé extremadamente específico — esta descripción es la única guía para reproducir el producto exacto.',
+        },
+        { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
+      ],
+    }],
+    max_tokens: 400,
   });
-  return response.data?.[0]?.b64_json || '';
+  return response.choices[0].message.content || '';
 }
 
-async function generateImageWithStyleRefs(
+async function generateWithGptImage2(
   openai: OpenAI,
   prompt: string,
-  styleRefs: string[]
+  inputImages: string[] = []
 ): Promise<string> {
+  const content = [
+    ...inputImages.map(img => ({ type: 'input_image', image_url: img })),
+    { type: 'input_text', text: prompt },
+  ];
+
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.responses.create as any)({
       model: 'gpt-image-2',
-      input: [{
-        role: 'user',
-        content: [
-          ...styleRefs.map(img => ({ type: 'input_image', image_url: img })),
-          { type: 'input_text', text: prompt },
-        ],
-      }],
+      input: [{ role: 'user', content }],
       tools: [{
         type: 'image_generation',
         model: 'gpt-image-2',
         quality: 'medium',
         size: '1024x1536',
+        ...(inputImages.length > 0 ? { input_fidelity: 'high' } : {}),
       }],
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const block of (response.output || [])) {
       if (block.type === 'image_generation_call' && block.result) return block.result;
     }
+    console.error('Responses API returned no image block');
   } catch (err) {
     console.error('Responses API failed:', err);
   }
-  return generateImageFromText(openai, prompt);
-}
 
-async function generateImageFromText(
-  openai: OpenAI,
-  prompt: string
-): Promise<string> {
-  try {
-    const imageResponse = await openai.images.generate({
-      model: 'gpt-image-2',
-      prompt,
-      size: '1024x1536',
-      quality: 'low',
-      n: 1,
-    });
-    const b64 = imageResponse.data?.[0]?.b64_json || '';
-    if (!b64) console.error('gpt-image-2 returned empty b64_json');
-    return b64;
-  } catch (err) {
-    console.error('gpt-image-2 failed, falling back to gpt-image-1:', err);
-    const fallback = await openai.images.generate({
-      model: 'gpt-image-1',
-      prompt,
-      size: '1024x1536',
-      quality: 'low',
-      n: 1,
-    });
-    return fallback.data?.[0]?.b64_json || '';
-  }
+  // Fallback: text-only with gpt-image-2
+  const fallback = await openai.images.generate({
+    model: 'gpt-image-2',
+    prompt,
+    size: '1024x1536',
+    quality: 'low',
+    n: 1,
+  });
+  return fallback.data?.[0]?.b64_json || '';
 }
 
 export async function POST(req: NextRequest) {
@@ -110,14 +90,17 @@ export async function POST(req: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const brandKitContext = buildBrandKitContext(brandKit);
 
-  // Visual references: piezas anteriores del brand kit (máx 2 para no saturar)
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
-  // Product/person reference images — used in both modes to anchor the exact product
-  const productRefs: string[] = referenceImages.slice(0, 1);
-  const hasVisualRefs = visualRefs.length > 0 || productRefs.length > 0;
+  const productRef: string | null = referenceImages[0] || null;
 
-  // For 'real' mode: describe the person so the prompt can reference them
-  let referenceDescription = '';
+  // Describe product and/or person with GPT-4o vision when reference images are provided
+  let productDescription = '';
+  let personDescription = '';
+
+  if (productRef) {
+    productDescription = await describeProductWithVision(openai, productRef);
+  }
+
   if (peopleMode === 'real' && referenceImages.length > 0) {
     const visionResponse = await openai.chat.completions.create({
       model: 'gpt-4o',
@@ -130,14 +113,17 @@ export async function POST(req: NextRequest) {
       }],
       max_tokens: 150,
     });
-    referenceDescription = visionResponse.choices[0].message.content || '';
+    personDescription = visionResponse.choices[0].message.content || '';
   }
 
-  const peopleInstruction = buildPeopleInstruction(peopleMode, referenceDescription);
+  const peopleInstruction = buildPeopleInstruction(peopleMode, personDescription);
   const hasPeople = peopleMode !== 'none';
-
   const fashionSuffix = hasPeople
-    ? 'Fashion editorial photography, professional model, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+    ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+    : '';
+
+  const productConstraint = productDescription
+    ? `\nPRODUCTO OBLIGATORIO: El producto en la imagen DEBE ser exactamente: ${productDescription}. No sustituir, no simplificar, no inventar otro producto.`
     : '';
 
   // Step 1: GPT-4o generates 6 concept prompts
@@ -155,6 +141,7 @@ REGLAS:
 - Direcciones: minimalista limpio, tipográfico editorial, producto hero, lifestyle aspiracional, composición geométrica, editorial de moda
 - Fondos en colores del brand kit, tipografía elegante, máx 2-3 elementos
 - Nivel de agencia de moda internacional
+${productConstraint}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo fotográfico y mood.`,
@@ -170,20 +157,17 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Step 2: Generate 6 images in parallel
-  const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const fullPrompt = `${concept.image_prompt}. Use brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
+  // Input images for gpt-image-2: style refs from brand kit + product/person ref
+  const inputImages = [
+    ...visualRefs,
+    ...(productRef ? [productRef] : []),
+  ];
 
-    let base64: string;
-    if (productRefs.length > 0) {
-      // Product image provided — images.edit() guarantees the model receives the exact product
-      base64 = await generateImageWithProduct(openai, fullPrompt, productRefs[0]);
-    } else if (visualRefs.length > 0) {
-      // Only brand kit style refs — use Responses API for style guidance
-      base64 = await generateImageWithStyleRefs(openai, fullPrompt, visualRefs);
-    } else {
-      base64 = await generateImageFromText(openai, fullPrompt);
-    }
+  // Step 2: Generate 6 images in parallel with gpt-image-2
+  const imagePromises = concepts.map(async (concept: ConceptItem) => {
+    const fullPrompt = `${concept.image_prompt}${productDescription ? ` PRODUCTO EXACTO: ${productDescription}.` : ''} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
+
+    const base64 = await generateWithGptImage2(openai, fullPrompt, inputImages);
 
     return {
       id: Math.random().toString(36).slice(2),
