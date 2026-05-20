@@ -29,17 +29,25 @@ export async function POST(req: NextRequest) {
     ? `\nPRODUCTO A APLICAR (reproducir exactamente, sin simplificar):\n${productDescription}`
     : '\nPRODUCTO A APLICAR: el producto exacto que aparece en la segunda imagen de referencia.';
 
-  const prompt = `Tomá este concepto visual de moda y reemplazá la prenda/producto por el producto exacto que aparece en la imagen de referencia.
+  const multiProductNote = productDetailImages.length > 1
+    ? `\nHay ${productDetailImages.length} imágenes de referencia de productos — aplicá TODOS los productos visibles en cada imagen (ej: remera + pantalón, campera + falda).`
+    : '';
+
+  const prompt = `Tomá este concepto visual de moda y reemplazá las prendas/productos por los productos exactos que aparecen en las imágenes de referencia.
 ${productPart}
 ${personPart}
+${multiProductNote}
 
 REGLAS:
-- El producto debe verse EXACTAMENTE igual al de la imagen de referencia: mismos colores, mismo estampado con todos sus elementos, misma silueta y detalles de confección
+- Cada producto debe verse EXACTAMENTE igual al de su imagen de referencia: mismos colores, mismo estampado con todos sus elementos, misma silueta y detalles de confección
+- Si hay múltiples prendas de referencia, aplicá TODAS (no solo una)
 - Conservá la composición, el fondo, la iluminación y el mood del concepto original
 - Estilo fashion editorial premium, fotorrealista`;
 
   const conceptDataUrl = `data:image/png;base64,${conceptImageBase64}`;
-  const productDataUrl = productDetailImages[0];
+  const productImageContent = productDetailImages.map(img => ({
+    type: 'input_image' as const, image_url: img, detail: 'high' as const,
+  }));
 
   // Primary: Responses API con gpt-4o como orquestador (entiende imágenes de entrada)
   // y gpt-image-2 como herramienta de generación
@@ -51,7 +59,7 @@ REGLAS:
         role: 'user',
         content: [
           { type: 'input_image', image_url: conceptDataUrl, detail: 'high' },
-          { type: 'input_image', image_url: productDataUrl, detail: 'high' },
+          ...productImageContent,
           { type: 'input_text', text: prompt },
         ],
       }],
