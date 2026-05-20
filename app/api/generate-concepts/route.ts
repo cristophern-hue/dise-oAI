@@ -158,8 +158,13 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Only brand kit visual refs — no product image (product applied separately in refine step)
-  const inputImages = [...visualRefs];
+  // Pass product + person images as visual context for the fantasy concept.
+  // The model does its best with what it sees — exact fidelity comes in the apply-product step.
+  const inputImages = [
+    ...visualRefs,
+    ...productDetailImages.slice(0, 1),
+    ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
+  ];
 
   // Step 2: Generate 6 concept images — creative direction only, no product constraint
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
