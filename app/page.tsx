@@ -225,7 +225,7 @@ export default function Home() {
       const res = await fetch('/api/adjust-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: refineImage.base64, instruction }),
+        body: JSON.stringify({ imageBase64: refineImage.base64, instruction, productDetailImages }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -268,7 +268,7 @@ export default function Home() {
       const res = await fetch('/api/adjust-image', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: currentImage.base64, instruction }),
+        body: JSON.stringify({ imageBase64: currentImage.base64, instruction, productDetailImages }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
