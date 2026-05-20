@@ -1,41 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
-import { toFile } from 'openai';
+import OpenAI, { toFile } from 'openai';
 
 export const maxDuration = 300;
 
-const EDIT_SYSTEM = (instruction: string) =>
-  `Aplicá este ajuste a la imagen: "${instruction}". Preservá el producto/estampado exactamente como aparece en la imagen de referencia — mismo color, mismo patrón, mismos detalles. Solo modificá lo que el ajuste indica, manteniendo el estilo premium de moda y la composición general.`;
-
-async function editViaResponsesAPI(
-  openai: OpenAI,
-  imageBase64: string,
-  instruction: string,
-  productRefDataUrl?: string,
-): Promise<string> {
-  const imageDataUrl = `data:image/png;base64,${imageBase64}`;
-  const content = [
-    { type: 'input_image', image_url: imageDataUrl, detail: 'high' },
-    // Product reference anchors the print/pattern so it doesn't drift across adjustments
-    ...(productRefDataUrl ? [{ type: 'input_image', image_url: productRefDataUrl, detail: 'high' }] : []),
-    { type: 'input_text', text: EDIT_SYSTEM(instruction) },
-  ];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const response = await (openai.responses.create as any)({
-    model: 'gpt-image-2',
-    input: [{ role: 'user', content }],
-    tools: [{
-      type: 'image_generation',
-      model: 'gpt-image-2',
-      quality: 'medium',
-      size: '1024x1536',
-    }],
-  });
-  for (const block of (response.output || [])) {
-    if (block.type === 'image_generation_call' && block.result) return block.result;
-  }
-  return '';
-}
+const EDIT_PROMPT = (instruction: string) =>
+  `Apply this adjustment to the fashion image: "${instruction}". Preserve the garment/product exactly — same colors, same print pattern, same details. Only change what the instruction specifies. Keep premium fashion editorial style and overall composition.`;
 
 export async function POST(req: NextRequest) {
   const { imageBase64, instruction, productDetailImages = [] }: {
@@ -45,31 +14,49 @@ export async function POST(req: NextRequest) {
   } = await req.json();
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-  const productRefDataUrl = productDetailImages[0] || undefined;
 
-  // Primary: Responses API — product reference image keeps print/pattern anchored across adjustments
+  // Primary: images.edit — single API call, much faster than Responses API orchestration
   try {
-    const base64 = await editViaResponsesAPI(openai, imageBase64, instruction, productRefDataUrl);
+    const buffer = Buffer.from(imageBase64, 'base64');
+    const imageFile = await toFile(buffer, 'image.png', { type: 'image/png' });
+    const response = await openai.images.edit({
+      model: 'gpt-image-2',
+      image: imageFile,
+      prompt: EDIT_PROMPT(instruction),
+      size: '1024x1536',
+      quality: 'medium',
+    });
+    const base64 = response.data?.[0]?.b64_json || '';
     if (base64) return NextResponse.json({ base64 });
-    console.error('Responses API returned no image block for edit');
+    console.error('adjust-image: images.edit returned empty');
   } catch (err) {
-    console.error('Responses API edit failed, falling back to images.edit:', err);
+    console.error('adjust-image images.edit failed, trying Responses API:', err);
   }
 
-  // Fallback: images.edit API
-  const buffer = Buffer.from(imageBase64, 'base64');
-  const imageFile = await toFile(buffer, 'image.png', { type: 'image/png' });
-  const response = await openai.images.edit({
-    model: 'gpt-image-2',
-    image: imageFile,
-    prompt: EDIT_SYSTEM(instruction),
-    size: '1024x1536',
-    quality: 'medium',
-  });
-
-  const base64 = response.data?.[0]?.b64_json || '';
-  if (!base64) {
-    return NextResponse.json({ error: 'No image returned from API' }, { status: 500 });
+  // Fallback: Responses API with product reference for complex adjustments
+  try {
+    const imageDataUrl = `data:image/png;base64,${imageBase64}`;
+    const productRefDataUrl = productDetailImages[0] || undefined;
+    const content = [
+      { type: 'input_image', image_url: imageDataUrl, detail: 'high' as const },
+      ...(productRefDataUrl ? [{ type: 'input_image', image_url: productRefDataUrl, detail: 'high' as const }] : []),
+      { type: 'input_text', text: EDIT_PROMPT(instruction) },
+    ];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (openai.responses.create as any)({
+      model: 'gpt-4o',
+      input: [{ role: 'user', content }],
+      tools: [{ type: 'image_generation', model: 'gpt-image-2', quality: 'medium', size: '1024x1536' }],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const block of (response.output || [])) {
+      if (block.type === 'image_generation_call' && block.result) {
+        return NextResponse.json({ base64: block.result });
+      }
+    }
+  } catch (err) {
+    console.error('adjust-image Responses API fallback failed:', err);
   }
-  return NextResponse.json({ base64 });
+
+  return NextResponse.json({ error: 'No image returned from API' }, { status: 500 });
 }
