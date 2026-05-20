@@ -64,7 +64,7 @@ export default function Home() {
         const dataUrl = reader.result as string;
         const img = new Image();
         img.onload = () => {
-          const MAX = 1536;
+          const MAX = 1024;
           let { naturalWidth: w, naturalHeight: h } = img;
           if (!w || !h) { resolve(dataUrl); return; }
           if (w > MAX || h > MAX) {
@@ -76,7 +76,7 @@ export default function Home() {
             canvas.width = w;
             canvas.height = h;
             canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
-            const result = canvas.toDataURL('image/jpeg', 0.92);
+            const result = canvas.toDataURL('image/jpeg', 0.75);
             resolve(result.length > 100 ? result : dataUrl);
           } catch {
             resolve(dataUrl);
