@@ -192,9 +192,9 @@ export default function Home() {
                           : 'border-white/10 hover:border-white/20 bg-white/5'
                       }`}
                     >
-                      <div className="flex gap-1.5 mb-2">
-                        {[client.primaryColor, client.secondaryColor, client.accentColor].map((c, i) => (
-                          <div key={i} className="w-4 h-4 rounded-full border border-black/20" style={{ backgroundColor: c }} />
+                      <div className="flex gap-1 mb-2 flex-wrap">
+                        {[client.primary1, client.primary2, client.primary3, client.secondary1, client.secondary2, client.secondary3].map((c, i) => (
+                          <div key={i} className="w-3.5 h-3.5 rounded-full border border-black/20" style={{ backgroundColor: c }} />
                         ))}
                       </div>
                       <p className="text-sm font-medium truncate">{client.name}</p>

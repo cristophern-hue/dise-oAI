@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { BrandKit } from '@/app/types';
+import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
 interface ConceptItem {
   concept_name: string;
@@ -9,32 +10,23 @@ interface ConceptItem {
 
 export async function POST(req: NextRequest) {
   const { brief, brandKit }: { brief: string; brandKit: BrandKit } = await req.json();
-
-  const brandKitContext = `
-Brand: ${brandKit.name}
-Primary color: ${brandKit.primaryColor}
-Secondary color: ${brandKit.secondaryColor}
-Accent color: ${brandKit.accentColor}
-Style: ${brandKit.styleDescription}
-`;
-
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const brandKitContext = buildBrandKitContext(brandKit);
 
-  // Step 1: GPT-4o generates 6 distinct concept prompts
   const conceptsResponse = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
         role: 'system',
-        content: `You are a senior creative director. Given a campaign brief and brand kit, generate exactly 6 distinct visual concepts for a 1024x1024 social media image.
-Each concept must have a different visual approach: e.g., minimalist, bold typographic, product hero, lifestyle, abstract, editorial.
-Incorporate the brand colors and style into every concept.
-Respond ONLY with valid JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
-image_prompt must be detailed, specific, and ready to send directly to an image generation model.`,
+        content: `Sos un director creativo senior. Dado un brief de campaña y un brand kit completo, generá exactamente 6 conceptos visuales distintos para una imagen 1024x1024 de redes sociales.
+Cada concepto debe tener una dirección visual diferente: minimalista, tipográfico bold, producto hero, lifestyle, abstracto, editorial.
+Es CRÍTICO que incorpores los colores exactos del brand kit y respetes el estilo y las reglas de marca en cada concepto.
+Respondé SOLO con JSON válido: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
+El image_prompt debe ser detallado, específico, mencionar los colores hex exactos, y estar listo para enviarse directamente a un modelo de generación de imágenes.`,
       },
       {
         role: 'user',
-        content: `Brand kit:\n${brandKitContext}\n\nCampaign brief:\n${brief}`,
+        content: `BRAND KIT COMPLETO:\n${brandKitContext}\n\nBRIEF DE CAMPAÑA:\n${brief}`,
       },
     ],
     response_format: { type: 'json_object' },
@@ -43,9 +35,8 @@ image_prompt must be detailed, specific, and ready to send directly to an image 
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Step 2: Generate all 6 images in parallel
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const fullPrompt = `${concept.image_prompt}. Brand colors: primary ${brandKit.primaryColor}, secondary ${brandKit.secondaryColor}. Style: ${brandKit.styleDescription}. Square format, professional quality, social media ad.`;
+    const fullPrompt = `${concept.image_prompt}. Use exact brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography style: ${brandKit.typography || 'clean modern'}. ${brandKit.styleDescription.slice(0, 200)}. Square 1024x1024 format, professional social media ad.`;
 
     const imageResponse = await openai.images.generate({
       model: 'gpt-image-1',
@@ -64,6 +55,5 @@ image_prompt must be detailed, specific, and ready to send directly to an image 
   });
 
   const images = await Promise.all(imagePromises);
-
   return NextResponse.json({ images });
 }
