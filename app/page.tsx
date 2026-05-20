@@ -672,20 +672,21 @@ export default function Home() {
                   })}
                 </div>
 
-                {/* Product description editor — only shown when product was uploaded */}
-                {productDescription && (
+                {/* Product description editor — shown whenever product images were uploaded */}
+                {productDetailImages.length > 0 && (
                   <div className="space-y-2 border border-indigo-500/20 bg-indigo-500/5 rounded-xl p-4">
                     <div className="flex items-center gap-2">
                       <svg className="w-4 h-4 text-indigo-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <p className="text-xs font-medium text-indigo-300">Descripción del producto generada por IA — podés editarla antes de afinar</p>
+                      <p className="text-xs font-medium text-indigo-300">Descripción del producto — editala antes de afinar para mejorar la fidelidad</p>
                     </div>
                     <textarea
                       value={productDescription}
                       onChange={e => setProductDescription(e.target.value)}
                       rows={5}
-                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/80 text-xs leading-relaxed focus:outline-none focus:border-indigo-500 resize-none"
+                      placeholder="La IA no pudo generar una descripción automática. Describí el producto manualmente: tipo de prenda, color, estampado, detalles..."
+                      className="w-full bg-white/5 border border-white/10 rounded-lg px-3 py-2 text-white/80 text-xs leading-relaxed focus:outline-none focus:border-indigo-500 resize-none placeholder-white/20"
                     />
                   </div>
                 )}
