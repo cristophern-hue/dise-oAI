@@ -29,6 +29,11 @@ async function generateImageWithReferences(
     ...referenceImages.slice(0, 2),
     ...personImages.slice(0, 1),
   ];
+  // Prepend explicit product preservation instruction
+  const productInstruction = personImages.length > 0
+    ? 'IMPORTANTE: Preservar el producto EXACTO de la imagen de referencia — mismo estampado, mismo diseño, mismos colores de la prenda. No inventar otro producto. '
+    : '';
+  const fullPrompt = `${productInstruction}${prompt}`;
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.responses.create as any)({
@@ -41,11 +46,17 @@ async function generateImageWithReferences(
               type: 'input_image',
               image_url: img,
             })),
-            { type: 'input_text', text: prompt },
+            { type: 'input_text', text: fullPrompt },
           ],
         },
       ],
-      tools: [{ type: 'image_generation', model: 'gpt-image-2', quality: 'low', size: '1024x1536' }],
+      tools: [{
+        type: 'image_generation',
+        model: 'gpt-image-2',
+        quality: 'medium',
+        size: '1024x1536',
+        input_fidelity: 'high',
+      }],
     });
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -58,7 +69,6 @@ async function generateImageWithReferences(
   } catch (err) {
     console.error('Responses API error, falling back to images.generate:', err);
   }
-  // Fallback: generate without visual refs
   return generateImageFromText(openai, prompt);
 }
 
