@@ -53,7 +53,10 @@ export default function ConfigPage() {
       const fd = new FormData();
       fd.append('pdf', file);
       const res = await fetch('/api/extract-brand', { method: 'POST', body: fd });
-      if (!res.ok) throw new Error('Error procesando el PDF');
+      if (!res.ok) {
+        const errText = await res.text();
+        throw new Error(errText || 'Error procesando el PDF');
+      }
       const data = await res.json();
       setForm(f => ({
         ...f,
@@ -63,8 +66,8 @@ export default function ConfigPage() {
         accentColor: data.accentColor || f.accentColor,
         styleDescription: data.styleDescription || f.styleDescription,
       }));
-    } catch {
-      alert('No se pudo leer el PDF. Intentá de nuevo o completá el formulario manualmente.');
+    } catch (e) {
+      alert(`Error: ${e instanceof Error ? e.message : 'No se pudo leer el PDF'}`);
     } finally {
       setExtracting(false);
       e.target.value = '';
