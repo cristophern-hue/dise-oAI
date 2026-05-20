@@ -7,6 +7,23 @@ import ImageCard from './components/ImageCard';
 import StepIndicator from './components/StepIndicator';
 import LoadingGrid from './components/LoadingGrid';
 
+const SESSION_KEY = 'disenoai_session';
+
+interface SessionData {
+  step: Step;
+  brief: string;
+  selectedClientId: string | null;
+  peopleMode: PeopleMode;
+  concepts: GeneratedImage[];
+  selectedConcept: GeneratedImage | null;
+  refineImage: GeneratedImage | null;
+  refineHistory: string[];
+  variations: GeneratedImage[];
+  selectedVariation: GeneratedImage | null;
+  currentImage: GeneratedImage | null;
+  adjustHistory: string[];
+}
+
 export default function Home() {
   const [clients, setClients] = useState<BrandKit[]>([]);
   const [selectedClient, setSelectedClient] = useState<BrandKit | null>(null);
@@ -221,6 +238,101 @@ export default function Home() {
     setPeopleMode('none');
     setProductDetailImages([]);
     setReferenceImages([]);
+    try { localStorage.removeItem(SESSION_KEY); } catch {}
+  };
+
+  // Auto-save session to localStorage whenever key state changes
+  useEffect(() => {
+    if (step === 'brief' && !brief && !selectedClient) return;
+    const session: SessionData = {
+      step, brief,
+      selectedClientId: selectedClient?.id || null,
+      peopleMode, concepts, selectedConcept,
+      refineImage, refineHistory,
+      variations, selectedVariation,
+      currentImage, adjustHistory,
+    };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
+  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcept, refineImage, refineHistory, variations, selectedVariation, currentImage, adjustHistory]);
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const s: SessionData = JSON.parse(raw);
+      if (s.step === 'brief') return;
+      setBrief(s.brief || '');
+      setPeopleMode(s.peopleMode || 'none');
+      setConcepts(s.concepts || []);
+      setSelectedConcept(s.selectedConcept || null);
+      setRefineImage(s.refineImage || null);
+      setRefineHistory(s.refineHistory || []);
+      setVariations(s.variations || []);
+      setSelectedVariation(s.selectedVariation || null);
+      setCurrentImage(s.currentImage || null);
+      setAdjustHistory(s.adjustHistory || []);
+      // Restore selected client after clients are loaded
+      if (s.selectedClientId) {
+        const stored = localStorage.getItem('brandKits');
+        if (stored) {
+          const kits: BrandKit[] = JSON.parse(stored);
+          const found = kits.find(k => k.id === s.selectedClientId);
+          if (found) setSelectedClient(found);
+        }
+      }
+      setStep(s.step);
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const exportSession = () => {
+    const session: SessionData = {
+      step, brief,
+      selectedClientId: selectedClient?.id || null,
+      peopleMode, concepts, selectedConcept,
+      refineImage, refineHistory,
+      variations, selectedVariation,
+      currentImage, adjustHistory,
+    };
+    const blob = new Blob([JSON.stringify(session, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `sesion-${selectedClient?.name || 'disenoai'}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const importSession = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const s: SessionData = JSON.parse(reader.result as string);
+        setBrief(s.brief || '');
+        setPeopleMode(s.peopleMode || 'none');
+        setConcepts(s.concepts || []);
+        setSelectedConcept(s.selectedConcept || null);
+        setRefineImage(s.refineImage || null);
+        setRefineHistory(s.refineHistory || []);
+        setVariations(s.variations || []);
+        setSelectedVariation(s.selectedVariation || null);
+        setCurrentImage(s.currentImage || null);
+        setAdjustHistory(s.adjustHistory || []);
+        if (s.selectedClientId) {
+          const stored = localStorage.getItem('brandKits');
+          if (stored) {
+            const kits: BrandKit[] = JSON.parse(stored);
+            const found = kits.find(k => k.id === s.selectedClientId);
+            if (found) setSelectedClient(found);
+          }
+        }
+        setStep(s.step);
+      } catch { setError('No se pudo importar la sesión — archivo inválido.'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -235,8 +347,30 @@ export default function Home() {
           </div>
           <span className="font-semibold text-lg">Diseño AI</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <StepIndicator currentStep={step} />
+          {step !== 'brief' && (
+            <button
+              onClick={exportSession}
+              title="Guardar sesión como archivo"
+              className="text-sm text-white/50 hover:text-white/80 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Guardar
+            </button>
+          )}
+          <label
+            title="Retomar sesión guardada"
+            className="text-sm text-white/50 hover:text-white/80 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+            </svg>
+            Retomar
+            <input type="file" accept=".json" onChange={importSession} className="hidden" />
+          </label>
           <Link
             href="/config"
             className="text-sm text-white/50 hover:text-white/80 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg"
