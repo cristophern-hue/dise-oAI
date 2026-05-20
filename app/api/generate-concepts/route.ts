@@ -16,7 +16,7 @@ const MODE_SYSTEM_NOTE: Record<GenerationMode, string> = {
   'no-people':
     `A reference image is provided (it may show someone wearing/using the product or the product alone). Extract the product from it and feature it faithfully. Every concept must show ONLY the product — no people, no models. Focus on product presentation: flat lays, packshots, styled surfaces, or abstract compositions. ${PRODUCT_FIDELITY}`,
   'real-person':
-    `A reference photo of a specific person AND a separate product image are both provided. Every concept MUST show this exact person wearing/using this exact product. Only composition, background, typography, and styling change between concepts. ${PRODUCT_FIDELITY}`,
+    `A reference photo of a real person already wearing/using the product is provided. That single image contains both the person and the product. Every concept MUST use this image as the visual anchor — preserve the person's appearance and the product's exact look. Only composition, background, typography, and styling change between concepts. ${PRODUCT_FIDELITY}`,
 };
 
 export async function POST(req: NextRequest) {
@@ -25,13 +25,11 @@ export async function POST(req: NextRequest) {
     brandKit,
     mode = 'no-people',
     referenceImageBase64,
-    productImageBase64,
   }: {
     brief: string;
     brandKit: BrandKit;
     mode?: GenerationMode;
     referenceImageBase64?: string;
-    productImageBase64?: string;
   } = await req.json();
 
   const brandKitContext = `
@@ -44,8 +42,7 @@ Style: ${brandKit.styleDescription}
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const hasReference = !!referenceImageBase64 || !!productImageBase64;
-  const modeNote = hasReference ? MODE_SYSTEM_NOTE[mode] : '';
+  const modeNote = referenceImageBase64 ? MODE_SYSTEM_NOTE[mode] : '';
 
   // Step 1: GPT-4o generates 6 distinct concept prompts
   const conceptsResponse = await openai.chat.completions.create({
@@ -71,23 +68,11 @@ image_prompt must be detailed, specific, and ready to send directly to an image 
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Prepare image files once
-  const toImageFile = async (b64: string, name: string) => {
-    const raw = b64.includes(',') ? b64.split(',')[1] : b64;
-    return toFile(Buffer.from(raw, 'base64'), name, { type: 'image/png' });
-  };
-
-  const referenceImageFile = referenceImageBase64 ? await toImageFile(referenceImageBase64, 'reference.png') : null;
-  const productImageFile = productImageBase64 ? await toImageFile(productImageBase64, 'product.png') : null;
-
-  // real-person: pass person + product; no-people: pass whichever single image is available
-  const editImages: Awaited<ReturnType<typeof toFile>>[] = [];
-  if (mode === 'real-person') {
-    if (referenceImageFile) editImages.push(referenceImageFile);
-    if (productImageFile) editImages.push(productImageFile);
-  } else {
-    if (referenceImageBase64 && referenceImageFile) editImages.push(referenceImageFile);
-    else if (productImageFile) editImages.push(productImageFile);
+  // Both modes use a single reference image passed via referenceImageBase64
+  let referenceImageFile: Awaited<ReturnType<typeof toFile>> | null = null;
+  if (referenceImageBase64) {
+    const raw = referenceImageBase64.includes(',') ? referenceImageBase64.split(',')[1] : referenceImageBase64;
+    referenceImageFile = await toFile(Buffer.from(raw, 'base64'), 'reference.png', { type: 'image/png' });
   }
 
   // Step 2: Generate all 6 images in parallel
@@ -96,10 +81,10 @@ image_prompt must be detailed, specific, and ready to send directly to an image 
 
     let b64: string;
 
-    if (editImages.length > 0) {
+    if (referenceImageFile) {
       const imageResponse = await openai.images.edit({
         model: 'gpt-image-1',
-        image: editImages.length === 1 ? editImages[0] : editImages,
+        image: referenceImageFile,
         prompt: fullPrompt,
         size: '1024x1024',
         quality: 'medium',

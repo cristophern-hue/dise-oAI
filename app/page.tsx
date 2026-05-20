@@ -27,22 +27,14 @@ export default function Home() {
   const adjustInputRef = useRef<HTMLInputElement>(null);
 
   const [generationMode, setGenerationMode] = useState<'no-people' | 'real-person'>('no-people');
-  const [productImageBase64, setProductImageBase64] = useState<string | null>(null);
-  const [personImageBase64, setPersonImageBase64] = useState<string | null>(null);
+  // no-people: product photo; real-person: photo of person already using the product
+  const [referenceImageBase64, setReferenceImageBase64] = useState<string | null>(null);
 
-  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => setProductImageBase64(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
-  const handlePersonImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setPersonImageBase64(reader.result as string);
+    reader.onload = () => setReferenceImageBase64(reader.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -63,8 +55,7 @@ export default function Home() {
           brief,
           brandKit: selectedClient,
           mode: generationMode,
-          referenceImageBase64: generationMode === 'real-person' ? (personImageBase64 ?? undefined) : (productImageBase64 ?? undefined),
-          productImageBase64: generationMode === 'real-person' ? (productImageBase64 ?? undefined) : undefined,
+          referenceImageBase64: referenceImageBase64 ?? undefined,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -153,8 +144,7 @@ export default function Home() {
     setCurrentImage(null);
     setAdjustHistory([]);
     setError('');
-    setProductImageBase64(null);
-    setPersonImageBase64(null);
+    setReferenceImageBase64(null);
     setGenerationMode('no-people');
   };
 
@@ -251,8 +241,8 @@ export default function Home() {
               <label className="text-sm font-medium text-white/70">Tipo de imagen</label>
               <div className="grid grid-cols-2 gap-3">
                 {[
-                  { id: 'no-people' as const, label: 'Sin personas', desc: 'Foto del producto como referencia — composiciones sin modelos' },
-                  { id: 'real-person' as const, label: 'Con persona de referencia', desc: 'Foto de la persona + foto del producto — la muestra usando el producto' },
+                  { id: 'no-people' as const, label: 'Sin personas', desc: 'Subís la foto del producto — genera composiciones sin modelos (flat lay, packshot)' },
+                  { id: 'real-person' as const, label: 'Con persona de referencia', desc: 'Subís una foto de la persona ya usando el producto — esa imagen es la referencia visual' },
                 ].map(opt => (
                   <button
                     key={opt.id}
@@ -271,56 +261,26 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Image uploads */}
+            {/* Reference image upload */}
             <div className="space-y-3">
               <label className="text-sm font-medium text-white/70">
-                {generationMode === 'no-people' ? 'Foto del producto' : 'Imágenes de referencia'}
+                {generationMode === 'no-people' ? 'Foto del producto' : 'Foto de la persona usando el producto'}
               </label>
-              <div className="flex flex-wrap gap-4">
-                {/* Product image — always shown */}
-                <div className="space-y-1.5">
-                  <p className="text-xs text-white/40">Producto</p>
-                  <div className="flex items-center gap-3">
-                    {productImageBase64 && (
-                      <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
-                        <img src={productImageBase64} alt="Producto" className="w-full h-full object-cover" />
-                      </div>
-                    )}
-                    <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2">
-                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                      </svg>
-                      {productImageBase64 ? 'Cambiar' : 'Subir producto'}
-                      <input type="file" accept="image/*" onChange={handleProductImageUpload} className="hidden" />
-                    </label>
-                    {productImageBase64 && (
-                      <button onClick={() => setProductImageBase64(null)} className="text-white/30 hover:text-red-400 text-xs transition-colors">Quitar</button>
-                    )}
+              <div className="flex items-center gap-4">
+                {referenceImageBase64 && (
+                  <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
+                    <img src={referenceImageBase64} alt="Referencia" className="w-full h-full object-cover" />
                   </div>
-                </div>
-
-                {/* Person image — only for real-person mode */}
-                {generationMode === 'real-person' && (
-                  <div className="space-y-1.5">
-                    <p className="text-xs text-white/40">Persona de referencia</p>
-                    <div className="flex items-center gap-3">
-                      {personImageBase64 && (
-                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
-                          <img src={personImageBase64} alt="Persona" className="w-full h-full object-cover" />
-                        </div>
-                      )}
-                      <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2">
-                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                        </svg>
-                        {personImageBase64 ? 'Cambiar' : 'Subir persona'}
-                        <input type="file" accept="image/*" onChange={handlePersonImageUpload} className="hidden" />
-                      </label>
-                      {personImageBase64 && (
-                        <button onClick={() => setPersonImageBase64(null)} className="text-white/30 hover:text-red-400 text-xs transition-colors">Quitar</button>
-                      )}
-                    </div>
-                  </div>
+                )}
+                <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  {referenceImageBase64 ? 'Cambiar imagen' : 'Subir imagen'}
+                  <input type="file" accept="image/*" onChange={handleReferenceImageUpload} className="hidden" />
+                </label>
+                {referenceImageBase64 && (
+                  <button onClick={() => setReferenceImageBase64(null)} className="text-white/30 hover:text-red-400 text-xs transition-colors">Quitar</button>
                 )}
               </div>
             </div>
