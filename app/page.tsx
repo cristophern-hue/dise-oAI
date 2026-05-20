@@ -147,7 +147,8 @@ export default function Home() {
   const enterRefine = async () => {
     if (selectedConcepts.length === 0) return;
     // If product was uploaded, apply it to each selected concept before entering refine
-    if (productDetailImages.length > 0 && productDescription) {
+    const validDescription = productDescription && productDescription.length > 30 && !productDescription.toLowerCase().includes("i'm sorry") && !productDescription.toLowerCase().includes("cannot assist");
+    if (productDetailImages.length > 0 && validDescription) {
       setLoading(true);
       setError('');
       try {
@@ -327,7 +328,7 @@ export default function Home() {
       currentImage, adjustHistory,
     };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
-  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcepts, refineIndex, refineImage, refineHistory, currentImage, adjustHistory]);
+  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcepts, productDescription, personDescription, refineIndex, refineImage, refineHistory, refineImageHistory, currentImage, adjustHistory]);
 
   // Restore session from localStorage on mount
   useEffect(() => {
@@ -388,8 +389,10 @@ export default function Home() {
         setPeopleMode(s.peopleMode || 'none');
         setConcepts(s.concepts || []);
         setSelectedConcepts(s.selectedConcepts || []);
+        setProductDescription(s.productDescription || '');
+        setPersonDescription(s.personDescription || '');
         setRefineImage(s.refineImage || null);
-      setRefineImageHistory(s.refineImageHistory || []);
+        setRefineImageHistory(s.refineImageHistory || []);
         setRefineHistory(s.refineHistory || []);
         setCurrentImage(s.currentImage || null);
         setAdjustHistory(s.adjustHistory || []);
