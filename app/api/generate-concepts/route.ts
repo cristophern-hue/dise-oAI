@@ -42,7 +42,7 @@ async function generateWithGptImage2(
   inputImages: string[] = []
 ): Promise<string> {
   const content = [
-    ...inputImages.map(img => ({ type: 'input_image', image_url: img })),
+    ...inputImages.map(img => ({ type: 'input_image', image_url: img, detail: 'high' })),
     { type: 'input_text', text: prompt },
   ];
 
