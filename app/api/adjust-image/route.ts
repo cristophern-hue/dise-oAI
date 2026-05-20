@@ -29,7 +29,6 @@ async function editViaResponsesAPI(
       model: 'gpt-image-2',
       quality: 'medium',
       size: '1024x1536',
-      input_fidelity: 'high',
     }],
   });
   for (const block of (response.output || [])) {
