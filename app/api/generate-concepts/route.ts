@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI, { toFile } from 'openai';
+import OpenAI from 'openai';
 import { BrandKit } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
+
+function isRefusal(text: string): boolean {
+  if (!text || text.length < 30) return true;
+  const lower = text.toLowerCase();
+  return lower.includes("i'm sorry") || lower.includes("i cannot") || lower.includes("i can't") || lower.includes("cannot assist") || lower.includes("can't assist");
+}
 
 export const maxDuration = 300;
 
@@ -60,7 +66,6 @@ async function generateWithGptImage2(
         model: 'gpt-image-2',
         quality: 'medium',
         size: '1024x1536',
-        ...(inputImages.length > 0 ? { input_fidelity: 'high' } : {}),
       }],
     });
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -103,7 +108,12 @@ export async function POST(req: NextRequest) {
   let personDescription = '';
 
   if (productRef) {
-    productDescription = await describeProductWithVision(openai, productRef);
+    try {
+      const desc = await describeProductWithVision(openai, productRef);
+      productDescription = isRefusal(desc) ? '' : desc;
+    } catch {
+      productDescription = '';
+    }
   }
 
   if (peopleMode === 'real' && referenceImages.length > 0) {
@@ -191,6 +201,3 @@ El image_prompt debe mencionar colores hex exactos, disposici√≥n, estilo fotogr√
   // call /api/apply-product after the user selects a concept in the refine step
   return NextResponse.json({ images, productDescription, personDescription });
 }
-
-// Keep toFile imported for potential future use (images.edit fallback)
-void toFile;
