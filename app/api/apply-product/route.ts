@@ -18,7 +18,7 @@ export async function POST(req: NextRequest) {
   const hasPerson = peopleMode === 'real' && personDescription;
 
   if (!hasProductImage) {
-    return NextResponse.json({ base64: conceptImageBase64 });
+    return NextResponse.json({ base64: conceptImageBase64, applied: false });
   }
 
   const personPart = hasPerson
@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
 
   const productPart = productDescription
     ? `\nPRODUCTO A APLICAR (reproducir exactamente, sin simplificar):\n${productDescription}`
-    : '';
+    : '\nPRODUCTO A APLICAR: el producto exacto que aparece en la segunda imagen de referencia.';
 
   const prompt = `Tomá este concepto visual de moda y reemplazá la prenda/producto por el producto exacto que aparece en la imagen de referencia.
 ${productPart}
@@ -41,11 +41,12 @@ REGLAS:
   const conceptDataUrl = `data:image/png;base64,${conceptImageBase64}`;
   const productDataUrl = productDetailImages[0];
 
-  // Primary: Responses API — pass both concept and product as visual inputs
+  // Primary: Responses API con gpt-4o como orquestador (entiende imágenes de entrada)
+  // y gpt-image-2 como herramienta de generación
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.responses.create as any)({
-      model: 'gpt-image-2',
+      model: 'gpt-4o',
       input: [{
         role: 'user',
         content: [
@@ -64,30 +65,36 @@ REGLAS:
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const block of (response.output || [])) {
       if (block.type === 'image_generation_call' && block.result) {
-        return NextResponse.json({ base64: block.result });
+        return NextResponse.json({ base64: block.result, applied: true });
       }
     }
-    console.error('apply-product: no image block from Responses API');
+    console.error('apply-product: Responses API returned no image block');
   } catch (err) {
-    console.error('apply-product Responses API failed:', err);
+    console.error('apply-product Responses API (gpt-4o) failed:', err);
   }
 
-  // Fallback: images.edit with product description as text
+  // Fallback: images.edit con prompt descriptivo fuerte
   try {
     const buffer = Buffer.from(conceptImageBase64, 'base64');
     const imageFile = await toFile(buffer, 'image.png', { type: 'image/png' });
+    const editPrompt = productDescription
+      ? `Replace the main clothing/garment in this fashion image with the following product, preserving all composition, background, lighting and style. Product to apply: ${productDescription}.${personPart}`
+      : `Replace the main clothing/garment in this fashion editorial image with the product from the reference. Keep the composition, background, lighting, and overall mood exactly the same.${personPart}`;
+
     const response = await openai.images.edit({
       model: 'gpt-image-2',
       image: imageFile,
-      prompt: `Apply this exact product to the image: ${productDescription}.${personPart} Keep composition, background, and lighting.`,
+      prompt: editPrompt,
       size: '1024x1536',
       quality: 'medium',
     });
     const base64 = response.data?.[0]?.b64_json || '';
-    if (base64) return NextResponse.json({ base64 });
+    if (base64) return NextResponse.json({ base64, applied: true });
+    console.error('apply-product: images.edit returned empty b64_json');
   } catch (err) {
     console.error('apply-product images.edit fallback failed:', err);
   }
 
-  return NextResponse.json({ base64: conceptImageBase64 });
+  // Last resort: return original with flag so client can warn the user
+  return NextResponse.json({ base64: conceptImageBase64, applied: false });
 }
