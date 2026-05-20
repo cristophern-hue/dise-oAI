@@ -16,6 +16,8 @@ interface SessionData {
   peopleMode: PeopleMode;
   concepts: GeneratedImage[];
   selectedConcepts: GeneratedImage[];
+  productDescription: string;
+  personDescription: string;
   refineImage: GeneratedImage | null;
   refineHistory: string[];
   currentImage: GeneratedImage | null;
@@ -37,6 +39,8 @@ export default function Home() {
   const [concepts, setConcepts] = useState<GeneratedImage[]>([]);
   const [selectedConcepts, setSelectedConcepts] = useState<GeneratedImage[]>([]);
   const [refineIndex, setRefineIndex] = useState(0);
+  const [productDescription, setProductDescription] = useState('');
+  const [personDescription, setPersonDescription] = useState('');
 
   const [refineImage, setRefineImage] = useState<GeneratedImage | null>(null);
   const [refineInput, setRefineInput] = useState('');
@@ -122,6 +126,8 @@ export default function Home() {
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
       setConcepts(data.images);
+      setProductDescription(data.productDescription || '');
+      setPersonDescription(data.personDescription || '');
       setStep('concepts');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error generando conceptos');
@@ -136,8 +142,43 @@ export default function Home() {
     );
   };
 
-  const enterRefine = () => {
+  const enterRefine = async () => {
     if (selectedConcepts.length === 0) return;
+    // If product was uploaded, apply it to each selected concept before entering refine
+    if (productDetailImages.length > 0 && productDescription) {
+      setLoading(true);
+      setError('');
+      try {
+        const applied = await Promise.all(
+          selectedConcepts.map(async concept => {
+            const res = await fetch('/api/apply-product', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                conceptImageBase64: concept.base64,
+                productDetailImages,
+                productDescription,
+                peopleMode,
+                personDescription,
+              }),
+            });
+            if (!res.ok) return concept;
+            const data = await res.json();
+            return data.base64 ? { ...concept, base64: data.base64 } : concept;
+          })
+        );
+        setSelectedConcepts(applied);
+        setRefineIndex(0);
+        setRefineImage(applied[0]);
+        setRefineHistory([]);
+        setStep('refine');
+      } catch (e) {
+        setError(e instanceof Error ? e.message : 'Error aplicando producto');
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
     setRefineIndex(0);
     setRefineImage(selectedConcepts[0]);
     setRefineHistory([]);
@@ -247,6 +288,8 @@ export default function Home() {
     setConcepts([]);
     setSelectedConcepts([]);
     setRefineIndex(0);
+    setProductDescription('');
+    setPersonDescription('');
     setRefineImage(null);
     setRefineHistory([]);
     setRefineInput('');
@@ -266,6 +309,7 @@ export default function Home() {
       step, brief,
       selectedClientId: selectedClient?.id || null,
       peopleMode, concepts, selectedConcepts,
+      productDescription, personDescription,
       refineImage, refineHistory,
       currentImage, adjustHistory,
     };
@@ -283,6 +327,8 @@ export default function Home() {
       setPeopleMode(s.peopleMode || 'none');
       setConcepts(s.concepts || []);
       setSelectedConcepts(s.selectedConcepts || []);
+      setProductDescription(s.productDescription || '');
+      setPersonDescription(s.personDescription || '');
       setRefineImage(s.refineImage || null);
       setRefineHistory(s.refineHistory || []);
       setCurrentImage(s.currentImage || null);
@@ -305,6 +351,7 @@ export default function Home() {
       step, brief,
       selectedClientId: selectedClient?.id || null,
       peopleMode, concepts, selectedConcepts,
+      productDescription, personDescription,
       refineImage, refineHistory,
       currentImage, adjustHistory,
     };
@@ -575,8 +622,8 @@ export default function Home() {
               </button>
             </div>
 
-            {loading ? (
-              <LoadingGrid count={6} label="Generando 6 conceptos visuales..." />
+            {loading && step === 'concepts' ? (
+              <LoadingGrid count={selectedConcepts.length || 6} label={productDescription ? `Aplicando producto a ${selectedConcepts.length} concepto${selectedConcepts.length > 1 ? 's' : ''}...` : 'Generando 6 conceptos visuales...'} />
             ) : (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">

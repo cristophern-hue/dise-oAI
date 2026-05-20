@@ -72,7 +72,6 @@ async function generateWithGptImage2(
     console.error('Responses API failed:', err);
   }
 
-  // Fallback: text-only with gpt-image-2
   const fallback = await openai.images.generate({
     model: 'gpt-image-2',
     prompt,
@@ -81,36 +80,6 @@ async function generateWithGptImage2(
     n: 1,
   });
   return fallback.data?.[0]?.b64_json || '';
-}
-
-// Pass 2 for 'real' mode: use images.edit() to add the person to the product-only image.
-// images.edit() is the correct API for targeted modifications — unlike input_fidelity:high
-// which conflicts with adding a new element (person) to the scene.
-async function addPersonToImage(
-  openai: OpenAI,
-  imageBase64: string,
-  personDescription: string,
-  fashionSuffix: string,
-): Promise<string> {
-  const prompt = `Add a person to this fashion image. The person is wearing the exact product already shown — preserve every detail of the product: same color, same print/pattern with all its elements, same silhouette and construction details. Person: ${personDescription}. Editorial fashion pose, confident attitude. ${fashionSuffix}`;
-
-  try {
-    const buffer = Buffer.from(imageBase64, 'base64');
-    const imageFile = await toFile(buffer, 'image.png', { type: 'image/png' });
-    const response = await openai.images.edit({
-      model: 'gpt-image-2',
-      image: imageFile,
-      prompt,
-      size: '1024x1536',
-      quality: 'medium',
-    });
-    const base64 = response.data?.[0]?.b64_json || '';
-    if (base64) return base64;
-    console.error('addPersonToImage: empty b64_json');
-  } catch (err) {
-    console.error('addPersonToImage failed:', err);
-  }
-  return imageBase64;
 }
 
 export async function POST(req: NextRequest) {
@@ -125,9 +94,11 @@ export async function POST(req: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const brandKitContext = buildBrandKitContext(brandKit);
 
+  // Visual refs from brand kit (style guide for generation)
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
   const productRef: string | null = productDetailImages[0] || null;
 
+  // Generate product + person descriptions — returned to frontend for the apply-product step
   let productDescription = '';
   let personDescription = '';
 
@@ -150,18 +121,14 @@ export async function POST(req: NextRequest) {
     personDescription = visionResponse.choices[0].message.content || '';
   }
 
-  const fashionSuffix = 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.';
-
-  const productConstraint = productDescription
-    ? `\nPRODUCTO OBLIGATORIO: El producto en la imagen DEBE ser exactamente: ${productDescription}. No sustituir, no simplificar, no inventar otro producto.`
-    : '';
-
-  // Step 1: GPT-4o generates 6 concept prompts.
-  // For 'real' mode, concepts are generated as product-only (person is added in pass 2 below).
-  const peopleForConcepts = peopleMode === 'none'
+  // People instruction for concept generation
+  const peopleInstruction = peopleMode === 'none'
     ? 'NO incluir personas. Enfocarse en producto, composición, flat lay o elementos gráficos.'
-    : 'El producto es el protagonista. Composición limpia y premium, sin personas por ahora.';
+    : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
+  // Step 1: GPT-4o generates 6 free creative concept prompts.
+  // Product is NOT constrained here — model focuses on style, composition, and mood.
+  // The exact product is applied in the refine step (apply-product) for maximum fidelity.
   const conceptsResponse = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
@@ -176,14 +143,13 @@ REGLAS:
 - Direcciones: minimalista limpio, tipográfico editorial, producto hero, lifestyle aspiracional, composición geométrica, editorial de moda
 - Fondos en colores del brand kit, tipografía elegante, máx 2-3 elementos
 - Nivel de agencia de moda internacional
-${productConstraint}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo fotográfico y mood.`,
       },
       {
         role: 'user',
-        content: `BRAND KIT:\n${brandKitContext}\n\nBRIEF:\n${brief}\n\nPERSONAS:\n${peopleForConcepts}`,
+        content: `BRAND KIT:\n${brandKitContext}\n\nBRIEF:\n${brief}\n\nPERSONAS:\n${peopleInstruction}`,
       },
     ],
     response_format: { type: 'json_object' },
@@ -192,16 +158,17 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Input images for pass 1: brand kit style refs + product detail.
-  // No person photo — generate product-only first to guarantee product fidelity.
-  const inputImages = [
-    ...visualRefs,
-    ...productDetailImages.slice(0, 1),
-  ];
+  // Only brand kit visual refs — no product image (product applied separately in refine step)
+  const inputImages = [...visualRefs];
 
-  // Step 2: Generate 6 product-only images in parallel
+  // Step 2: Generate 6 concept images — creative direction only, no product constraint
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const fullPrompt = `${concept.image_prompt}${productDescription ? ` PRODUCTO OBLIGATORIO — reproducir exactamente, sin simplificar ni interpretar: ${productDescription}. Cada detalle del estampado, color y confección debe ser idéntico al original.` : ''} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
+    const hasPeople = peopleMode !== 'none';
+    const fashionSuffix = hasPeople
+      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+      : 'Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.';
+
+    const fullPrompt = `${concept.image_prompt} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix}`;
 
     const base64 = await generateWithGptImage2(openai, fullPrompt, inputImages);
 
@@ -215,17 +182,10 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
 
   const images = await Promise.all(imagePromises);
 
-  // Step 3 (real mode only): add person to each product-only image.
-  // Two-pass approach: product generated alone (perfect fidelity) → person layered on top.
-  if (peopleMode === 'real' && personDescription) {
-    const withPerson = await Promise.all(
-      images.map(async img => {
-        const base64WithPerson = await addPersonToImage(openai, img.base64, personDescription, fashionSuffix);
-        return { ...img, base64: base64WithPerson };
-      })
-    );
-    return NextResponse.json({ images: withPerson });
-  }
-
-  return NextResponse.json({ images });
+  // Return productDescription and personDescription so the frontend can
+  // call /api/apply-product after the user selects a concept in the refine step
+  return NextResponse.json({ images, productDescription, personDescription });
 }
+
+// Keep toFile imported for potential future use (images.edit fallback)
+void toFile;
