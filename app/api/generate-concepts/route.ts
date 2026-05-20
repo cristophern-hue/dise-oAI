@@ -68,14 +68,20 @@ export async function POST(req: NextRequest) {
     messages: [
       {
         role: 'system',
-        content: `Sos un director creativo senior. Dado un brief de campaña y un brand kit completo, generá exactamente 6 conceptos visuales distintos para una imagen portrait 1024x1536 de redes sociales (formato Instagram feed 4:5).
-Cada concepto debe tener una dirección visual diferente: minimalista, tipográfico bold, producto hero, lifestyle, abstracto, editorial.
-Es CRÍTICO que:
-- Incorpores los colores exactos del brand kit
-- Respetes el estilo y las reglas de marca
-- Sigas la instrucción sobre personas
-Respondé SOLO con JSON válido: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
-El image_prompt debe ser detallado, mencionar los colores hex exactos, y estar listo para enviarse a un modelo de generación de imágenes.`,
+        content: `Sos un director creativo senior especializado en campañas de moda y retail premium.
+Dado un brief y un brand kit, generá exactamente 6 conceptos visuales distintos para una pieza de campaña portrait 1024x1536 (Instagram feed 4:5).
+
+REGLAS CRÍTICAS:
+- Usá los hex exactos del brand kit como colores dominantes de fondo, texto y elementos
+- El estilo debe ser ELEGANTE y PREMIUM, nunca genérico ni tipo clipart
+- Cada concepto debe tener dirección diferente: minimalista limpio, tipográfico editorial, producto hero con fondo de marca, lifestyle aspiracional, composición geométrica de marca, editorial de moda
+- Los fondos deben ser los colores del brand kit (no blanco genérico, no degradados chillones)
+- La tipografía debe ser serif o sans-serif elegante, nunca display genérico
+- Nunca incluir más de 2-3 elementos en la composición
+- El resultado debe parecer producido por una agencia de moda de nivel internacional
+
+Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
+El image_prompt debe ser muy específico: mencionar colores hex, disposición de elementos, estilo de fotografía, mood, y características técnicas de la imagen.`,
       },
       {
         role: 'user',
@@ -95,7 +101,7 @@ El image_prompt debe ser detallado, mencionar los colores hex exactos, y estar l
 
   // Step 2: Generate all 6 images in parallel
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const fullPrompt = `${concept.image_prompt}. Exact brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'clean modern'}. ${brandKit.styleDescription.slice(0, 150)}. ${fashionSuffix} Portrait format 1024x1536, Instagram feed 4:5, professional social media ad.`;
+    const fullPrompt = `${concept.image_prompt}. MANDATORY brand colors: background or dominant elements must use ${brandKit.primary1} or ${brandKit.primary2} or ${brandKit.primary3}. Font style: ${brandKit.typography || 'elegant serif or clean sans-serif'}. ${fashionSuffix} High-end fashion campaign, premium retail aesthetic, agency-level production quality, NOT generic AI art, clean intentional composition, portrait 4:5 ratio.`;
 
     const imageResponse = await openai.images.generate({
       model: 'gpt-image-1',

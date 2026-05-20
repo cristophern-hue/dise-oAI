@@ -22,7 +22,7 @@ export default function ImageCard({ image, selected, onClick, showName = true }:
       <img
         src={`data:image/png;base64,${image.base64}`}
         alt={image.conceptName}
-        className="w-full aspect-square object-cover"
+        className="w-full aspect-[2/3] object-cover"
       />
       {showName && (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">

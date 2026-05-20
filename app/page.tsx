@@ -220,6 +220,9 @@ export default function Home() {
                         ))}
                       </div>
                       <p className="text-sm font-medium truncate">{client.name}</p>
+                      {client.referencePiecesStyle && (
+                        <p className="text-xs text-indigo-400 mt-1">✓ {client.referencePiecesThumbnails?.length || 0} piezas ref.</p>
+                      )}
                     </button>
                   ))}
                 </div>
