@@ -39,7 +39,18 @@ export default function Home() {
     files.forEach(file => {
       const reader = new FileReader();
       reader.onload = () => {
-        setReferenceImages(prev => prev.length < 3 ? [...prev, reader.result as string] : prev);
+        const dataUrl = reader.result as string;
+        // Convert to PNG so the API always receives a compatible format
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = img.naturalWidth;
+          canvas.height = img.naturalHeight;
+          canvas.getContext('2d')!.drawImage(img, 0, 0);
+          const pngDataUrl = canvas.toDataURL('image/png');
+          setReferenceImages(prev => prev.length < 3 ? [...prev, pngDataUrl] : prev);
+        };
+        img.src = dataUrl;
       };
       reader.readAsDataURL(file);
     });
