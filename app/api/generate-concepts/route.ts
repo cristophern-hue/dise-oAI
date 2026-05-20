@@ -5,12 +5,12 @@ import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
 export const maxDuration = 300;
 
+type PeopleMode = 'none' | 'ai' | 'real';
+
 interface ConceptItem {
   concept_name: string;
   image_prompt: string;
 }
-
-type PeopleMode = 'none' | 'ai' | 'real';
 
 function buildPeopleInstruction(peopleMode: PeopleMode, referenceDescription?: string): string {
   if (peopleMode === 'none') return 'NO incluir personas. Enfocarse en producto, composición, flat lay o elementos gráficos.';
@@ -29,7 +29,6 @@ async function generateImageWithReferences(
     ...referenceImages.slice(0, 2),
     ...personImages.slice(0, 1),
   ];
-  // Prepend explicit product preservation instruction
   const productInstruction = personImages.length > 0
     ? 'IMPORTANTE: Preservar el producto EXACTO de la imagen de referencia — mismo estampado, mismo diseño, mismos colores de la prenda. No inventar otro producto. '
     : '';
@@ -89,7 +88,6 @@ async function generateImageFromText(
     return b64;
   } catch (err) {
     console.error('gpt-image-2 failed, falling back to gpt-image-1:', err);
-    // Fallback to gpt-image-1 if gpt-image-2 is not accessible
     const fallback = await openai.images.generate({
       model: 'gpt-image-1',
       prompt,

@@ -245,11 +245,10 @@ export default function Home() {
             {/* People mode */}
             <div className="space-y-3">
               <label className="text-sm font-medium text-white/70">Personas en la imagen</label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 {([
                   { value: 'none', label: 'Sin personas', desc: 'Producto, flat lay o composición', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
-                  { value: 'ai', label: 'Personas AI', desc: 'Figuras generadas por IA', icon: 'M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2' },
-                  { value: 'real', label: 'Subir fotos', desc: 'Usar imágenes de referencia', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+                  { value: 'real', label: 'Con persona de referencia', desc: 'Subís la foto de la persona ya usando el producto', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
                 ] as const).map(opt => (
                   <button
                     key={opt.value}
@@ -272,7 +271,7 @@ export default function Home() {
               {/* Reference image upload */}
               {peopleMode === 'real' && (
                 <div className="space-y-3">
-                  <p className="text-xs text-white/40">Subí hasta 3 fotos de referencia. Se usan para describir el estilo de la persona al generar.</p>
+                  <p className="text-xs text-white/40">Subí la foto de la persona ya usando el producto — esa imagen es la referencia visual.</p>
                   <div className="flex gap-3 flex-wrap">
                     {referenceImages.map((img, i) => (
                       <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
