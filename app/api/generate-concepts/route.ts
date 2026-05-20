@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { BrandKit } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
@@ -83,57 +83,33 @@ async function generateWithGptImage2(
   return fallback.data?.[0]?.b64_json || '';
 }
 
-// Two-pass approach for 'real' mode: take a product-only image and add the person on top.
-// This preserves product fidelity (generated alone first) while incorporating the person.
+// Pass 2 for 'real' mode: use images.edit() to add the person to the product-only image.
+// images.edit() is the correct API for targeted modifications — unlike input_fidelity:high
+// which conflicts with adding a new element (person) to the scene.
 async function addPersonToImage(
   openai: OpenAI,
   imageBase64: string,
   personDescription: string,
   fashionSuffix: string,
 ): Promise<string> {
-  const imageDataUrl = `data:image/png;base64,${imageBase64}`;
-  const prompt = `Esta imagen muestra un producto de indumentaria. Integrá una persona que lo esté usando, siguiendo estas instrucciones con precisión:
-
-PERSONA: ${personDescription}
-POSE Y ACTITUD: pose natural de editorial de moda — de pie, caminando o posando con confianza. Mirada segura, actitud aspiracional.
-
-REGLAS ABSOLUTAS sobre el producto:
-- La persona LLEVA PUESTO el producto que ya aparece en la imagen
-- El producto debe verse EXACTAMENTE igual: mismo color base, mismo estampado con todos sus elementos, misma silueta y mismos detalles de confección
-- NO simplificar, NO cambiar, NO interpretar el producto — reproducirlo tal cual
-- Si el estampado tiene colores y formas específicas, deben aparecer exactamente iguales en la prenda que lleva la persona
-
-COMPOSICIÓN: mantené la paleta de colores del fondo original, el estilo fotográfico y el mood general de la imagen.
-${fashionSuffix}`;
+  const prompt = `Add a person to this fashion image. The person is wearing the exact product already shown — preserve every detail of the product: same color, same print/pattern with all its elements, same silhouette and construction details. Person: ${personDescription}. Editorial fashion pose, confident attitude. ${fashionSuffix}`;
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (openai.responses.create as any)({
+    const buffer = Buffer.from(imageBase64, 'base64');
+    const imageFile = await toFile(buffer, 'image.png', { type: 'image/png' });
+    const response = await openai.images.edit({
       model: 'gpt-image-2',
-      input: [{
-        role: 'user',
-        content: [
-          { type: 'input_image', image_url: imageDataUrl, detail: 'high' },
-          { type: 'input_text', text: prompt },
-        ],
-      }],
-      tools: [{
-        type: 'image_generation',
-        model: 'gpt-image-2',
-        quality: 'medium',
-        size: '1024x1536',
-        input_fidelity: 'high',
-      }],
+      image: imageFile,
+      prompt,
+      size: '1024x1536',
+      quality: 'medium',
     });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const block of (response.output || [])) {
-      if (block.type === 'image_generation_call' && block.result) return block.result;
-    }
-    console.error('addPersonToImage: no image block returned');
+    const base64 = response.data?.[0]?.b64_json || '';
+    if (base64) return base64;
+    console.error('addPersonToImage: empty b64_json');
   } catch (err) {
     console.error('addPersonToImage failed:', err);
   }
-  // Fallback: return original product-only image
   return imageBase64;
 }
 
