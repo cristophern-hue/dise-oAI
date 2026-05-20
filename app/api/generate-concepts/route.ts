@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { BrandKit } from '@/app/types';
 
 interface ConceptItem {
@@ -8,7 +8,7 @@ interface ConceptItem {
 }
 
 export async function POST(req: NextRequest) {
-  const { brief, brandKit }: { brief: string; brandKit: BrandKit } = await req.json();
+  const { brief, brandKit, productImageBase64 }: { brief: string; brandKit: BrandKit; productImageBase64?: string } = await req.json();
 
   const brandKitContext = `
 Brand: ${brandKit.name}
@@ -20,6 +20,10 @@ Style: ${brandKit.styleDescription}
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
+  const productNote = productImageBase64
+    ? 'A reference product image is provided. Every concept MUST feature this exact product — preserve its specific print, colors, cut, and details faithfully. The product is the hero; only the composition, background, typography, and styling change between concepts.'
+    : '';
+
   // Step 1: GPT-4o generates 6 distinct concept prompts
   const conceptsResponse = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -29,6 +33,7 @@ Style: ${brandKit.styleDescription}
         content: `You are a senior creative director. Given a campaign brief and brand kit, generate exactly 6 distinct visual concepts for a 1024x1024 social media image.
 Each concept must have a different visual approach: e.g., minimalist, bold typographic, product hero, lifestyle, abstract, editorial.
 Incorporate the brand colors and style into every concept.
+${productNote}
 Respond ONLY with valid JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 image_prompt must be detailed, specific, and ready to send directly to an image generation model.`,
       },
@@ -43,21 +48,44 @@ image_prompt must be detailed, specific, and ready to send directly to an image 
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
+  // Prepare product image file once if provided
+  let productImageFile: Awaited<ReturnType<typeof toFile>> | null = null;
+  if (productImageBase64) {
+    const raw = productImageBase64.includes(',') ? productImageBase64.split(',')[1] : productImageBase64;
+    const buffer = Buffer.from(raw, 'base64');
+    productImageFile = await toFile(buffer, 'product.png', { type: 'image/png' });
+  }
+
   // Step 2: Generate all 6 images in parallel
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
     const fullPrompt = `${concept.image_prompt}. Brand colors: primary ${brandKit.primaryColor}, secondary ${brandKit.secondaryColor}. Style: ${brandKit.styleDescription}. Square format, professional quality, social media ad.`;
 
-    const imageResponse = await openai.images.generate({
-      model: 'gpt-image-1',
-      prompt: fullPrompt,
-      size: '1024x1024',
-      quality: 'medium',
-      n: 1,
-    });
+    let b64: string;
+
+    if (productImageFile) {
+      const imageResponse = await openai.images.edit({
+        model: 'gpt-image-1',
+        image: productImageFile,
+        prompt: fullPrompt,
+        size: '1024x1024',
+        quality: 'medium',
+        n: 1,
+      });
+      b64 = imageResponse.data?.[0]?.b64_json || '';
+    } else {
+      const imageResponse = await openai.images.generate({
+        model: 'gpt-image-1',
+        prompt: fullPrompt,
+        size: '1024x1024',
+        quality: 'medium',
+        n: 1,
+      });
+      b64 = imageResponse.data?.[0]?.b64_json || '';
+    }
 
     return {
       id: Math.random().toString(36).slice(2),
-      base64: imageResponse.data?.[0]?.b64_json || '',
+      base64: b64,
       prompt: fullPrompt,
       conceptName: concept.concept_name,
     };

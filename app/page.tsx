@@ -26,6 +26,16 @@ export default function Home() {
   const [adjustHistory, setAdjustHistory] = useState<string[]>([]);
   const adjustInputRef = useRef<HTMLInputElement>(null);
 
+  const [productImageBase64, setProductImageBase64] = useState<string | null>(null);
+
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setProductImageBase64(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
   useEffect(() => {
     const stored = localStorage.getItem('brandKits');
     if (stored) setClients(JSON.parse(stored));
@@ -39,7 +49,7 @@ export default function Home() {
       const res = await fetch('/api/generate-concepts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brief, brandKit: selectedClient }),
+        body: JSON.stringify({ brief, brandKit: selectedClient, productImageBase64: productImageBase64 ?? undefined }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -127,6 +137,7 @@ export default function Home() {
     setCurrentImage(null);
     setAdjustHistory([]);
     setError('');
+    setProductImageBase64(null);
   };
 
   return (
@@ -215,6 +226,35 @@ export default function Home() {
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 resize-none text-sm leading-relaxed"
               />
               <p className="text-xs text-white/30">GPT-4o va a refinar este brief y generar 6 conceptos visuales distintos.</p>
+            </div>
+
+            {/* Product image upload */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-white/70">
+                Foto del producto <span className="text-white/30 font-normal">(opcional — si la subís, el modelo la usa como referencia visual)</span>
+              </label>
+              <div className="flex items-center gap-4">
+                {productImageBase64 && (
+                  <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
+                    <img src={productImageBase64} alt="Producto" className="w-full h-full object-cover" />
+                  </div>
+                )}
+                <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2">
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                  </svg>
+                  {productImageBase64 ? 'Cambiar imagen' : 'Subir foto del producto'}
+                  <input type="file" accept="image/*" onChange={handleProductImageUpload} className="hidden" />
+                </label>
+                {productImageBase64 && (
+                  <button
+                    onClick={() => setProductImageBase64(null)}
+                    className="text-white/30 hover:text-red-400 text-xs transition-colors"
+                  >
+                    Quitar
+                  </button>
+                )}
+              </div>
             </div>
 
             <button
