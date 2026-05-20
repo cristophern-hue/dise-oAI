@@ -46,7 +46,7 @@ Respondé SOLO con JSON válido: { "variations": [ { "variation_name": "...", "i
     const imageResponse = await openai.images.generate({
       model: 'gpt-image-1',
       prompt,
-      size: '1024x1024',
+      size: '1024x1536',
       quality: 'high',
       n: 1,
     });

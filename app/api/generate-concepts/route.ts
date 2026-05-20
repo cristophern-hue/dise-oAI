@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
     messages: [
       {
         role: 'system',
-        content: `Sos un director creativo senior. Dado un brief de campaña y un brand kit completo, generá exactamente 6 conceptos visuales distintos para una imagen 1024x1024 de redes sociales.
+        content: `Sos un director creativo senior. Dado un brief de campaña y un brand kit completo, generá exactamente 6 conceptos visuales distintos para una imagen portrait 1024x1536 de redes sociales (formato Instagram feed 4:5).
 Cada concepto debe tener una dirección visual diferente: minimalista, tipográfico bold, producto hero, lifestyle, abstracto, editorial.
 Es CRÍTICO que:
 - Incorpores los colores exactos del brand kit
@@ -95,12 +95,12 @@ El image_prompt debe ser detallado, mencionar los colores hex exactos, y estar l
 
   // Step 2: Generate all 6 images in parallel
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const fullPrompt = `${concept.image_prompt}. Exact brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'clean modern'}. ${brandKit.styleDescription.slice(0, 150)}. ${fashionSuffix} Square 1024x1024, professional social media ad.`;
+    const fullPrompt = `${concept.image_prompt}. Exact brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'clean modern'}. ${brandKit.styleDescription.slice(0, 150)}. ${fashionSuffix} Portrait format 1024x1536, Instagram feed 4:5, professional social media ad.`;
 
     const imageResponse = await openai.images.generate({
       model: 'gpt-image-1',
       prompt: fullPrompt,
-      size: '1024x1024',
+      size: '1024x1536',
       quality: hasPeople ? 'high' : 'medium',
       n: 1,
     });

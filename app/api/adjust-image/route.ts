@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
     model: 'gpt-image-1',
     image: imageFile,
     prompt: instruction,
-    size: '1024x1024',
+    size: '1024x1536',
     quality: 'medium',
   });
 
