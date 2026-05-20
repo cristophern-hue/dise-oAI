@@ -147,8 +147,7 @@ export default function Home() {
   const enterRefine = async () => {
     if (selectedConcepts.length === 0) return;
     // If product was uploaded, apply it to each selected concept before entering refine
-    const validDescription = productDescription && productDescription.length > 30 && !productDescription.toLowerCase().includes("i'm sorry") && !productDescription.toLowerCase().includes("cannot assist");
-    if (productDetailImages.length > 0 && validDescription) {
+    if (productDetailImages.length > 0) {
       setLoading(true);
       setError('');
       try {

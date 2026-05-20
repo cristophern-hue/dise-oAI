@@ -14,10 +14,10 @@ export async function POST(req: NextRequest) {
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
-  const hasProduct = productDetailImages.length > 0 && productDescription;
+  const hasProductImage = productDetailImages.length > 0;
   const hasPerson = peopleMode === 'real' && personDescription;
 
-  if (!hasProduct) {
+  if (!hasProductImage) {
     return NextResponse.json({ base64: conceptImageBase64 });
   }
 
@@ -25,10 +25,12 @@ export async function POST(req: NextRequest) {
     ? `\nPERSONA: ${personDescription}. La persona lleva puesto exactamente este producto.`
     : '';
 
-  const prompt = `Tomá este concepto visual de moda y reemplazá la prenda/producto por el producto exacto que aparece en la imagen de referencia.
+  const productPart = productDescription
+    ? `\nPRODUCTO A APLICAR (reproducir exactamente, sin simplificar):\n${productDescription}`
+    : '';
 
-PRODUCTO A APLICAR (reproducir exactamente, sin simplificar):
-${productDescription}
+  const prompt = `Tomá este concepto visual de moda y reemplazá la prenda/producto por el producto exacto que aparece en la imagen de referencia.
+${productPart}
 ${personPart}
 
 REGLAS:
