@@ -21,8 +21,6 @@ interface SessionData {
   refineImage: GeneratedImage | null;
   refineHistory: string[];
   refineImageHistory: string[];
-  currentImage: GeneratedImage | null;
-  adjustHistory: string[];
 }
 
 export default function Home() {
@@ -49,10 +47,6 @@ export default function Home() {
   const [refineImageHistory, setRefineImageHistory] = useState<string[]>([]);
   const refineInputRef = useRef<HTMLInputElement>(null);
 
-  const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
-  const [adjustment, setAdjustment] = useState('');
-  const [adjustHistory, setAdjustHistory] = useState<string[]>([]);
-  const adjustInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const stored = localStorage.getItem('brandKits');
@@ -197,7 +191,6 @@ export default function Home() {
 
   const saveRefinedAndNext = () => {
     if (!refineImage) return;
-    // Save refined version back into selectedConcepts
     const updated = selectedConcepts.map((c, i) => i === refineIndex ? refineImage : c);
     setSelectedConcepts(updated);
     const nextIndex = refineIndex + 1;
@@ -206,8 +199,6 @@ export default function Home() {
       setRefineImage(updated[nextIndex]);
       setRefineHistory([]);
       setRefineImageHistory([]);
-    } else {
-      setStep('concepts');
     }
   };
 
@@ -255,52 +246,13 @@ export default function Home() {
     setRefineHistory(h => h.slice(0, -1));
   };
 
-  const confirmRefinement = () => {
+  const finishRefine = () => {
     if (!refineImage) return;
-    // Save final refined version into selectedConcepts before proceeding to adjust
     const updated = selectedConcepts.map((c, i) => i === refineIndex ? refineImage : c);
     setSelectedConcepts(updated);
-    setCurrentImage(refineImage);
-    setAdjustHistory([]);
-    setStep('adjust');
+    setStep('done');
   };
 
-  const applyAdjustment = async () => {
-    if (!currentImage || !adjustment.trim()) return;
-    setLoading(true);
-    setError('');
-    const instruction = adjustment.trim();
-    setAdjustment('');
-    try {
-      const res = await fetch('/api/adjust-image', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ imageBase64: currentImage.base64, instruction, productDetailImages }),
-      });
-      if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      const updated: GeneratedImage = {
-        ...currentImage,
-        id: Math.random().toString(36).slice(2),
-        base64: data.base64,
-      };
-      setCurrentImage(updated);
-      setAdjustHistory(prev => [...prev, instruction]);
-    } catch (e) {
-      setError(e instanceof Error ? e.message : 'Error aplicando ajuste');
-    } finally {
-      setLoading(false);
-      setTimeout(() => adjustInputRef.current?.focus(), 100);
-    }
-  };
-
-  const downloadImage = () => {
-    if (!currentImage) return;
-    const a = document.createElement('a');
-    a.href = `data:image/png;base64,${currentImage.base64}`;
-    a.download = `${selectedClient?.name || 'imagen'}-${Date.now()}.png`;
-    a.click();
-  };
 
   const reset = () => {
     setStep('brief');
@@ -314,13 +266,17 @@ export default function Home() {
     setRefineHistory([]);
     setRefineImageHistory([]);
     setRefineInput('');
-    setCurrentImage(null);
-    setAdjustHistory([]);
     setError('');
     setPeopleMode('none');
     setProductDetailImages([]);
     setReferenceImages([]);
     try { localStorage.removeItem(SESSION_KEY); } catch {}
+  };
+
+  const regenerateConcepts = async () => {
+    setSelectedConcepts([]);
+    setRefineIndex(0);
+    await generateConcepts();
   };
 
   // Auto-save session to localStorage whenever key state changes
@@ -332,10 +288,9 @@ export default function Home() {
       peopleMode, concepts, selectedConcepts,
       productDescription, personDescription,
       refineImage, refineHistory, refineImageHistory,
-      currentImage, adjustHistory,
     };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
-  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcepts, productDescription, personDescription, refineIndex, refineImage, refineHistory, refineImageHistory, currentImage, adjustHistory]);
+  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcepts, productDescription, personDescription, refineIndex, refineImage, refineHistory, refineImageHistory]);
 
   // Restore session from localStorage on mount
   useEffect(() => {
@@ -344,6 +299,8 @@ export default function Home() {
       if (!raw) return;
       const s: SessionData = JSON.parse(raw);
       if (s.step === 'brief') return;
+      // Handle legacy sessions that had 'adjust' step
+      if ((s.step as string) === 'adjust') s.step = 'refine';
       setBrief(s.brief || '');
       setPeopleMode(s.peopleMode || 'none');
       setConcepts(s.concepts || []);
@@ -353,8 +310,6 @@ export default function Home() {
       setRefineImage(s.refineImage || null);
       setRefineImageHistory(s.refineImageHistory || []);
       setRefineHistory(s.refineHistory || []);
-      setCurrentImage(s.currentImage || null);
-      setAdjustHistory(s.adjustHistory || []);
       if (s.selectedClientId) {
         const stored = localStorage.getItem('brandKits');
         if (stored) {
@@ -375,7 +330,6 @@ export default function Home() {
       peopleMode, concepts, selectedConcepts,
       productDescription, personDescription,
       refineImage, refineHistory, refineImageHistory,
-      currentImage, adjustHistory,
     };
     const blob = new Blob([JSON.stringify(session, null, 2)], { type: 'application/json' });
     const a = document.createElement('a');
@@ -401,8 +355,6 @@ export default function Home() {
         setRefineImage(s.refineImage || null);
         setRefineImageHistory(s.refineImageHistory || []);
         setRefineHistory(s.refineHistory || []);
-        setCurrentImage(s.currentImage || null);
-        setAdjustHistory(s.adjustHistory || []);
         if (s.selectedClientId) {
           const stored = localStorage.getItem('brandKits');
           if (stored) {
@@ -642,9 +594,21 @@ export default function Home() {
                 <h2 className="text-2xl font-bold mb-1">Elegí hasta 3 conceptos</h2>
                 <p className="text-white/50 text-sm">Seleccioná los que más te gustan para afinarlos y enviarle al cliente</p>
               </div>
-              <button onClick={reset} className="text-white/40 hover:text-white/70 text-sm transition-colors">
-                ← Volver
-              </button>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={regenerateConcepts}
+                  disabled={loading}
+                  className="text-sm text-white/50 hover:text-white/80 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg disabled:opacity-40 flex items-center gap-1.5"
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Regenerar
+                </button>
+                <button onClick={reset} className="text-white/40 hover:text-white/70 text-sm transition-colors">
+                  ← Volver
+                </button>
+              </div>
             </div>
 
             {loading && step === 'concepts' ? (
@@ -858,13 +822,13 @@ export default function Home() {
                     </button>
                   ) : (
                     <button
-                      onClick={confirmRefinement}
+                      onClick={finishRefine}
                       disabled={loading}
                       className="flex-1 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 text-white font-medium px-4 py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
                     >
-                      Continuar con ajuste fino
+                      Finalizar
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                       </svg>
                     </button>
                   )}
@@ -874,119 +838,60 @@ export default function Home() {
           </div>
         )}
 
-        {/* Step: ADJUST */}
-        {step === 'adjust' && currentImage && (
+        {/* Step: DONE */}
+        {step === 'done' && (
           <div className="space-y-6">
             <div className="flex items-start justify-between">
               <div>
-                <h2 className="text-2xl font-bold mb-1">Ajustá la imagen</h2>
-                <p className="text-white/50 text-sm">Describí los cambios que querés aplicar</p>
+                <h2 className="text-2xl font-bold mb-1">¡Listos para entregar!</h2>
+                <p className="text-white/50 text-sm">{selectedConcepts.length} concepto{selectedConcepts.length > 1 ? 's' : ''} finalizado{selectedConcepts.length > 1 ? 's' : ''}</p>
               </div>
               <button onClick={() => setStep('refine')} className="text-white/40 hover:text-white/70 text-sm transition-colors">
-                ← Volver
+                ← Volver a afinación
               </button>
             </div>
 
-            <div className="grid md:grid-cols-2 gap-8 items-start">
-              {/* Image preview */}
-              <div className="space-y-3">
-                <div className="rounded-xl overflow-hidden border border-white/10">
-                  <img
-                    src={`data:image/png;base64,${currentImage.base64}`}
-                    alt="Imagen actual"
-                    className="w-full"
-                  />
-                </div>
-                <button
-                  onClick={downloadImage}
-                  className="w-full bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 text-white font-medium px-4 py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-                >
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
-                  </svg>
-                  Descargar imagen
-                </button>
-              </div>
-
-              {/* Adjustment panel */}
-              <div className="space-y-4">
-                {/* History */}
-                {adjustHistory.length > 0 && (
-                  <div className="space-y-2">
-                    <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Ajustes aplicados</p>
-                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
-                      {adjustHistory.map((h, i) => (
-                        <div key={i} className="bg-white/5 rounded-lg px-3 py-2 text-sm text-white/60 flex items-start gap-2">
-                          <span className="text-indigo-400 mt-0.5">✓</span>
-                          {h}
-                        </div>
-                      ))}
-                    </div>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+              {selectedConcepts.map((img, i) => (
+                <div key={img.id} className="space-y-2">
+                  <div className="rounded-xl overflow-hidden border border-white/10">
+                    <img src={`data:image/png;base64,${img.base64}`} alt={img.conceptName} className="w-full" />
                   </div>
-                )}
-
-                {/* Adjustment input */}
-                <div className="space-y-2">
-                  <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Nuevo ajuste</p>
-                  <div className="space-y-2">
-                    <input
-                      ref={adjustInputRef}
-                      type="text"
-                      value={adjustment}
-                      onChange={e => setAdjustment(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && !loading && applyAdjustment()}
-                      placeholder="Ej: Subí el logo a la esquina superior, cambiá el fondo a negro..."
-                      disabled={loading}
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 text-sm disabled:opacity-50"
-                    />
-                    <button
-                      onClick={applyAdjustment}
-                      disabled={!adjustment.trim() || loading}
-                      className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-4 py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-                    >
-                      {loading ? (
-                        <>
-                          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                          Aplicando ajuste...
-                        </>
-                      ) : (
-                        'Aplicar ajuste'
-                      )}
-                    </button>
-                  </div>
-                  <p className="text-xs text-white/30">Podés hacer todos los ajustes que necesitás. Enter para enviar.</p>
+                  <p className="text-xs text-white/50 text-center truncate">{img.conceptName}</p>
+                  <button
+                    onClick={() => {
+                      const a = document.createElement('a');
+                      a.href = `data:image/png;base64,${img.base64}`;
+                      a.download = `${selectedClient?.name || 'concepto'}-${i + 1}-${img.conceptName.replace(/\s+/g, '-')}.png`;
+                      a.click();
+                    }}
+                    className="w-full bg-white/5 hover:bg-white/10 border border-white/10 text-white/60 hover:text-white text-xs px-3 py-2 rounded-lg transition-colors flex items-center justify-center gap-1.5"
+                  >
+                    <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Descargar
+                  </button>
                 </div>
+              ))}
+            </div>
 
-                {/* Quick suggestions */}
-                <div className="space-y-2">
-                  <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Sugerencias rápidas</p>
-                  <div className="flex flex-wrap gap-2">
-                    {[
-                      'Más contraste',
-                      'Fondo más oscuro',
-                      'Texto más grande',
-                      'Estilo más minimalista',
-                      'Agregar más espacio',
-                      'Colores más vibrantes',
-                    ].map(s => (
-                      <button
-                        key={s}
-                        onClick={() => setAdjustment(s)}
-                        className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-3 py-1.5 text-white/60 hover:text-white transition-colors"
-                      >
-                        {s}
-                      </button>
-                    ))}
-                  </div>
-                </div>
-
-                <button
-                  onClick={reset}
-                  className="text-white/30 hover:text-white/60 text-sm transition-colors mt-4"
-                >
-                  Empezar de nuevo
-                </button>
-              </div>
+            <div className="flex items-center gap-3 pt-2">
+              <button
+                onClick={downloadAllSelected}
+                className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-6 py-3 rounded-xl transition-colors flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                </svg>
+                Descargar todos ({selectedConcepts.length})
+              </button>
+              <button
+                onClick={reset}
+                className="text-white/40 hover:text-white/70 text-sm transition-colors border border-white/10 hover:border-white/20 px-4 py-3 rounded-xl"
+              >
+                Nueva campaña
+              </button>
             </div>
           </div>
         )}
