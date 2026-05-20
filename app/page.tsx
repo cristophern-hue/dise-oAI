@@ -26,13 +26,23 @@ export default function Home() {
   const [adjustHistory, setAdjustHistory] = useState<string[]>([]);
   const adjustInputRef = useRef<HTMLInputElement>(null);
 
+  const [generationMode, setGenerationMode] = useState<'no-people' | 'real-person'>('no-people');
   const [productImageBase64, setProductImageBase64] = useState<string | null>(null);
+  const [personImageBase64, setPersonImageBase64] = useState<string | null>(null);
 
   const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => setProductImageBase64(reader.result as string);
+    reader.readAsDataURL(file);
+  };
+
+  const handlePersonImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setPersonImageBase64(reader.result as string);
     reader.readAsDataURL(file);
   };
 
@@ -49,7 +59,13 @@ export default function Home() {
       const res = await fetch('/api/generate-concepts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ brief, brandKit: selectedClient, productImageBase64: productImageBase64 ?? undefined }),
+        body: JSON.stringify({
+          brief,
+          brandKit: selectedClient,
+          mode: generationMode,
+          referenceImageBase64: generationMode === 'real-person' ? (personImageBase64 ?? undefined) : (productImageBase64 ?? undefined),
+          productImageBase64: generationMode === 'real-person' ? (productImageBase64 ?? undefined) : undefined,
+        }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -138,6 +154,8 @@ export default function Home() {
     setAdjustHistory([]);
     setError('');
     setProductImageBase64(null);
+    setPersonImageBase64(null);
+    setGenerationMode('no-people');
   };
 
   return (
@@ -228,31 +246,81 @@ export default function Home() {
               <p className="text-xs text-white/30">GPT-4o va a refinar este brief y generar 6 conceptos visuales distintos.</p>
             </div>
 
-            {/* Product image upload */}
+            {/* Mode selector */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-white/70">Tipo de imagen</label>
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: 'no-people' as const, label: 'Sin personas', desc: 'Foto del producto como referencia — composiciones sin modelos' },
+                  { id: 'real-person' as const, label: 'Con persona de referencia', desc: 'Foto de la persona + foto del producto — la muestra usando el producto' },
+                ].map(opt => (
+                  <button
+                    key={opt.id}
+                    type="button"
+                    onClick={() => setGenerationMode(opt.id)}
+                    className={`p-4 rounded-xl border text-left transition-all ${
+                      generationMode === opt.id
+                        ? 'border-indigo-500 bg-indigo-500/10'
+                        : 'border-white/10 hover:border-white/20 bg-white/5'
+                    }`}
+                  >
+                    <p className="text-sm font-medium mb-1">{opt.label}</p>
+                    <p className="text-xs text-white/40 leading-snug">{opt.desc}</p>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Image uploads */}
             <div className="space-y-3">
               <label className="text-sm font-medium text-white/70">
-                Foto del producto <span className="text-white/30 font-normal">(opcional — si la subís, el modelo la usa como referencia visual)</span>
+                {generationMode === 'no-people' ? 'Foto del producto' : 'Imágenes de referencia'}
               </label>
-              <div className="flex items-center gap-4">
-                {productImageBase64 && (
-                  <div className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
-                    <img src={productImageBase64} alt="Producto" className="w-full h-full object-cover" />
+              <div className="flex flex-wrap gap-4">
+                {/* Product image — always shown */}
+                <div className="space-y-1.5">
+                  <p className="text-xs text-white/40">Producto</p>
+                  <div className="flex items-center gap-3">
+                    {productImageBase64 && (
+                      <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
+                        <img src={productImageBase64} alt="Producto" className="w-full h-full object-cover" />
+                      </div>
+                    )}
+                    <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                      </svg>
+                      {productImageBase64 ? 'Cambiar' : 'Subir producto'}
+                      <input type="file" accept="image/*" onChange={handleProductImageUpload} className="hidden" />
+                    </label>
+                    {productImageBase64 && (
+                      <button onClick={() => setProductImageBase64(null)} className="text-white/30 hover:text-red-400 text-xs transition-colors">Quitar</button>
+                    )}
                   </div>
-                )}
-                <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  {productImageBase64 ? 'Cambiar imagen' : 'Subir foto del producto'}
-                  <input type="file" accept="image/*" onChange={handleProductImageUpload} className="hidden" />
-                </label>
-                {productImageBase64 && (
-                  <button
-                    onClick={() => setProductImageBase64(null)}
-                    className="text-white/30 hover:text-red-400 text-xs transition-colors"
-                  >
-                    Quitar
-                  </button>
+                </div>
+
+                {/* Person image — only for real-person mode */}
+                {generationMode === 'real-person' && (
+                  <div className="space-y-1.5">
+                    <p className="text-xs text-white/40">Persona de referencia</p>
+                    <div className="flex items-center gap-3">
+                      {personImageBase64 && (
+                        <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
+                          <img src={personImageBase64} alt="Persona" className="w-full h-full object-cover" />
+                        </div>
+                      )}
+                      <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+                        </svg>
+                        {personImageBase64 ? 'Cambiar' : 'Subir persona'}
+                        <input type="file" accept="image/*" onChange={handlePersonImageUpload} className="hidden" />
+                      </label>
+                      {personImageBase64 && (
+                        <button onClick={() => setPersonImageBase64(null)} className="text-white/30 hover:text-red-400 text-xs transition-colors">Quitar</button>
+                      )}
+                    </div>
+                  </div>
                 )}
               </div>
             </div>
