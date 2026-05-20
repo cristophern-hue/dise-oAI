@@ -23,3 +23,4 @@ export interface GeneratedImage {
 }
 
 export type Step = 'brief' | 'concepts' | 'variations' | 'adjust' | 'done';
+export type PeopleMode = 'none' | 'ai' | 'real';

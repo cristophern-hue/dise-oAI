@@ -88,15 +88,20 @@ El image_prompt debe ser detallado, mencionar los colores hex exactos, y estar l
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
+  const hasPeople = peopleMode !== 'none';
+  const fashionSuffix = hasPeople
+    ? 'Fashion editorial photography style, professional model, natural skin tones, soft studio lighting, 85mm lens bokeh, high-end fashion campaign, photorealistic, natural expressions, elegant posture.'
+    : '';
+
   // Step 2: Generate all 6 images in parallel
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const fullPrompt = `${concept.image_prompt}. Exact brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'clean modern'}. ${brandKit.styleDescription.slice(0, 150)}. Square 1024x1024, professional social media ad.`;
+    const fullPrompt = `${concept.image_prompt}. Exact brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'clean modern'}. ${brandKit.styleDescription.slice(0, 150)}. ${fashionSuffix} Square 1024x1024, professional social media ad.`;
 
     const imageResponse = await openai.images.generate({
       model: 'gpt-image-1',
       prompt: fullPrompt,
       size: '1024x1024',
-      quality: 'medium',
+      quality: hasPeople ? 'high' : 'medium',
       n: 1,
     });
 

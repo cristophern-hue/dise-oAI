@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-import { BrandKit, GeneratedImage } from '@/app/types';
+import { BrandKit, GeneratedImage, PeopleMode } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
 interface VariationItem {
@@ -9,9 +9,16 @@ interface VariationItem {
 }
 
 export async function POST(req: NextRequest) {
-  const { selectedConcept, brandKit }: { selectedConcept: GeneratedImage; brandKit: BrandKit } = await req.json();
+  const { selectedConcept, brandKit, peopleMode = 'none' }: {
+    selectedConcept: GeneratedImage;
+    brandKit: BrandKit;
+    peopleMode: PeopleMode;
+  } = await req.json();
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const brandKitContext = buildBrandKitContext(brandKit);
+  const fashionSuffix = peopleMode !== 'none'
+    ? 'Fashion editorial photography style, professional model, natural skin tones, soft studio lighting, 85mm lens bokeh, high-end fashion campaign, photorealistic, natural expressions.'
+    : '';
 
   const variationsResponse = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -35,11 +42,12 @@ Respondé SOLO con JSON válido: { "variations": [ { "variation_name": "...", "i
   const variations: VariationItem[] = parsed.variations || [];
 
   const imagePromises = variations.map(async (variation: VariationItem) => {
+    const prompt = `${variation.image_prompt} ${fashionSuffix}`.trim();
     const imageResponse = await openai.images.generate({
       model: 'gpt-image-1',
-      prompt: variation.image_prompt,
+      prompt,
       size: '1024x1024',
-      quality: 'medium',
+      quality: 'high',
       n: 1,
     });
 

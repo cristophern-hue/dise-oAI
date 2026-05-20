@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { BrandKit, GeneratedImage, Step } from './types';
+import { BrandKit, GeneratedImage, Step, PeopleMode } from './types';
 import ImageCard from './components/ImageCard';
 import StepIndicator from './components/StepIndicator';
 import LoadingGrid from './components/LoadingGrid';
@@ -15,7 +15,6 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  type PeopleMode = 'none' | 'ai' | 'real';
   const [peopleMode, setPeopleMode] = useState<PeopleMode>('none');
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
 
@@ -81,7 +80,7 @@ export default function Home() {
       const res = await fetch('/api/generate-variations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedConcept, brandKit: selectedClient }),
+        body: JSON.stringify({ selectedConcept, brandKit: selectedClient, peopleMode }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
