@@ -21,9 +21,14 @@ async function generateImageWithReferences(
   openai: OpenAI,
   prompt: string,
   referenceImages: string[],
-  quality: 'low' | 'medium' | 'high'
+  quality: 'low' | 'medium' | 'high',
+  personImages: string[] = []
 ): Promise<string> {
-  // Use Responses API when we have visual references — it can actually SEE the images
+  // Combine brand references (max 2) + person reference (max 1) — model sees them all
+  const allRefs = [
+    ...referenceImages.slice(0, 2),
+    ...personImages.slice(0, 1),
+  ];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const response = await (openai.responses.create as any)({
     model: 'gpt-image-1',
@@ -31,7 +36,7 @@ async function generateImageWithReferences(
       {
         role: 'user',
         content: [
-          ...referenceImages.slice(0, 2).map(img => ({
+          ...allRefs.map(img => ({
             type: 'input_image',
             image_url: img,
           })),
@@ -83,7 +88,9 @@ export async function POST(req: NextRequest) {
 
   // Visual references: piezas anteriores del brand kit (máx 2 para no saturar)
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
-  const hasVisualRefs = visualRefs.length > 0;
+  // Person reference images passed directly to the model (only in 'real' mode)
+  const personRefs: string[] = peopleMode === 'real' ? referenceImages.slice(0, 1) : [];
+  const hasVisualRefs = visualRefs.length > 0 || personRefs.length > 0;
 
   // Describe real person photos if provided
   let referenceDescription = '';
@@ -145,7 +152,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
     const fullPrompt = `${concept.image_prompt}. Use brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
 
     const base64 = hasVisualRefs
-      ? await generateImageWithReferences(openai, fullPrompt, visualRefs, quality)
+      ? await generateImageWithReferences(openai, fullPrompt, visualRefs, quality, personRefs)
       : await generateImageFromText(openai, fullPrompt, quality);
 
     return {
