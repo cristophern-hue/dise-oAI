@@ -3,6 +3,8 @@ import OpenAI from 'openai';
 import { BrandKit, GeneratedImage, PeopleMode } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
+export const maxDuration = 300;
+
 interface VariationItem {
   variation_name: string;
   image_prompt: string;

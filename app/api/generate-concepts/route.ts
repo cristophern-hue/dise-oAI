@@ -3,6 +3,8 @@ import OpenAI from 'openai';
 import { BrandKit } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
+export const maxDuration = 300;
+
 interface ConceptItem {
   concept_name: string;
   image_prompt: string;
@@ -47,7 +49,7 @@ async function generateImageWithReferences(
         ],
       },
     ],
-    tools: [{ type: 'image_generation', quality, size: '1024x1536' }],
+    tools: [{ type: 'image_generation', model: 'gpt-image-2', quality, size: '1024x1536' }],
   });
 
   // Extract base64 from response output
