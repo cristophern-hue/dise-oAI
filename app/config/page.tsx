@@ -4,6 +4,21 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { BrandKit } from '@/app/types';
 
+async function extractTextFromPdf(file: File): Promise<string> {
+  const pdfjsLib = await import('pdfjs-dist');
+  pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@${pdfjsLib.version}/build/pdf.worker.min.mjs`;
+  const buffer = await file.arrayBuffer();
+  const pdf = await pdfjsLib.getDocument({ data: buffer }).promise;
+  const pages = await Promise.all(
+    Array.from({ length: pdf.numPages }, async (_, i) => {
+      const page = await pdf.getPage(i + 1);
+      const content = await page.getTextContent();
+      return content.items.map((item) => ('str' in item ? item.str : '')).join(' ');
+    })
+  );
+  return pages.join('\n').slice(0, 12000);
+}
+
 const EMPTY_FORM: Omit<BrandKit, 'id'> = {
   name: '',
   primaryColor: '#000000',
@@ -50,9 +65,13 @@ export default function ConfigPage() {
     if (!file) return;
     setExtracting(true);
     try {
-      const fd = new FormData();
-      fd.append('pdf', file);
-      const res = await fetch('/api/extract-brand', { method: 'POST', body: fd });
+      const text = await extractTextFromPdf(file);
+      if (!text.trim()) throw new Error('El PDF no tiene texto extraíble');
+      const res = await fetch('/api/extract-brand', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
       if (!res.ok) {
         const errText = await res.text();
         throw new Error(errText || 'Error procesando el PDF');
