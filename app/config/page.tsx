@@ -29,6 +29,8 @@ const EMPTY_FORM: Omit<BrandKit, 'id'> = {
   secondary3: '#eeeeee',
   typography: '',
   styleDescription: '',
+  referencePiecesStyle: undefined,
+  referencePiecesThumbnails: [],
   logoBase64: undefined,
 };
 
@@ -41,6 +43,7 @@ export default function ConfigPage() {
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
   const [extracting, setExtracting] = useState(false);
+  const [analyzingRefs, setAnalyzingRefs] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -101,6 +104,59 @@ export default function ConfigPage() {
     } finally {
       setExtracting(false);
       e.target.value = '';
+    }
+  };
+
+  const handleReferencePiecesUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+    setAnalyzingRefs(true);
+    try {
+      const newImages: string[] = await Promise.all(
+        files.slice(0, 5).map(file => new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result as string);
+          reader.readAsDataURL(file);
+        }))
+      );
+      const allImages = [...(form.referencePiecesThumbnails || []), ...newImages].slice(0, 5);
+      const res = await fetch('/api/analyze-references', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: allImages }),
+      });
+      if (!res.ok) throw new Error('Error analizando piezas');
+      const data = await res.json();
+      setForm(f => ({
+        ...f,
+        referencePiecesThumbnails: allImages,
+        referencePiecesStyle: data.styleDescription,
+      }));
+    } catch {
+      alert('No se pudieron analizar las piezas. Intentá de nuevo.');
+    } finally {
+      setAnalyzingRefs(false);
+      e.target.value = '';
+    }
+  };
+
+  const removeReferencePiece = async (idx: number) => {
+    const remaining = (form.referencePiecesThumbnails || []).filter((_, i) => i !== idx);
+    if (remaining.length === 0) {
+      setForm(f => ({ ...f, referencePiecesThumbnails: [], referencePiecesStyle: undefined }));
+      return;
+    }
+    setAnalyzingRefs(true);
+    try {
+      const res = await fetch('/api/analyze-references', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ images: remaining }),
+      });
+      const data = await res.json();
+      setForm(f => ({ ...f, referencePiecesThumbnails: remaining, referencePiecesStyle: data.styleDescription }));
+    } finally {
+      setAnalyzingRefs(false);
     }
   };
 
@@ -304,6 +360,47 @@ export default function ConfigPage() {
                 rows={5}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 resize-none text-sm leading-relaxed"
               />
+            </div>
+
+            {/* Reference pieces */}
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-white/60">Piezas anteriores aprobadas</label>
+                <p className="text-xs text-white/30 mt-0.5">GPT-4o analiza el estilo visual y lo usa como referencia en cada generación. Máx 5 piezas.</p>
+              </div>
+              <div className="flex gap-3 flex-wrap">
+                {(form.referencePiecesThumbnails || []).map((img, i) => (
+                  <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
+                    <img src={img} alt={`ref ${i+1}`} className="w-full h-full object-cover" />
+                    <button
+                      onClick={() => removeReferencePiece(i)}
+                      disabled={analyzingRefs}
+                      className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white text-xs"
+                    >×</button>
+                  </div>
+                ))}
+                {(form.referencePiecesThumbnails || []).length < 5 && (
+                  <label className={`w-20 h-20 rounded-xl border border-dashed flex flex-col items-center justify-center gap-1 transition-colors ${analyzingRefs ? 'opacity-50 cursor-not-allowed border-white/10' : 'border-white/20 hover:border-white/40 cursor-pointer'}`}>
+                    {analyzingRefs ? (
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    ) : (
+                      <>
+                        <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="text-xs text-white/30">Pieza</span>
+                      </>
+                    )}
+                    <input type="file" accept="image/*" multiple onChange={handleReferencePiecesUpload} disabled={analyzingRefs} className="hidden" />
+                  </label>
+                )}
+              </div>
+              {form.referencePiecesStyle && (
+                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-3">
+                  <p className="text-xs text-indigo-400 font-medium mb-1">Estilo extraído</p>
+                  <p className="text-xs text-white/50 leading-relaxed line-clamp-3">{form.referencePiecesStyle}</p>
+                </div>
+              )}
             </div>
 
             {/* Logo */}

@@ -12,6 +12,9 @@ export interface BrandKit {
   // Typography & style
   typography: string;
   styleDescription: string;
+  // Previous pieces analysis
+  referencePiecesStyle?: string;
+  referencePiecesThumbnails?: string[];
   logoBase64?: string;
 }
 

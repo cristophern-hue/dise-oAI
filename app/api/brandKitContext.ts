@@ -1,6 +1,10 @@
 import { BrandKit } from '@/app/types';
 
 export function buildBrandKitContext(brandKit: BrandKit): string {
+  const referencesSection = brandKit.referencePiecesStyle
+    ? `\nESTILO DE PIEZAS ANTERIORES APROBADAS (seguir este estilo):\n${brandKit.referencePiecesStyle}`
+    : '';
+
   return `
 MARCA: ${brandKit.name}
 
@@ -18,5 +22,6 @@ TIPOGRAFÍA: ${brandKit.typography || 'No especificada'}
 
 ESTILO Y REGLAS DE MARCA:
 ${brandKit.styleDescription}
+${referencesSection}
 `.trim();
 }
