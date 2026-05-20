@@ -61,22 +61,33 @@ export default function Home() {
     new Promise(resolve => {
       const reader = new FileReader();
       reader.onload = () => {
+        const dataUrl = reader.result as string;
         const img = new Image();
         img.onload = () => {
-          const MAX = 2048;
+          const MAX = 1536;
           let { naturalWidth: w, naturalHeight: h } = img;
+          // naturalWidth === 0 means the browser couldn't decode the image
+          if (!w || !h) { resolve(dataUrl); return; }
           if (w > MAX || h > MAX) {
             if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
             else { w = Math.round(w * MAX / h); h = MAX; }
           }
-          const canvas = document.createElement('canvas');
-          canvas.width = w;
-          canvas.height = h;
-          canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
-          resolve(canvas.toDataURL('image/jpeg', 0.92));
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+            const result = canvas.toDataURL('image/jpeg', 0.92);
+            // canvas.toDataURL returns a very short string if it failed (tainted/empty)
+            resolve(result.length > 100 ? result : dataUrl);
+          } catch {
+            resolve(dataUrl);
+          }
         };
-        img.src = reader.result as string;
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
       };
+      reader.onerror = () => resolve('');
       reader.readAsDataURL(file);
     });
 
