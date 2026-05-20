@@ -33,15 +33,25 @@ export async function POST(req: NextRequest) {
     ? `\nHay ${productDetailImages.length} imágenes de referencia de productos — aplicá TODOS los productos visibles en cada imagen (ej: remera + pantalón, campera + falda).`
     : '';
 
-  const prompt = `Tomá este concepto visual de moda y reemplazá las prendas/productos por los productos exactos que aparecen en las imágenes de referencia.
+  const prompt = `Tomá este concepto visual de moda y ÚNICAMENTE reemplazá las prendas/productos de la persona por los productos exactos que aparecen en las imágenes de referencia. TODO lo demás debe quedar IDÉNTICO.
 ${productPart}
 ${personPart}
 ${multiProductNote}
 
-REGLAS:
-- Cada producto debe verse EXACTAMENTE igual al de su imagen de referencia: mismos colores, mismo estampado con todos sus elementos, misma silueta y detalles de confección
-- Si hay múltiples prendas de referencia, aplicá TODAS (no solo una)
-- Conservá la composición, el fondo, la iluminación y el mood del concepto original
+QUÉ CAMBIAR:
+- Las prendas/ropa de la persona → reemplazarlas por los productos de referencia exactos
+
+QUÉ NO TOCAR (debe quedar pixel-perfect igual):
+- TODOS los textos, tipografías, títulos, subtítulos, slogans y copy que aparecen en la imagen
+- El fondo, colores del fondo, degradados y texturas
+- La composición y layout general
+- La iluminación y mood
+- Logos, íconos o elementos gráficos de marca
+- La pose y posición de la persona
+
+REGLAS de producto:
+- Cada prenda debe verse EXACTAMENTE igual a su imagen de referencia: mismo color, mismo estampado, misma silueta
+- Si hay múltiples prendas de referencia, aplicá TODAS
 - Estilo fashion editorial premium, fotorrealista`;
 
   const conceptDataUrl = `data:image/png;base64,${conceptImageBase64}`;
