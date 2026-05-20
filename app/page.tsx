@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { BrandKit, GeneratedImage, Step } from './types';
+import { BrandKit, GeneratedImage, Step, PeopleMode } from './types';
 import ImageCard from './components/ImageCard';
 import StepIndicator from './components/StepIndicator';
 import LoadingGrid from './components/LoadingGrid';
@@ -15,6 +15,9 @@ export default function Home() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
+  const [peopleMode, setPeopleMode] = useState<PeopleMode>('none');
+  const [referenceImages, setReferenceImages] = useState<string[]>([]);
+
   const [concepts, setConcepts] = useState<GeneratedImage[]>([]);
   const [selectedConcept, setSelectedConcept] = useState<GeneratedImage | null>(null);
 
@@ -26,22 +29,22 @@ export default function Home() {
   const [adjustHistory, setAdjustHistory] = useState<string[]>([]);
   const adjustInputRef = useRef<HTMLInputElement>(null);
 
-  const [generationMode, setGenerationMode] = useState<'no-people' | 'real-person'>('no-people');
-  // no-people: product photo; real-person: photo of person already using the product
-  const [referenceImageBase64, setReferenceImageBase64] = useState<string | null>(null);
-
-  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setReferenceImageBase64(reader.result as string);
-    reader.readAsDataURL(file);
-  };
-
   useEffect(() => {
     const stored = localStorage.getItem('brandKits');
     if (stored) setClients(JSON.parse(stored));
   }, []);
+
+  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(file => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        setReferenceImages(prev => prev.length < 3 ? [...prev, reader.result as string] : prev);
+      };
+      reader.readAsDataURL(file);
+    });
+    e.target.value = '';
+  };
 
   const generateConcepts = async () => {
     if (!selectedClient || !brief.trim()) return;
@@ -54,8 +57,8 @@ export default function Home() {
         body: JSON.stringify({
           brief,
           brandKit: selectedClient,
-          mode: generationMode,
-          referenceImageBase64: referenceImageBase64 ?? undefined,
+          peopleMode,
+          referenceImages: peopleMode === 'real' ? referenceImages : [],
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -77,7 +80,7 @@ export default function Home() {
       const res = await fetch('/api/generate-variations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedConcept, brandKit: selectedClient }),
+        body: JSON.stringify({ selectedConcept, brandKit: selectedClient, peopleMode }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -144,8 +147,8 @@ export default function Home() {
     setCurrentImage(null);
     setAdjustHistory([]);
     setError('');
-    setReferenceImageBase64(null);
-    setGenerationMode('no-people');
+    setPeopleMode('none');
+    setReferenceImages([]);
   };
 
   return (
@@ -211,12 +214,15 @@ export default function Home() {
                           : 'border-white/10 hover:border-white/20 bg-white/5'
                       }`}
                     >
-                      <div className="flex gap-1.5 mb-2">
-                        {[client.primaryColor, client.secondaryColor, client.accentColor].map((c, i) => (
-                          <div key={i} className="w-4 h-4 rounded-full border border-black/20" style={{ backgroundColor: c }} />
+                      <div className="flex gap-1 mb-2 flex-wrap">
+                        {[client.primary1, client.primary2, client.primary3, client.secondary1, client.secondary2, client.secondary3].map((c, i) => (
+                          <div key={i} className="w-3.5 h-3.5 rounded-full border border-black/20" style={{ backgroundColor: c }} />
                         ))}
                       </div>
                       <p className="text-sm font-medium truncate">{client.name}</p>
+                      {client.referencePiecesStyle && (
+                        <p className="text-xs text-indigo-400 mt-1">✓ {client.referencePiecesThumbnails?.length || 0} piezas ref.</p>
+                      )}
                     </button>
                   ))}
                 </div>
@@ -236,53 +242,60 @@ export default function Home() {
               <p className="text-xs text-white/30">GPT-4o va a refinar este brief y generar 6 conceptos visuales distintos.</p>
             </div>
 
-            {/* Mode selector */}
+            {/* People mode */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-white/70">Tipo de imagen</label>
+              <label className="text-sm font-medium text-white/70">Personas en la imagen</label>
               <div className="grid grid-cols-2 gap-3">
-                {[
-                  { id: 'no-people' as const, label: 'Sin personas', desc: 'Subís la foto del producto — genera composiciones sin modelos (flat lay, packshot)' },
-                  { id: 'real-person' as const, label: 'Con persona de referencia', desc: 'Subís una foto de la persona ya usando el producto — esa imagen es la referencia visual' },
-                ].map(opt => (
+                {([
+                  { value: 'none', label: 'Sin personas', desc: 'Producto, flat lay o composición', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
+                  { value: 'real', label: 'Con persona de referencia', desc: 'Subís la foto de la persona ya usando el producto', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+                ] as const).map(opt => (
                   <button
-                    key={opt.id}
-                    type="button"
-                    onClick={() => setGenerationMode(opt.id)}
+                    key={opt.value}
+                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); }}
                     className={`p-4 rounded-xl border text-left transition-all ${
-                      generationMode === opt.id
+                      peopleMode === opt.value
                         ? 'border-indigo-500 bg-indigo-500/10'
                         : 'border-white/10 hover:border-white/20 bg-white/5'
                     }`}
                   >
-                    <p className="text-sm font-medium mb-1">{opt.label}</p>
-                    <p className="text-xs text-white/40 leading-snug">{opt.desc}</p>
+                    <svg className={`w-5 h-5 mb-2 ${peopleMode === opt.value ? 'text-indigo-400' : 'text-white/40'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={opt.icon} />
+                    </svg>
+                    <p className="text-sm font-medium">{opt.label}</p>
+                    <p className="text-xs text-white/40 mt-0.5">{opt.desc}</p>
                   </button>
                 ))}
               </div>
-            </div>
 
-            {/* Reference image upload */}
-            <div className="space-y-3">
-              <label className="text-sm font-medium text-white/70">
-                {generationMode === 'no-people' ? 'Foto del producto' : 'Foto de la persona usando el producto'}
-              </label>
-              <div className="flex items-center gap-4">
-                {referenceImageBase64 && (
-                  <div className="w-16 h-16 rounded-xl overflow-hidden border border-white/10 flex-shrink-0">
-                    <img src={referenceImageBase64} alt="Referencia" className="w-full h-full object-cover" />
+              {/* Reference image upload */}
+              {peopleMode === 'real' && (
+                <div className="space-y-3">
+                  <p className="text-xs text-white/40">Subí la foto de la persona ya usando el producto — esa imagen es la referencia visual.</p>
+                  <div className="flex gap-3 flex-wrap">
+                    {referenceImages.map((img, i) => (
+                      <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
+                        <img src={img} alt={`ref ${i+1}`} className="w-full h-full object-cover" />
+                        <button
+                          onClick={() => setReferenceImages(prev => prev.filter((_, idx) => idx !== i))}
+                          className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white text-xs"
+                        >
+                          ×
+                        </button>
+                      </div>
+                    ))}
+                    {referenceImages.length < 3 && (
+                      <label className="w-20 h-20 rounded-xl border border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center cursor-pointer transition-colors gap-1">
+                        <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                        </svg>
+                        <span className="text-xs text-white/30">Foto</span>
+                        <input type="file" accept="image/*" multiple onChange={handleReferenceImageUpload} className="hidden" />
+                      </label>
+                    )}
                   </div>
-                )}
-                <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  {referenceImageBase64 ? 'Cambiar imagen' : 'Subir imagen'}
-                  <input type="file" accept="image/*" onChange={handleReferenceImageUpload} className="hidden" />
-                </label>
-                {referenceImageBase64 && (
-                  <button onClick={() => setReferenceImageBase64(null)} className="text-white/30 hover:text-red-400 text-xs transition-colors">Quitar</button>
-                )}
-              </div>
+                </div>
+              )}
             </div>
 
             <button

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { toFile } from 'openai';
 
+export const maxDuration = 300;
+
 export async function POST(req: NextRequest) {
   const { imageBase64, instruction }: { imageBase64: string; instruction: string } = await req.json();
 
@@ -12,10 +14,10 @@ export async function POST(req: NextRequest) {
   const imageFile = await toFile(buffer, 'image.png', { type: 'image/png' });
 
   const response = await openai.images.edit({
-    model: 'gpt-image-1',
+    model: 'gpt-image-2',
     image: imageFile,
     prompt: instruction,
-    size: '1024x1024',
+    size: '1024x1536',
     quality: 'medium',
   });
 

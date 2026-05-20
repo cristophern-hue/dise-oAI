@@ -3,52 +3,39 @@ import OpenAI from 'openai';
 
 export async function POST(req: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const { text }: { text: string } = await req.json();
 
-  const formData = await req.formData();
-  const file = formData.get('pdf') as File;
-  if (!file) return NextResponse.json({ error: 'No PDF provided' }, { status: 400 });
+  if (!text?.trim()) return NextResponse.json({ error: 'No text provided' }, { status: 400 });
 
-  const buffer = Buffer.from(await file.arrayBuffer());
-  const base64 = buffer.toString('base64');
-
-  const response = await openai.responses.create({
+  const response = await openai.chat.completions.create({
     model: 'gpt-4o',
-    input: [
+    messages: [
+      {
+        role: 'system',
+        content: `Sos un analista de marca experto. Extraé TODA la información de identidad visual de un manual de marca.
+Es CRÍTICO que captures los hex codes EXACTOS que aparecen en el texto. Si el texto menciona #3b3836, usá ese valor exacto.
+Respondé SOLO con JSON válido con esta estructura:
+{
+  "name": "nombre de la marca",
+  "primary1": "#hexcode exacto del primer color primario",
+  "primary2": "#hexcode exacto del segundo color primario",
+  "primary3": "#hexcode exacto del tercer color primario",
+  "secondary1": "#hexcode exacto del primer color secundario",
+  "secondary2": "#hexcode exacto del segundo color secundario",
+  "secondary3": "#hexcode exacto del tercer color secundario",
+  "typography": "tipografías exactas mencionadas, incluyendo todas las variantes (Regular, Wide, Extended, pesos, etc.)",
+  "styleDescription": "descripción completa: estilo visual, tono, audiencia target, reglas de uso del logo, guías de imágenes/fotografía, reglas de diseño, prohibiciones, aplicaciones en RRSS y cualquier otra guía relevante"
+}
+Si hay menos de 3 colores en alguna paleta, repetí el más relevante o usá una variante cercana.`,
+      },
       {
         role: 'user',
-        content: [
-          {
-            type: 'input_file',
-            filename: file.name || 'brand-manual.pdf',
-            file_data: `data:application/pdf;base64,${base64}`,
-          },
-          {
-            type: 'input_text',
-            text: `Analizá este manual de marca y extraé la identidad visual. Respondé SOLO con JSON válido con esta estructura exacta:
-{
-  "name": "nombre de la marca o string vacío",
-  "primaryColor": "#hexcode del color principal (si no hay hex, estimá uno que represente el color descrito)",
-  "secondaryColor": "#hexcode del color secundario",
-  "accentColor": "#hexcode del color de acento",
-  "styleDescription": "descripción completa del estilo visual, tono, audiencia, tipografía, reglas de diseño, qué se debe y no se debe hacer, estilo fotográfico y cualquier otra guía relevante de la marca"
-}`,
-          },
-        ],
+        content: `Manual de marca:\n\n${text}`,
       },
     ],
+    response_format: { type: 'json_object' },
   });
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const content = (response.output as any[])
-    .filter((b) => b.type === 'message')
-    .flatMap((b) => b.content ?? [])
-    .filter((c: { type: string }) => c.type === 'output_text')
-    .map((c: { text?: string }) => c.text ?? '')
-    .join('');
-
-  const jsonMatch = content.match(/\{[\s\S]*\}/);
-  if (!jsonMatch) return NextResponse.json({ error: 'Could not parse response' }, { status: 500 });
-
-  const extracted = JSON.parse(jsonMatch[0]);
+  const extracted = JSON.parse(response.choices[0].message.content || '{}');
   return NextResponse.json(extracted);
 }
