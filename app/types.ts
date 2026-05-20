@@ -25,5 +25,5 @@ export interface GeneratedImage {
   conceptName: string;
 }
 
-export type Step = 'brief' | 'concepts' | 'variations' | 'adjust' | 'done';
+export type Step = 'brief' | 'concepts' | 'refine' | 'variations' | 'adjust' | 'done';
 export type PeopleMode = 'none' | 'ai' | 'real';

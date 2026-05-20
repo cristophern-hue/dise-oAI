@@ -7,6 +7,23 @@ import ImageCard from './components/ImageCard';
 import StepIndicator from './components/StepIndicator';
 import LoadingGrid from './components/LoadingGrid';
 
+const SESSION_KEY = 'disenoai_session';
+
+interface SessionData {
+  step: Step;
+  brief: string;
+  selectedClientId: string | null;
+  peopleMode: PeopleMode;
+  concepts: GeneratedImage[];
+  selectedConcept: GeneratedImage | null;
+  refineImage: GeneratedImage | null;
+  refineHistory: string[];
+  variations: GeneratedImage[];
+  selectedVariation: GeneratedImage | null;
+  currentImage: GeneratedImage | null;
+  adjustHistory: string[];
+}
+
 export default function Home() {
   const [clients, setClients] = useState<BrandKit[]>([]);
   const [selectedClient, setSelectedClient] = useState<BrandKit | null>(null);
@@ -16,6 +33,7 @@ export default function Home() {
   const [error, setError] = useState('');
 
   const [peopleMode, setPeopleMode] = useState<PeopleMode>('none');
+  const [productDetailImages, setProductDetailImages] = useState<string[]>([]);
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
 
   const [concepts, setConcepts] = useState<GeneratedImage[]>([]);
@@ -23,6 +41,11 @@ export default function Home() {
 
   const [variations, setVariations] = useState<GeneratedImage[]>([]);
   const [selectedVariation, setSelectedVariation] = useState<GeneratedImage | null>(null);
+
+  const [refineImage, setRefineImage] = useState<GeneratedImage | null>(null);
+  const [refineInput, setRefineInput] = useState('');
+  const [refineHistory, setRefineHistory] = useState<string[]>([]);
+  const refineInputRef = useRef<HTMLInputElement>(null);
 
   const [currentImage, setCurrentImage] = useState<GeneratedImage | null>(null);
   const [adjustment, setAdjustment] = useState('');
@@ -34,25 +57,52 @@ export default function Home() {
     if (stored) setClients(JSON.parse(stored));
   }, []);
 
-  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach(file => {
+  const readAsPng = (file: File): Promise<string> =>
+    new Promise(resolve => {
       const reader = new FileReader();
       reader.onload = () => {
         const dataUrl = reader.result as string;
-        // Convert to PNG so the API always receives a compatible format
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          canvas.width = img.naturalWidth;
-          canvas.height = img.naturalHeight;
-          canvas.getContext('2d')!.drawImage(img, 0, 0);
-          const pngDataUrl = canvas.toDataURL('image/png');
-          setReferenceImages(prev => prev.length < 3 ? [...prev, pngDataUrl] : prev);
+          const MAX = 1536;
+          let { naturalWidth: w, naturalHeight: h } = img;
+          if (!w || !h) { resolve(dataUrl); return; }
+          if (w > MAX || h > MAX) {
+            if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+            else { w = Math.round(w * MAX / h); h = MAX; }
+          }
+          try {
+            const canvas = document.createElement('canvas');
+            canvas.width = w;
+            canvas.height = h;
+            canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
+            const result = canvas.toDataURL('image/jpeg', 0.92);
+            resolve(result.length > 100 ? result : dataUrl);
+          } catch {
+            resolve(dataUrl);
+          }
         };
+        img.onerror = () => resolve(dataUrl);
         img.src = dataUrl;
       };
+      reader.onerror = () => resolve('');
       reader.readAsDataURL(file);
+    });
+
+  const handleProductDetailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(async file => {
+      const png = await readAsPng(file);
+      setProductDetailImages(prev => prev.length < 2 ? [...prev, png] : prev);
+    });
+    e.target.value = '';
+  };
+
+  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(async file => {
+      const png = await readAsPng(file);
+      setReferenceImages(prev => prev.length < 2 ? [...prev, png] : prev);
     });
     e.target.value = '';
   };
@@ -69,6 +119,7 @@ export default function Home() {
           brief,
           brandKit: selectedClient,
           peopleMode,
+          productDetailImages,
           referenceImages,
         }),
       });
@@ -83,15 +134,47 @@ export default function Home() {
     }
   };
 
+  const enterRefine = () => {
+    if (!selectedConcept) return;
+    setRefineImage(selectedConcept);
+    setRefineHistory([]);
+    setStep('refine');
+  };
+
+  const applyRefinement = async () => {
+    if (!refineImage || !refineInput.trim()) return;
+    setLoading(true);
+    setError('');
+    const instruction = refineInput.trim();
+    setRefineInput('');
+    try {
+      const res = await fetch('/api/adjust-image', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageBase64: refineImage.base64, instruction }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      setRefineImage(prev => prev ? { ...prev, id: Math.random().toString(36).slice(2), base64: data.base64 } : prev);
+      setRefineHistory(prev => [...prev, instruction]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error aplicando refinamiento');
+    } finally {
+      setLoading(false);
+      setTimeout(() => refineInputRef.current?.focus(), 100);
+    }
+  };
+
   const generateVariations = async () => {
-    if (!selectedConcept || !selectedClient) return;
+    if ((!selectedConcept && !refineImage) || !selectedClient) return;
+    const conceptToUse = refineImage || selectedConcept!;
     setLoading(true);
     setError('');
     try {
       const res = await fetch('/api/generate-variations', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ selectedConcept, brandKit: selectedClient, peopleMode }),
+        body: JSON.stringify({ selectedConcept: conceptToUse, brandKit: selectedClient, peopleMode }),
       });
       if (!res.ok) throw new Error(await res.text());
       const data = await res.json();
@@ -153,13 +236,112 @@ export default function Home() {
     setBrief('');
     setConcepts([]);
     setSelectedConcept(null);
+    setRefineImage(null);
+    setRefineHistory([]);
+    setRefineInput('');
     setVariations([]);
     setSelectedVariation(null);
     setCurrentImage(null);
     setAdjustHistory([]);
     setError('');
     setPeopleMode('none');
+    setProductDetailImages([]);
     setReferenceImages([]);
+    try { localStorage.removeItem(SESSION_KEY); } catch {}
+  };
+
+  // Auto-save session to localStorage whenever key state changes
+  useEffect(() => {
+    if (step === 'brief' && !brief && !selectedClient) return;
+    const session: SessionData = {
+      step, brief,
+      selectedClientId: selectedClient?.id || null,
+      peopleMode, concepts, selectedConcept,
+      refineImage, refineHistory,
+      variations, selectedVariation,
+      currentImage, adjustHistory,
+    };
+    try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
+  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcept, refineImage, refineHistory, variations, selectedVariation, currentImage, adjustHistory]);
+
+  // Restore session from localStorage on mount
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(SESSION_KEY);
+      if (!raw) return;
+      const s: SessionData = JSON.parse(raw);
+      if (s.step === 'brief') return;
+      setBrief(s.brief || '');
+      setPeopleMode(s.peopleMode || 'none');
+      setConcepts(s.concepts || []);
+      setSelectedConcept(s.selectedConcept || null);
+      setRefineImage(s.refineImage || null);
+      setRefineHistory(s.refineHistory || []);
+      setVariations(s.variations || []);
+      setSelectedVariation(s.selectedVariation || null);
+      setCurrentImage(s.currentImage || null);
+      setAdjustHistory(s.adjustHistory || []);
+      // Restore selected client after clients are loaded
+      if (s.selectedClientId) {
+        const stored = localStorage.getItem('brandKits');
+        if (stored) {
+          const kits: BrandKit[] = JSON.parse(stored);
+          const found = kits.find(k => k.id === s.selectedClientId);
+          if (found) setSelectedClient(found);
+        }
+      }
+      setStep(s.step);
+    } catch {}
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const exportSession = () => {
+    const session: SessionData = {
+      step, brief,
+      selectedClientId: selectedClient?.id || null,
+      peopleMode, concepts, selectedConcept,
+      refineImage, refineHistory,
+      variations, selectedVariation,
+      currentImage, adjustHistory,
+    };
+    const blob = new Blob([JSON.stringify(session, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = `sesion-${selectedClient?.name || 'disenoai'}-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const importSession = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const s: SessionData = JSON.parse(reader.result as string);
+        setBrief(s.brief || '');
+        setPeopleMode(s.peopleMode || 'none');
+        setConcepts(s.concepts || []);
+        setSelectedConcept(s.selectedConcept || null);
+        setRefineImage(s.refineImage || null);
+        setRefineHistory(s.refineHistory || []);
+        setVariations(s.variations || []);
+        setSelectedVariation(s.selectedVariation || null);
+        setCurrentImage(s.currentImage || null);
+        setAdjustHistory(s.adjustHistory || []);
+        if (s.selectedClientId) {
+          const stored = localStorage.getItem('brandKits');
+          if (stored) {
+            const kits: BrandKit[] = JSON.parse(stored);
+            const found = kits.find(k => k.id === s.selectedClientId);
+            if (found) setSelectedClient(found);
+          }
+        }
+        setStep(s.step);
+      } catch { setError('No se pudo importar la sesión — archivo inválido.'); }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
   };
 
   return (
@@ -174,8 +356,30 @@ export default function Home() {
           </div>
           <span className="font-semibold text-lg">Diseño AI</span>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-3">
           <StepIndicator currentStep={step} />
+          {step !== 'brief' && (
+            <button
+              onClick={exportSession}
+              title="Guardar sesión como archivo"
+              className="text-sm text-white/50 hover:text-white/80 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg flex items-center gap-1.5"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Guardar
+            </button>
+          )}
+          <label
+            title="Retomar sesión guardada"
+            className="text-sm text-white/50 hover:text-white/80 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg cursor-pointer flex items-center gap-1.5"
+          >
+            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l4-4m0 0l4 4m-4-4v12" />
+            </svg>
+            Retomar
+            <input type="file" accept=".json" onChange={importSession} className="hidden" />
+          </label>
           <Link
             href="/config"
             className="text-sm text-white/50 hover:text-white/80 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg"
@@ -263,7 +467,7 @@ export default function Home() {
                 ] as const).map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); }}
+                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); setProductDetailImages([]); }}
                     className={`p-4 rounded-xl border text-left transition-all ${
                       peopleMode === opt.value
                         ? 'border-indigo-500 bg-indigo-500/10'
@@ -279,13 +483,37 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Reference image upload — always shown */}
-              <div className="space-y-3">
-                  <p className="text-xs text-white/40">
-                    {peopleMode === 'none'
-                      ? 'Subí la foto del producto — el modelo lo va a preservar exacto (estampado, colores, corte).'
-                      : 'Subí la foto de la persona ya usando el producto — esa imagen es la referencia visual.'}
-                  </p>
+              {/* Product detail upload — always shown */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-white/60">Foto del producto / estampado en detalle</p>
+                <p className="text-xs text-white/30">Primer plano del estampado o producto sobre fondo neutro — más detalle = mejor resultado.</p>
+                <div className="flex gap-3 flex-wrap">
+                  {productDetailImages.map((img, i) => (
+                    <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
+                      <img src={img} alt={`prod ${i+1}`} className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setProductDetailImages(prev => prev.filter((_, idx) => idx !== i))}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white text-xs"
+                      >×</button>
+                    </div>
+                  ))}
+                  {productDetailImages.length < 2 && (
+                    <label className="w-20 h-20 rounded-xl border border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center cursor-pointer transition-colors gap-1">
+                      <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span className="text-xs text-white/30">Foto</span>
+                      <input type="file" accept="image/*" multiple onChange={handleProductDetailUpload} className="hidden" />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Person reference upload — only in 'real' mode */}
+              {peopleMode === 'real' && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-white/60">Foto de la persona usando el producto</p>
+                  <p className="text-xs text-white/30">La persona ya vistiendo el producto — referencia para el modelo.</p>
                   <div className="flex gap-3 flex-wrap">
                     {referenceImages.map((img, i) => (
                       <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
@@ -293,12 +521,10 @@ export default function Home() {
                         <button
                           onClick={() => setReferenceImages(prev => prev.filter((_, idx) => idx !== i))}
                           className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white text-xs"
-                        >
-                          ×
-                        </button>
+                        >×</button>
                       </div>
                     ))}
-                    {referenceImages.length < 3 && (
+                    {referenceImages.length < 2 && (
                       <label className="w-20 h-20 rounded-xl border border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center cursor-pointer transition-colors gap-1">
                         <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -309,6 +535,7 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+              )}
             </div>
 
             <button
@@ -366,11 +593,11 @@ export default function Home() {
                     {selectedConcept ? `Seleccionado: ${selectedConcept.conceptName}` : 'Hacé click en un concepto para seleccionarlo'}
                   </p>
                   <button
-                    onClick={generateVariations}
+                    onClick={enterRefine}
                     disabled={!selectedConcept || loading}
                     className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors flex items-center gap-2"
                   >
-                    Ver 4 variaciones
+                    Afinar concepto
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
@@ -378,6 +605,95 @@ export default function Home() {
                 </div>
               </>
             )}
+          </div>
+        )}
+
+        {/* Step: REFINE */}
+        {step === 'refine' && refineImage && (
+          <div className="space-y-6">
+            <div className="flex items-start justify-between">
+              <div>
+                <h2 className="text-2xl font-bold mb-1">Afiná el concepto</h2>
+                <p className="text-white/50 text-sm">Ajustá estampado, colores, modelo, composición — o avanzá directo a variaciones</p>
+              </div>
+              <button onClick={() => setStep('concepts')} className="text-white/40 hover:text-white/70 text-sm transition-colors">
+                ← Volver
+              </button>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 items-start">
+              {/* Image preview */}
+              <div className="rounded-xl overflow-hidden border border-white/10">
+                <img
+                  src={`data:image/png;base64,${refineImage.base64}`}
+                  alt="Concepto a afinar"
+                  className="w-full"
+                />
+              </div>
+
+              {/* Refinement panel */}
+              <div className="space-y-5">
+                {refineHistory.length > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Refinamientos aplicados</p>
+                    <div className="space-y-1.5 max-h-40 overflow-y-auto">
+                      {refineHistory.map((h, i) => (
+                        <div key={i} className="bg-white/5 rounded-lg px-3 py-2 text-sm text-white/60 flex items-start gap-2">
+                          <span className="text-indigo-400 mt-0.5">✓</span>
+                          {h}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                <div className="space-y-2">
+                  <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Instrucción de refinamiento</p>
+                  <input
+                    ref={refineInputRef}
+                    type="text"
+                    value={refineInput}
+                    onChange={e => setRefineInput(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !loading && applyRefinement()}
+                    placeholder="Ej: hacer el estampado más pequeño, cambiar fondo a negro, modelo rubia de 25 años..."
+                    disabled={loading}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 text-sm disabled:opacity-50"
+                  />
+                  <button
+                    onClick={applyRefinement}
+                    disabled={!refineInput.trim() || loading}
+                    className="w-full bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-4 py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                  >
+                    {loading ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        Aplicando...
+                      </>
+                    ) : 'Aplicar refinamiento'}
+                  </button>
+                </div>
+
+                <button
+                  onClick={generateVariations}
+                  disabled={loading}
+                  className="w-full bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
+                >
+                  {loading ? (
+                    <>
+                      <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Generando variaciones...
+                    </>
+                  ) : (
+                    <>
+                      Generar 4 variaciones
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -389,7 +705,7 @@ export default function Home() {
                 <h2 className="text-2xl font-bold mb-1">Elegí una variación</h2>
                 <p className="text-white/50 text-sm">4 versiones del concepto &ldquo;{selectedConcept?.conceptName}&rdquo;</p>
               </div>
-              <button onClick={() => setStep('concepts')} className="text-white/40 hover:text-white/70 text-sm transition-colors">
+              <button onClick={() => setStep('refine')} className="text-white/40 hover:text-white/70 text-sm transition-colors">
                 ← Volver
               </button>
             </div>
