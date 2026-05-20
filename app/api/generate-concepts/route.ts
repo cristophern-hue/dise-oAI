@@ -11,16 +11,63 @@ interface ConceptItem {
 type PeopleMode = 'none' | 'ai' | 'real';
 
 function buildPeopleInstruction(peopleMode: PeopleMode, referenceDescription?: string): string {
-  if (peopleMode === 'none') {
-    return 'NO incluir personas en ningún concepto. Enfocarse en producto, composición, flat lay, elementos gráficos o escenas sin figuras humanas.';
-  }
-  if (peopleMode === 'ai') {
-    return 'Incluir figuras humanas generadas por IA que representen la audiencia target de la marca. Las personas deben verse naturales, estilizadas y coherentes con el estilo visual de la marca.';
-  }
-  if (peopleMode === 'real' && referenceDescription) {
-    return `Incluir una persona con las siguientes características (basadas en fotos de referencia): ${referenceDescription}. Mantener estas características físicas en todos los conceptos.`;
-  }
+  if (peopleMode === 'none') return 'NO incluir personas. Enfocarse en producto, composición, flat lay o elementos gráficos.';
+  if (peopleMode === 'ai') return 'Incluir figuras humanas generadas por IA, naturales, estilizadas y coherentes con el estilo de la marca.';
+  if (peopleMode === 'real' && referenceDescription) return `Incluir una persona con estas características: ${referenceDescription}.`;
   return 'Incluir personas que representen la audiencia target de la marca.';
+}
+
+async function generateImageWithReferences(
+  openai: OpenAI,
+  prompt: string,
+  referenceImages: string[],
+  quality: 'low' | 'medium' | 'high'
+): Promise<string> {
+  // Use Responses API when we have visual references — it can actually SEE the images
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const response = await (openai.responses.create as any)({
+    model: 'gpt-image-1',
+    input: [
+      {
+        role: 'user',
+        content: [
+          ...referenceImages.slice(0, 2).map(img => ({
+            type: 'input_image',
+            image_url: img,
+          })),
+          {
+            type: 'input_text',
+            text: prompt,
+          },
+        ],
+      },
+    ],
+    tools: [{ type: 'image_generation', quality, size: '1024x1536' }],
+  });
+
+  // Extract base64 from response output
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  for (const block of (response.output || [])) {
+    if (block.type === 'image_generation_call' && block.result) {
+      return block.result;
+    }
+  }
+  return '';
+}
+
+async function generateImageFromText(
+  openai: OpenAI,
+  prompt: string,
+  quality: 'low' | 'medium' | 'high'
+): Promise<string> {
+  const imageResponse = await openai.images.generate({
+    model: 'gpt-image-1',
+    prompt,
+    size: '1024x1536',
+    quality,
+    n: 1,
+  });
+  return imageResponse.data?.[0]?.b64_json || '';
 }
 
 export async function POST(req: NextRequest) {
@@ -34,58 +81,57 @@ export async function POST(req: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const brandKitContext = buildBrandKitContext(brandKit);
 
-  // If real photos provided, use GPT-4o vision to describe the people first
+  // Visual references: piezas anteriores del brand kit (máx 2 para no saturar)
+  const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
+  const hasVisualRefs = visualRefs.length > 0;
+
+  // Describe real person photos if provided
   let referenceDescription = '';
   if (peopleMode === 'real' && referenceImages.length > 0) {
-    const visionMessages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-      {
-        role: 'user',
-        content: [
-          {
-            type: 'text',
-            text: 'Describí en detalle las características físicas y estilo de las personas en estas imágenes: tono de piel, color y estilo de cabello, complexión, rango de edad aproximado, estilo de vestimenta. Sé específico y conciso, máximo 3 oraciones.',
-          },
-          ...referenceImages.map(img => ({
-            type: 'image_url' as const,
-            image_url: { url: img, detail: 'low' as const },
-          })),
-        ],
-      },
-    ];
     const visionResponse = await openai.chat.completions.create({
       model: 'gpt-4o',
-      messages: visionMessages,
-      max_tokens: 200,
+      messages: [{
+        role: 'user',
+        content: [
+          { type: 'text', text: 'Describí brevemente las características físicas de las personas en estas imágenes: tono de piel, cabello, complexión, edad aproximada. Máximo 2 oraciones.' },
+          ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: img, detail: 'low' as const } })),
+        ],
+      }],
+      max_tokens: 150,
     });
     referenceDescription = visionResponse.choices[0].message.content || '';
   }
 
   const peopleInstruction = buildPeopleInstruction(peopleMode, referenceDescription);
+  const hasPeople = peopleMode !== 'none';
+  const quality = hasPeople ? 'high' : 'medium';
 
-  // Step 1: Generate 6 concept prompts
+  const fashionSuffix = hasPeople
+    ? 'Fashion editorial photography, professional model, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+    : '';
+
+  // Step 1: GPT-4o generates 6 concept prompts
   const conceptsResponse = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
         role: 'system',
-        content: `Sos un director creativo senior especializado en campañas de moda y retail premium.
-Dado un brief y un brand kit, generá exactamente 6 conceptos visuales distintos para una pieza de campaña portrait 1024x1536 (Instagram feed 4:5).
+        content: `Sos un director creativo senior de moda y retail premium.
+Dado un brief y un brand kit, generá exactamente 6 conceptos visuales distintos para una pieza portrait 1024x1536 (Instagram 4:5).
 
-REGLAS CRÍTICAS:
-- Usá los hex exactos del brand kit como colores dominantes de fondo, texto y elementos
-- El estilo debe ser ELEGANTE y PREMIUM, nunca genérico ni tipo clipart
-- Cada concepto debe tener dirección diferente: minimalista limpio, tipográfico editorial, producto hero con fondo de marca, lifestyle aspiracional, composición geométrica de marca, editorial de moda
-- Los fondos deben ser los colores del brand kit (no blanco genérico, no degradados chillones)
-- La tipografía debe ser serif o sans-serif elegante, nunca display genérico
-- Nunca incluir más de 2-3 elementos en la composición
-- El resultado debe parecer producido por una agencia de moda de nivel internacional
+REGLAS:
+- Usá los hex exactos del brand kit como colores dominantes
+- Estilo ELEGANTE y PREMIUM, nunca genérico ni clipart
+- Direcciones: minimalista limpio, tipográfico editorial, producto hero, lifestyle aspiracional, composición geométrica, editorial de moda
+- Fondos en colores del brand kit, tipografía elegante, máx 2-3 elementos
+- Nivel de agencia de moda internacional
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
-El image_prompt debe ser muy específico: mencionar colores hex, disposición de elementos, estilo de fotografía, mood, y características técnicas de la imagen.`,
+El image_prompt debe mencionar colores hex exactos, disposición, estilo fotográfico y mood.`,
       },
       {
         role: 'user',
-        content: `BRAND KIT COMPLETO:\n${brandKitContext}\n\nBRIEF DE CAMPAÑA:\n${brief}\n\nINSTRUCCIÓN SOBRE PERSONAS:\n${peopleInstruction}`,
+        content: `BRAND KIT:\n${brandKitContext}\n\nBRIEF:\n${brief}\n\nPERSONAS:\n${peopleInstruction}`,
       },
     ],
     response_format: { type: 'json_object' },
@@ -94,26 +140,17 @@ El image_prompt debe ser muy específico: mencionar colores hex, disposición de
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  const hasPeople = peopleMode !== 'none';
-  const fashionSuffix = hasPeople
-    ? 'Fashion editorial photography style, professional model, natural skin tones, soft studio lighting, 85mm lens bokeh, high-end fashion campaign, photorealistic, natural expressions, elegant posture.'
-    : '';
-
-  // Step 2: Generate all 6 images in parallel
+  // Step 2: Generate 6 images in parallel
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const fullPrompt = `${concept.image_prompt}. MANDATORY brand colors: background or dominant elements must use ${brandKit.primary1} or ${brandKit.primary2} or ${brandKit.primary3}. Font style: ${brandKit.typography || 'elegant serif or clean sans-serif'}. ${fashionSuffix} High-end fashion campaign, premium retail aesthetic, agency-level production quality, NOT generic AI art, clean intentional composition, portrait 4:5 ratio.`;
+    const fullPrompt = `${concept.image_prompt}. Use brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
 
-    const imageResponse = await openai.images.generate({
-      model: 'gpt-image-1',
-      prompt: fullPrompt,
-      size: '1024x1536',
-      quality: hasPeople ? 'high' : 'medium',
-      n: 1,
-    });
+    const base64 = hasVisualRefs
+      ? await generateImageWithReferences(openai, fullPrompt, visualRefs, quality)
+      : await generateImageFromText(openai, fullPrompt, quality);
 
     return {
       id: Math.random().toString(36).slice(2),
-      base64: imageResponse.data?.[0]?.b64_json || '',
+      base64,
       prompt: fullPrompt,
       conceptName: concept.concept_name,
     };
