@@ -66,7 +66,6 @@ export default function Home() {
         img.onload = () => {
           const MAX = 1536;
           let { naturalWidth: w, naturalHeight: h } = img;
-          // naturalWidth === 0 means the browser couldn't decode the image
           if (!w || !h) { resolve(dataUrl); return; }
           if (w > MAX || h > MAX) {
             if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
@@ -78,7 +77,6 @@ export default function Home() {
             canvas.height = h;
             canvas.getContext('2d')!.drawImage(img, 0, 0, w, h);
             const result = canvas.toDataURL('image/jpeg', 0.92);
-            // canvas.toDataURL returns a very short string if it failed (tainted/empty)
             resolve(result.length > 100 ? result : dataUrl);
           } catch {
             resolve(dataUrl);
