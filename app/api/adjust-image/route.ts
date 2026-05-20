@@ -5,20 +5,25 @@ import { toFile } from 'openai';
 export const maxDuration = 300;
 
 const EDIT_SYSTEM = (instruction: string) =>
-  `Aplicá este ajuste a la imagen: "${instruction}". Preservá el producto/estampado exactamente como aparece — no lo cambies, no lo simplifiques. Solo modificá lo que el ajuste indica, manteniendo el estilo premium de moda y la composición general.`;
+  `Aplicá este ajuste a la imagen: "${instruction}". Preservá el producto/estampado exactamente como aparece en la imagen de referencia — mismo color, mismo patrón, mismos detalles. Solo modificá lo que el ajuste indica, manteniendo el estilo premium de moda y la composición general.`;
 
-async function editViaResponsesAPI(openai: OpenAI, imageBase64: string, instruction: string): Promise<string> {
+async function editViaResponsesAPI(
+  openai: OpenAI,
+  imageBase64: string,
+  instruction: string,
+  productRefDataUrl?: string,
+): Promise<string> {
   const imageDataUrl = `data:image/png;base64,${imageBase64}`;
+  const content = [
+    { type: 'input_image', image_url: imageDataUrl, detail: 'high' },
+    // Product reference anchors the print/pattern so it doesn't drift across adjustments
+    ...(productRefDataUrl ? [{ type: 'input_image', image_url: productRefDataUrl, detail: 'high' }] : []),
+    { type: 'input_text', text: EDIT_SYSTEM(instruction) },
+  ];
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const response = await (openai.responses.create as any)({
     model: 'gpt-image-2',
-    input: [{
-      role: 'user',
-      content: [
-        { type: 'input_image', image_url: imageDataUrl, detail: 'high' },
-        { type: 'input_text', text: EDIT_SYSTEM(instruction) },
-      ],
-    }],
+    input: [{ role: 'user', content }],
     tools: [{
       type: 'image_generation',
       model: 'gpt-image-2',
@@ -34,13 +39,18 @@ async function editViaResponsesAPI(openai: OpenAI, imageBase64: string, instruct
 }
 
 export async function POST(req: NextRequest) {
-  const { imageBase64, instruction }: { imageBase64: string; instruction: string } = await req.json();
+  const { imageBase64, instruction, productDetailImages = [] }: {
+    imageBase64: string;
+    instruction: string;
+    productDetailImages: string[];
+  } = await req.json();
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+  const productRefDataUrl = productDetailImages[0] || undefined;
 
-  // Primary: Responses API with input_fidelity:high preserves product while applying targeted change
+  // Primary: Responses API — product reference image keeps print/pattern anchored across adjustments
   try {
-    const base64 = await editViaResponsesAPI(openai, imageBase64, instruction);
+    const base64 = await editViaResponsesAPI(openai, imageBase64, instruction, productRefDataUrl);
     if (base64) return NextResponse.json({ base64 });
     console.error('Responses API returned no image block for edit');
   } catch (err) {
