@@ -158,10 +158,11 @@ El image_prompt debe mencionar colores hex exactos, disposici√≥n, estilo fotogr√
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Input images for gpt-image-2: brand kit style refs + product detail photo(s)
+  // Input images for gpt-image-2: brand kit style refs + product detail + person ref (if real mode)
   const inputImages = [
     ...visualRefs,
-    ...productDetailImages.slice(0, 2),
+    ...productDetailImages.slice(0, 1),
+    ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
   ];
 
   // Step 2: Generate 6 images in parallel with gpt-image-2
