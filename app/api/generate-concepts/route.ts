@@ -12,12 +12,6 @@ interface ConceptItem {
   image_prompt: string;
 }
 
-function buildPeopleInstruction(peopleMode: PeopleMode, referenceDescription?: string): string {
-  if (peopleMode === 'none') return 'NO incluir personas. Enfocarse en producto, composición, flat lay o elementos gráficos.';
-  if (peopleMode === 'real' && referenceDescription) return `Incluir una persona con estas características: ${referenceDescription}.`;
-  return 'Incluir personas que representen la audiencia target de la marca.';
-}
-
 async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): Promise<string> {
   const response = await openai.chat.completions.create({
     model: 'gpt-4o',
@@ -79,6 +73,48 @@ async function generateWithGptImage2(
   return fallback.data?.[0]?.b64_json || '';
 }
 
+// Two-pass approach for 'real' mode: take a product-only image and add the person on top.
+// This preserves product fidelity (generated alone first) while incorporating the person.
+async function addPersonToImage(
+  openai: OpenAI,
+  imageBase64: string,
+  personDescription: string,
+  fashionSuffix: string,
+): Promise<string> {
+  const imageDataUrl = `data:image/png;base64,${imageBase64}`;
+  const prompt = `Agregá una persona a esta imagen de moda. Características de la persona: ${personDescription}. La persona está usando el producto que ya aparece en la imagen — NO lo modifiques, no cambies su color, estampado ni silueta. Conservá el fondo, la composición y el estilo visual de la imagen original. ${fashionSuffix}`;
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (openai.responses.create as any)({
+      model: 'gpt-image-2',
+      input: [{
+        role: 'user',
+        content: [
+          { type: 'input_image', image_url: imageDataUrl, detail: 'high' },
+          { type: 'input_text', text: prompt },
+        ],
+      }],
+      tools: [{
+        type: 'image_generation',
+        model: 'gpt-image-2',
+        quality: 'medium',
+        size: '1024x1536',
+        input_fidelity: 'high',
+      }],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const block of (response.output || [])) {
+      if (block.type === 'image_generation_call' && block.result) return block.result;
+    }
+    console.error('addPersonToImage: no image block returned');
+  } catch (err) {
+    console.error('addPersonToImage failed:', err);
+  }
+  // Fallback: return original product-only image
+  return imageBase64;
+}
+
 export async function POST(req: NextRequest) {
   const { brief, brandKit, peopleMode = 'none', productDetailImages = [], referenceImages = [] }: {
     brief: string;
@@ -92,7 +128,6 @@ export async function POST(req: NextRequest) {
   const brandKitContext = buildBrandKitContext(brandKit);
 
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
-  // productDetailImages: close-up of the product/print — used for description and as visual ref
   const productRef: string | null = productDetailImages[0] || null;
 
   let productDescription = '';
@@ -117,17 +152,18 @@ export async function POST(req: NextRequest) {
     personDescription = visionResponse.choices[0].message.content || '';
   }
 
-  const peopleInstruction = buildPeopleInstruction(peopleMode, personDescription);
-  const hasPeople = peopleMode !== 'none';
-  const fashionSuffix = hasPeople
-    ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
-    : '';
+  const fashionSuffix = 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.';
 
   const productConstraint = productDescription
     ? `\nPRODUCTO OBLIGATORIO: El producto en la imagen DEBE ser exactamente: ${productDescription}. No sustituir, no simplificar, no inventar otro producto.`
     : '';
 
-  // Step 1: GPT-4o generates 6 concept prompts
+  // Step 1: GPT-4o generates 6 concept prompts.
+  // For 'real' mode, concepts are generated as product-only (person is added in pass 2 below).
+  const peopleForConcepts = peopleMode === 'none'
+    ? 'NO incluir personas. Enfocarse en producto, composición, flat lay o elementos gráficos.'
+    : 'El producto es el protagonista. Composición limpia y premium, sin personas por ahora.';
+
   const conceptsResponse = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
@@ -149,7 +185,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
       },
       {
         role: 'user',
-        content: `BRAND KIT:\n${brandKitContext}\n\nBRIEF:\n${brief}\n\nPERSONAS:\n${peopleInstruction}`,
+        content: `BRAND KIT:\n${brandKitContext}\n\nBRIEF:\n${brief}\n\nPERSONAS:\n${peopleForConcepts}`,
       },
     ],
     response_format: { type: 'json_object' },
@@ -158,18 +194,16 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Input images for gpt-image-2: brand kit style refs + product detail only.
-  // Person reference is communicated via text description — passing it as input_image
-  // causes the model to split attention between product and person, losing product fidelity.
+  // Input images for pass 1: brand kit style refs + product detail.
+  // No person photo — generate product-only first to guarantee product fidelity.
   const inputImages = [
     ...visualRefs,
     ...productDetailImages.slice(0, 1),
   ];
 
-  // Step 2: Generate 6 images in parallel with gpt-image-2
+  // Step 2: Generate 6 product-only images in parallel
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const personConstraint = personDescription ? ` PERSONA: ${personDescription}.` : '';
-    const fullPrompt = `${concept.image_prompt}${productDescription ? ` PRODUCTO EXACTO: ${productDescription}.` : ''}${personConstraint} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
+    const fullPrompt = `${concept.image_prompt}${productDescription ? ` PRODUCTO EXACTO: ${productDescription}.` : ''} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
 
     const base64 = await generateWithGptImage2(openai, fullPrompt, inputImages);
 
@@ -182,5 +216,18 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   });
 
   const images = await Promise.all(imagePromises);
+
+  // Step 3 (real mode only): add person to each product-only image.
+  // Two-pass approach: product generated alone (perfect fidelity) → person layered on top.
+  if (peopleMode === 'real' && personDescription) {
+    const withPerson = await Promise.all(
+      images.map(async img => {
+        const base64WithPerson = await addPersonToImage(openai, img.base64, personDescription, fashionSuffix);
+        return { ...img, base64: base64WithPerson };
+      })
+    );
+    return NextResponse.json({ images: withPerson });
+  }
+
   return NextResponse.json({ images });
 }
