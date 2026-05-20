@@ -29,6 +29,9 @@ export default function Home() {
   const [brief, setBrief] = useState('');
   const [step, setStep] = useState<Step>('brief');
   const [loading, setLoading] = useState(false);
+  const [loadingMsg, setLoadingMsg] = useState('');
+  const [elapsedSec, setElapsedSec] = useState(0);
+  const loadingStartRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const [error, setError] = useState('');
 
   const [peopleMode, setPeopleMode] = useState<PeopleMode>('none');
@@ -47,6 +50,20 @@ export default function Home() {
   const [refineImageHistory, setRefineImageHistory] = useState<string[]>([]);
   const refineInputRef = useRef<HTMLInputElement>(null);
 
+
+  const startLoading = (msg: string) => {
+    setLoading(true);
+    setLoadingMsg(msg);
+    setElapsedSec(0);
+    loadingStartRef.current = setInterval(() => setElapsedSec(s => s + 1), 1000);
+  };
+
+  const stopLoading = () => {
+    setLoading(false);
+    setLoadingMsg('');
+    setElapsedSec(0);
+    if (loadingStartRef.current) { clearInterval(loadingStartRef.current); loadingStartRef.current = null; }
+  };
 
   useEffect(() => {
     const stored = localStorage.getItem('brandKits');
@@ -105,7 +122,7 @@ export default function Home() {
 
   const generateConcepts = async () => {
     if (!selectedClient || !brief.trim()) return;
-    setLoading(true);
+    startLoading('Generando 6 conceptos visuales...');
     setError('');
     try {
       const res = await fetch('/api/generate-concepts', {
@@ -128,7 +145,7 @@ export default function Home() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error generando conceptos');
     } finally {
-      setLoading(false);
+      stopLoading();
     }
   };
 
@@ -142,7 +159,7 @@ export default function Home() {
     if (selectedConcepts.length === 0) return;
     // If product was uploaded, apply it to each selected concept before entering refine
     if (productDetailImages.length > 0) {
-      setLoading(true);
+      startLoading(`Aplicando producto a ${selectedConcepts.length} concepto${selectedConcepts.length > 1 ? 's' : ''}... (puede tardar 1-2 min)`);
       setError('');
       try {
         const results = await Promise.all(
@@ -179,7 +196,7 @@ export default function Home() {
       } catch (e) {
         setError(e instanceof Error ? e.message : 'Error aplicando producto');
       } finally {
-        setLoading(false);
+        stopLoading();
       }
       return;
     }
@@ -215,7 +232,7 @@ export default function Home() {
 
   const applyRefinement = async () => {
     if (!refineImage || !refineInput.trim()) return;
-    setLoading(true);
+    startLoading('Aplicando ajuste...');
     setError('');
     const instruction = refineInput.trim();
     setRefineInput('');
@@ -233,7 +250,7 @@ export default function Home() {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error aplicando refinamiento');
     } finally {
-      setLoading(false);
+      stopLoading();
       setTimeout(() => refineInputRef.current?.focus(), 100);
     }
   };
@@ -572,7 +589,7 @@ export default function Home() {
               {loading ? (
                 <>
                   <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  Generando conceptos...
+                  {loadingMsg}{elapsedSec > 5 ? ` · ${elapsedSec}s` : ''}
                 </>
               ) : (
                 <>
@@ -612,7 +629,7 @@ export default function Home() {
             </div>
 
             {loading && step === 'concepts' ? (
-              <LoadingGrid count={selectedConcepts.length || 6} label={productDetailImages.length > 0 && selectedConcepts.length > 0 ? `Aplicando producto a ${selectedConcepts.length} concepto${selectedConcepts.length > 1 ? 's' : ''}...` : 'Generando 6 conceptos visuales...'} />
+              <LoadingGrid count={selectedConcepts.length || 6} label={`${loadingMsg}${elapsedSec > 5 ? ` · ${elapsedSec}s` : ''}`} />
             ) : (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
@@ -678,7 +695,7 @@ export default function Home() {
                     className="bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors flex items-center gap-2"
                   >
                     {loading ? (
-                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Aplicando producto...</>
+                      <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{loadingMsg}{elapsedSec > 5 ? ` · ${elapsedSec}s` : ''}</>
                     ) : (
                       <>Afinar {selectedConcepts.length > 1 ? `${selectedConcepts.length} conceptos` : 'concepto'}<svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg></>
                     )}
@@ -790,7 +807,7 @@ export default function Home() {
                       disabled={!refineInput.trim() || loading}
                       className="flex-1 bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-4 py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
                     >
-                      {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />Aplicando...</> : 'Aplicar'}
+                      {loading ? <><div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />{elapsedSec > 0 ? `${elapsedSec}s...` : 'Aplicando...'}</> : 'Aplicar'}
                     </button>
                     {refineImageHistory.length > 0 && (
                       <button
