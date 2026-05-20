@@ -328,7 +328,7 @@ export default function Home() {
       currentImage, adjustHistory,
     };
     try { localStorage.setItem(SESSION_KEY, JSON.stringify(session)); } catch {}
-  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcepts, refineIndex, refineImage, refineHistory, currentImage, adjustHistory]);
+  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcepts, productDescription, personDescription, refineIndex, refineImage, refineHistory, refineImageHistory, currentImage, adjustHistory]);
 
   // Restore session from localStorage on mount
   useEffect(() => {
@@ -389,8 +389,10 @@ export default function Home() {
         setPeopleMode(s.peopleMode || 'none');
         setConcepts(s.concepts || []);
         setSelectedConcepts(s.selectedConcepts || []);
+        setProductDescription(s.productDescription || '');
+        setPersonDescription(s.personDescription || '');
         setRefineImage(s.refineImage || null);
-      setRefineImageHistory(s.refineImageHistory || []);
+        setRefineImageHistory(s.refineImageHistory || []);
         setRefineHistory(s.refineHistory || []);
         setCurrentImage(s.currentImage || null);
         setAdjustHistory(s.adjustHistory || []);
