@@ -158,16 +158,18 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Input images for gpt-image-2: brand kit style refs + product detail + person ref (if real mode)
+  // Input images for gpt-image-2: brand kit style refs + product detail only.
+  // Person reference is communicated via text description — passing it as input_image
+  // causes the model to split attention between product and person, losing product fidelity.
   const inputImages = [
     ...visualRefs,
     ...productDetailImages.slice(0, 1),
-    ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
   ];
 
   // Step 2: Generate 6 images in parallel with gpt-image-2
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const fullPrompt = `${concept.image_prompt}${productDescription ? ` PRODUCTO EXACTO: ${productDescription}.` : ''} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
+    const personConstraint = personDescription ? ` PERSONA: ${personDescription}.` : '';
+    const fullPrompt = `${concept.image_prompt}${productDescription ? ` PRODUCTO EXACTO: ${productDescription}.` : ''}${personConstraint} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
 
     const base64 = await generateWithGptImage2(openai, fullPrompt, inputImages);
 
