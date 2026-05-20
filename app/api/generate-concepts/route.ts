@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { BrandKit } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
@@ -23,16 +23,18 @@ async function generateImageWithReferences(
   openai: OpenAI,
   prompt: string,
   referenceImages: string[],
-  personImages: string[] = []
+  productImages: string[] = []
 ): Promise<string> {
   const allRefs = [
     ...referenceImages.slice(0, 2),
-    ...personImages.slice(0, 1),
+    ...productImages.slice(0, 1),
   ];
-  const productInstruction = personImages.length > 0
-    ? 'IMPORTANTE: Preservar el producto EXACTO de la imagen de referencia — mismo estampado, mismo diseño, mismos colores de la prenda. No inventar otro producto. '
+  const productInstruction = productImages.length > 0
+    ? 'CRÍTICO: Preservar el producto EXACTO de la imagen de referencia — mismo estampado, mismo diseño, mismos colores, mismo corte. No inventar ni modificar ningún detalle del producto. '
     : '';
   const fullPrompt = `${productInstruction}${prompt}`;
+
+  // Try Responses API (gpt-image-2 with input_fidelity)
   try {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.responses.create as any)({
@@ -66,9 +68,29 @@ async function generateImageWithReferences(
     }
     console.error('Responses API returned no image_generation_call block');
   } catch (err) {
-    console.error('Responses API error, falling back to images.generate:', err);
+    console.error('Responses API failed:', err);
   }
-  return generateImageFromText(openai, prompt);
+
+  // Fallback: if we have a product/person reference image, use images.edit() so the product is never lost
+  if (productImages.length > 0) {
+    try {
+      const raw = productImages[0].includes(',') ? productImages[0].split(',')[1] : productImages[0];
+      const imageFile = await toFile(Buffer.from(raw, 'base64'), 'reference.png', { type: 'image/png' });
+      const editResponse = await openai.images.edit({
+        model: 'gpt-image-1',
+        image: imageFile,
+        prompt: fullPrompt,
+        size: '1024x1024',
+        quality: 'medium',
+        n: 1,
+      });
+      return editResponse.data?.[0]?.b64_json || '';
+    } catch (err) {
+      console.error('images.edit fallback failed:', err);
+    }
+  }
+
+  return generateImageFromText(openai, fullPrompt);
 }
 
 async function generateImageFromText(
@@ -112,11 +134,11 @@ export async function POST(req: NextRequest) {
 
   // Visual references: piezas anteriores del brand kit (máx 2 para no saturar)
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
-  // Person reference images passed directly to the model (only in 'real' mode)
-  const personRefs: string[] = peopleMode === 'real' ? referenceImages.slice(0, 1) : [];
-  const hasVisualRefs = visualRefs.length > 0 || personRefs.length > 0;
+  // Product/person reference images — used in both modes to anchor the exact product
+  const productRefs: string[] = referenceImages.slice(0, 1);
+  const hasVisualRefs = visualRefs.length > 0 || productRefs.length > 0;
 
-  // Describe real person photos if provided
+  // For 'real' mode: describe the person so the prompt can reference them
   let referenceDescription = '';
   if (peopleMode === 'real' && referenceImages.length > 0) {
     const visionResponse = await openai.chat.completions.create({
@@ -175,7 +197,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
     const fullPrompt = `${concept.image_prompt}. Use brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
 
     const base64 = hasVisualRefs
-      ? await generateImageWithReferences(openai, fullPrompt, visualRefs, personRefs)
+      ? await generateImageWithReferences(openai, fullPrompt, visualRefs, productRefs)
       : await generateImageFromText(openai, fullPrompt);
 
     return {

@@ -58,7 +58,7 @@ export default function Home() {
           brief,
           brandKit: selectedClient,
           peopleMode,
-          referenceImages: peopleMode === 'real' ? referenceImages : [],
+          referenceImages,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -268,10 +268,13 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Reference image upload */}
-              {peopleMode === 'real' && (
-                <div className="space-y-3">
-                  <p className="text-xs text-white/40">Subí la foto de la persona ya usando el producto — esa imagen es la referencia visual.</p>
+              {/* Reference image upload — always shown */}
+              <div className="space-y-3">
+                  <p className="text-xs text-white/40">
+                    {peopleMode === 'none'
+                      ? 'Subí la foto del producto — el modelo lo va a preservar exacto (estampado, colores, corte).'
+                      : 'Subí la foto de la persona ya usando el producto — esa imagen es la referencia visual.'}
+                  </p>
                   <div className="flex gap-3 flex-wrap">
                     {referenceImages.map((img, i) => (
                       <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
@@ -295,7 +298,7 @@ export default function Home() {
                     )}
                   </div>
                 </div>
-              )}
+              </div>
             </div>
 
             <button
