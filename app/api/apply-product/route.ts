@@ -76,7 +76,7 @@ REGLAS de producto:
       tools: [{
         type: 'image_generation',
         model: 'gpt-image-2',
-        quality: 'medium',
+        quality: 'high',
         size: '1024x1536',
       }],
     });
@@ -104,7 +104,7 @@ REGLAS de producto:
       image: imageFile,
       prompt: editPrompt,
       size: '1024x1536',
-      quality: 'medium',
+      quality: 'high',
     });
     const base64 = response.data?.[0]?.b64_json || '';
     if (base64) return NextResponse.json({ base64, applied: true });
