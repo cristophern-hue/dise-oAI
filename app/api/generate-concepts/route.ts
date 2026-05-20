@@ -2,8 +2,6 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { BrandKit } from '@/app/types';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 interface ConceptItem {
   concept_name: string;
   image_prompt: string;
@@ -19,6 +17,8 @@ Secondary color: ${brandKit.secondaryColor}
 Accent color: ${brandKit.accentColor}
 Style: ${brandKit.styleDescription}
 `;
+
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   // Step 1: GPT-4o generates 6 distinct concept prompts
   const conceptsResponse = await openai.chat.completions.create({

@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
 import { toFile } from 'openai';
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
-
 export async function POST(req: NextRequest) {
   const { imageBase64, instruction }: { imageBase64: string; instruction: string } = await req.json();
+
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
   // Convert base64 to Buffer then to File for the API
   const buffer = Buffer.from(imageBase64, 'base64');
