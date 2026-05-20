@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI from 'openai';
-// eslint-disable-next-line @typescript-eslint/no-require-imports
-const pdfParse = require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
 
 export async function POST(req: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -11,33 +9,46 @@ export async function POST(req: NextRequest) {
   if (!file) return NextResponse.json({ error: 'No PDF provided' }, { status: 400 });
 
   const buffer = Buffer.from(await file.arrayBuffer());
-  const pdf = await pdfParse(buffer);
-  const text = pdf.text.slice(0, 12000); // cap to avoid token limits
+  const base64 = buffer.toString('base64');
 
-  const response = await openai.chat.completions.create({
+  const response = await openai.responses.create({
     model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content: `You are a brand analyst. Extract brand identity information from a brand manual and return it as structured JSON.
-Extract as much as possible. For colors, return hex codes when mentioned, otherwise describe the color.
-Respond ONLY with valid JSON matching this exact shape:
-{
-  "name": "brand name or empty string",
-  "primaryColor": "#hexcode or best guess from description",
-  "secondaryColor": "#hexcode or best guess",
-  "accentColor": "#hexcode or best guess",
-  "styleDescription": "comprehensive description of visual style, tone, rules, dos and don'ts, target audience, typography, photography style, and any other relevant brand guidelines"
-}`,
-      },
+    input: [
       {
         role: 'user',
-        content: `Extract the brand identity from this brand manual:\n\n${text}`,
+        content: [
+          {
+            type: 'input_file',
+            filename: file.name || 'brand-manual.pdf',
+            file_data: `data:application/pdf;base64,${base64}`,
+          },
+          {
+            type: 'input_text',
+            text: `Analizá este manual de marca y extraé la identidad visual. Respondé SOLO con JSON válido con esta estructura exacta:
+{
+  "name": "nombre de la marca o string vacío",
+  "primaryColor": "#hexcode del color principal (si no hay hex, estimá uno que represente el color descrito)",
+  "secondaryColor": "#hexcode del color secundario",
+  "accentColor": "#hexcode del color de acento",
+  "styleDescription": "descripción completa del estilo visual, tono, audiencia, tipografía, reglas de diseño, qué se debe y no se debe hacer, estilo fotográfico y cualquier otra guía relevante de la marca"
+}`,
+          },
+        ],
       },
     ],
-    response_format: { type: 'json_object' },
   });
 
-  const extracted = JSON.parse(response.choices[0].message.content || '{}');
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const content = (response.output as any[])
+    .filter((b) => b.type === 'message')
+    .flatMap((b) => b.content ?? [])
+    .filter((c: { type: string }) => c.type === 'output_text')
+    .map((c: { text?: string }) => c.text ?? '')
+    .join('');
+
+  const jsonMatch = content.match(/\{[\s\S]*\}/);
+  if (!jsonMatch) return NextResponse.json({ error: 'Could not parse response' }, { status: 500 });
+
+  const extracted = JSON.parse(jsonMatch[0]);
   return NextResponse.json(extracted);
 }
