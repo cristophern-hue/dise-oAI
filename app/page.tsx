@@ -151,7 +151,7 @@ export default function Home() {
       setLoading(true);
       setError('');
       try {
-        const applied = await Promise.all(
+        const results = await Promise.all(
           selectedConcepts.map(async concept => {
             const res = await fetch('/api/apply-product', {
               method: 'POST',
@@ -164,11 +164,19 @@ export default function Home() {
                 personDescription,
               }),
             });
-            if (!res.ok) return concept;
+            if (!res.ok) return { concept, applied: false };
             const data = await res.json();
-            return data.base64 ? { ...concept, base64: data.base64 } : concept;
+            return {
+              concept: data.base64 ? { ...concept, base64: data.base64 } : concept,
+              applied: data.applied === true,
+            };
           })
         );
+        const applied = results.map(r => r.concept);
+        const anyFailed = results.some(r => !r.applied);
+        if (anyFailed) {
+          setError('No se pudo aplicar el producto en uno o más conceptos. Se usará el concepto original para afinar.');
+        }
         setSelectedConcepts(applied);
         setRefineIndex(0);
         setRefineImage(applied[0]);
@@ -640,7 +648,7 @@ export default function Home() {
             </div>
 
             {loading && step === 'concepts' ? (
-              <LoadingGrid count={selectedConcepts.length || 6} label={productDescription ? `Aplicando producto a ${selectedConcepts.length} concepto${selectedConcepts.length > 1 ? 's' : ''}...` : 'Generando 6 conceptos visuales...'} />
+              <LoadingGrid count={selectedConcepts.length || 6} label={productDetailImages.length > 0 && selectedConcepts.length > 0 ? `Aplicando producto a ${selectedConcepts.length} concepto${selectedConcepts.length > 1 ? 's' : ''}...` : 'Generando 6 conceptos visuales...'} />
             ) : (
               <>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
