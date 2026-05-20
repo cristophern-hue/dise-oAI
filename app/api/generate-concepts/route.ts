@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { BrandKit } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
@@ -12,11 +12,18 @@ interface ConceptItem {
   image_prompt: string;
 }
 
-function buildPeopleInstruction(peopleMode: PeopleMode, referenceDescription?: string): string {
-  if (peopleMode === 'none') return 'NO incluir personas. Enfocarse en producto, composición, flat lay o elementos gráficos.';
-  if (peopleMode === 'real' && referenceDescription) return `Incluir una persona con estas características: ${referenceDescription}.`;
-  return 'Incluir personas que representen la audiencia target de la marca.';
-}
+const PRODUCT_DESCRIPTION_PROMPT = `Sos un técnico de producto de moda de alta gama. Analizá esta prenda y describila con precisión quirúrgica para que pueda ser reproducida EXACTAMENTE por un modelo de IA generativa. Imaginá que quien lee tu descripción no puede ver la foto — tu texto es el único recurso.
+
+Describí en este orden exacto:
+
+1. TIPO DE PRENDA: categoría (remera, vestido, campera, etc.), silueta y corte (oversize, entallado, recto, etc.), largo
+2. COLOR BASE Y FONDO: tono exacto y profundidad (no "azul" sino "azul marino oscuro casi negro", "blanco roto cálido", etc.)
+3. ESTAMPADO / PRINT (es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, qué tamaño relativo al total de la prenda, cómo se distribuye (all-over, centrado, borde, repetición, etc.), orientación, y cómo contrasta con el fondo. Si hay texto, copialo exactamente.
+4. MATERIALES Y TEXTURA: acabado (mate, satinado, brillante), peso visual, transparencia
+5. DETALLES DE CONFECCIÓN: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños, bolsillos, costuras decorativas, piping, botones, cierres, terminaciones
+6. ELEMENTOS ÚNICOS: cualquier detalle que diferencie esta prenda de una genérica
+
+IMPORTANTE sobre el estampado: nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición. El nivel de especificidad del estampado determina si la IA lo reproduce correctamente.`;
 
 async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): Promise<string> {
   const response = await openai.chat.completions.create({
@@ -24,14 +31,11 @@ async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): 
     messages: [{
       role: 'user',
       content: [
-        {
-          type: 'text',
-          text: 'Describí este producto de ropa con MÁXIMO detalle para reproducirlo exactamente en una imagen generada por IA. Incluí: tipo de prenda, corte exacto, color base, estampado/print (describe cada elemento del patrón, sus colores, tamaño y distribución), materiales o texturas visibles, detalles de confección (costuras, piping, botones, bolsillos, cuello, puños), y cualquier elemento distintivo. Sé extremadamente específico — esta descripción es la única guía para reproducir el producto exacto.',
-        },
+        { type: 'text', text: PRODUCT_DESCRIPTION_PROMPT },
         { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
       ],
     }],
-    max_tokens: 400,
+    max_tokens: 600,
   });
   return response.choices[0].message.content || '';
 }
@@ -68,7 +72,6 @@ async function generateWithGptImage2(
     console.error('Responses API failed:', err);
   }
 
-  // Fallback: text-only with gpt-image-2
   const fallback = await openai.images.generate({
     model: 'gpt-image-2',
     prompt,
@@ -91,10 +94,11 @@ export async function POST(req: NextRequest) {
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const brandKitContext = buildBrandKitContext(brandKit);
 
+  // Visual refs from brand kit (style guide for generation)
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
-  // productDetailImages: close-up of the product/print — used for description and as visual ref
   const productRef: string | null = productDetailImages[0] || null;
 
+  // Generate product + person descriptions — returned to frontend for the apply-product step
   let productDescription = '';
   let personDescription = '';
 
@@ -117,17 +121,14 @@ export async function POST(req: NextRequest) {
     personDescription = visionResponse.choices[0].message.content || '';
   }
 
-  const peopleInstruction = buildPeopleInstruction(peopleMode, personDescription);
-  const hasPeople = peopleMode !== 'none';
-  const fashionSuffix = hasPeople
-    ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
-    : '';
+  // People instruction for concept generation
+  const peopleInstruction = peopleMode === 'none'
+    ? 'NO incluir personas. Enfocarse en producto, composición, flat lay o elementos gráficos.'
+    : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
-  const productConstraint = productDescription
-    ? `\nPRODUCTO OBLIGATORIO: El producto en la imagen DEBE ser exactamente: ${productDescription}. No sustituir, no simplificar, no inventar otro producto.`
-    : '';
-
-  // Step 1: GPT-4o generates 6 concept prompts
+  // Step 1: GPT-4o generates 6 free creative concept prompts.
+  // Product is NOT constrained here — model focuses on style, composition, and mood.
+  // The exact product is applied in the refine step (apply-product) for maximum fidelity.
   const conceptsResponse = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
@@ -142,7 +143,6 @@ REGLAS:
 - Direcciones: minimalista limpio, tipográfico editorial, producto hero, lifestyle aspiracional, composición geométrica, editorial de moda
 - Fondos en colores del brand kit, tipografía elegante, máx 2-3 elementos
 - Nivel de agencia de moda internacional
-${productConstraint}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo fotográfico y mood.`,
@@ -158,18 +158,17 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Input images for gpt-image-2: brand kit style refs + product detail only.
-  // Person reference is communicated via text description — passing it as input_image
-  // causes the model to split attention between product and person, losing product fidelity.
-  const inputImages = [
-    ...visualRefs,
-    ...productDetailImages.slice(0, 1),
-  ];
+  // Only brand kit visual refs — no product image (product applied separately in refine step)
+  const inputImages = [...visualRefs];
 
-  // Step 2: Generate 6 images in parallel with gpt-image-2
+  // Step 2: Generate 6 concept images — creative direction only, no product constraint
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const personConstraint = personDescription ? ` PERSONA: ${personDescription}.` : '';
-    const fullPrompt = `${concept.image_prompt}${productDescription ? ` PRODUCTO EXACTO: ${productDescription}.` : ''}${personConstraint} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
+    const hasPeople = peopleMode !== 'none';
+    const fashionSuffix = hasPeople
+      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+      : 'Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.';
+
+    const fullPrompt = `${concept.image_prompt} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix}`;
 
     const base64 = await generateWithGptImage2(openai, fullPrompt, inputImages);
 
@@ -182,5 +181,11 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   });
 
   const images = await Promise.all(imagePromises);
-  return NextResponse.json({ images });
+
+  // Return productDescription and personDescription so the frontend can
+  // call /api/apply-product after the user selects a concept in the refine step
+  return NextResponse.json({ images, productDescription, personDescription });
 }
+
+// Keep toFile imported for potential future use (images.edit fallback)
+void toFile;
