@@ -16,6 +16,7 @@ export default function Home() {
   const [error, setError] = useState('');
 
   const [peopleMode, setPeopleMode] = useState<PeopleMode>('none');
+  const [productDetailImages, setProductDetailImages] = useState<string[]>([]);
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
 
   const [concepts, setConcepts] = useState<GeneratedImage[]>([]);
@@ -34,25 +35,37 @@ export default function Home() {
     if (stored) setClients(JSON.parse(stored));
   }, []);
 
-  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    files.forEach(file => {
+  const readAsPng = (file: File): Promise<string> =>
+    new Promise(resolve => {
       const reader = new FileReader();
       reader.onload = () => {
-        const dataUrl = reader.result as string;
-        // Convert to PNG so the API always receives a compatible format
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
           canvas.width = img.naturalWidth;
           canvas.height = img.naturalHeight;
           canvas.getContext('2d')!.drawImage(img, 0, 0);
-          const pngDataUrl = canvas.toDataURL('image/png');
-          setReferenceImages(prev => prev.length < 3 ? [...prev, pngDataUrl] : prev);
+          resolve(canvas.toDataURL('image/png'));
         };
-        img.src = dataUrl;
+        img.src = reader.result as string;
       };
       reader.readAsDataURL(file);
+    });
+
+  const handleProductDetailUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(async file => {
+      const png = await readAsPng(file);
+      setProductDetailImages(prev => prev.length < 2 ? [...prev, png] : prev);
+    });
+    e.target.value = '';
+  };
+
+  const handleReferenceImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    files.forEach(async file => {
+      const png = await readAsPng(file);
+      setReferenceImages(prev => prev.length < 2 ? [...prev, png] : prev);
     });
     e.target.value = '';
   };
@@ -69,6 +82,7 @@ export default function Home() {
           brief,
           brandKit: selectedClient,
           peopleMode,
+          productDetailImages,
           referenceImages,
         }),
       });
@@ -263,7 +277,7 @@ export default function Home() {
                 ] as const).map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); }}
+                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); setProductDetailImages([]); }}
                     className={`p-4 rounded-xl border text-left transition-all ${
                       peopleMode === opt.value
                         ? 'border-indigo-500 bg-indigo-500/10'
@@ -279,13 +293,37 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Reference image upload — always shown */}
-              <div className="space-y-3">
-                  <p className="text-xs text-white/40">
-                    {peopleMode === 'none'
-                      ? 'Subí la foto del producto — el modelo lo va a preservar exacto (estampado, colores, corte).'
-                      : 'Subí la foto de la persona ya usando el producto — esa imagen es la referencia visual.'}
-                  </p>
+              {/* Product detail upload — always shown */}
+              <div className="space-y-2">
+                <p className="text-xs font-medium text-white/60">Foto del producto / estampado en detalle</p>
+                <p className="text-xs text-white/30">Primer plano del estampado o producto sobre fondo neutro — más detalle = mejor resultado.</p>
+                <div className="flex gap-3 flex-wrap">
+                  {productDetailImages.map((img, i) => (
+                    <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
+                      <img src={img} alt={`prod ${i+1}`} className="w-full h-full object-cover" />
+                      <button
+                        onClick={() => setProductDetailImages(prev => prev.filter((_, idx) => idx !== i))}
+                        className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white text-xs"
+                      >×</button>
+                    </div>
+                  ))}
+                  {productDetailImages.length < 2 && (
+                    <label className="w-20 h-20 rounded-xl border border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center cursor-pointer transition-colors gap-1">
+                      <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      <span className="text-xs text-white/30">Foto</span>
+                      <input type="file" accept="image/*" multiple onChange={handleProductDetailUpload} className="hidden" />
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Person reference upload — only in 'real' mode */}
+              {peopleMode === 'real' && (
+                <div className="space-y-2">
+                  <p className="text-xs font-medium text-white/60">Foto de la persona usando el producto</p>
+                  <p className="text-xs text-white/30">La persona ya vistiendo el producto — referencia para el modelo.</p>
                   <div className="flex gap-3 flex-wrap">
                     {referenceImages.map((img, i) => (
                       <div key={i} className="relative w-20 h-20 rounded-xl overflow-hidden border border-white/10">
@@ -293,12 +331,10 @@ export default function Home() {
                         <button
                           onClick={() => setReferenceImages(prev => prev.filter((_, idx) => idx !== i))}
                           className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white text-xs"
-                        >
-                          ×
-                        </button>
+                        >×</button>
                       </div>
                     ))}
-                    {referenceImages.length < 3 && (
+                    {referenceImages.length < 2 && (
                       <label className="w-20 h-20 rounded-xl border border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center cursor-pointer transition-colors gap-1">
                         <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -309,6 +345,7 @@ export default function Home() {
                     )}
                   </div>
                 </div>
+              )}
             </div>
 
             <button

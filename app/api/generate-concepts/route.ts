@@ -80,10 +80,11 @@ async function generateWithGptImage2(
 }
 
 export async function POST(req: NextRequest) {
-  const { brief, brandKit, peopleMode = 'none', referenceImages = [] }: {
+  const { brief, brandKit, peopleMode = 'none', productDetailImages = [], referenceImages = [] }: {
     brief: string;
     brandKit: BrandKit;
     peopleMode: PeopleMode;
+    productDetailImages: string[];
     referenceImages: string[];
   } = await req.json();
 
@@ -91,9 +92,9 @@ export async function POST(req: NextRequest) {
   const brandKitContext = buildBrandKitContext(brandKit);
 
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
-  const productRef: string | null = referenceImages[0] || null;
+  // productDetailImages: close-up of the product/print — used for description and as visual ref
+  const productRef: string | null = productDetailImages[0] || null;
 
-  // Describe product and/or person with GPT-4o vision when reference images are provided
   let productDescription = '';
   let personDescription = '';
 
@@ -157,10 +158,10 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Input images for gpt-image-2: style refs from brand kit + product/person ref
+  // Input images for gpt-image-2: brand kit style refs + product detail photo(s)
   const inputImages = [
     ...visualRefs,
-    ...(productRef ? [productRef] : []),
+    ...productDetailImages.slice(0, 2),
   ];
 
   // Step 2: Generate 6 images in parallel with gpt-image-2
