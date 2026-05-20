@@ -23,58 +23,72 @@ async function generateImageWithReferences(
   openai: OpenAI,
   prompt: string,
   referenceImages: string[],
-  quality: 'low' | 'medium' | 'high',
   personImages: string[] = []
 ): Promise<string> {
-  // Combine brand references (max 2) + person reference (max 1) — model sees them all
   const allRefs = [
     ...referenceImages.slice(0, 2),
     ...personImages.slice(0, 1),
   ];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const response = await (openai.responses.create as any)({
-    model: 'gpt-image-2',
-    input: [
-      {
-        role: 'user',
-        content: [
-          ...allRefs.map(img => ({
-            type: 'input_image',
-            image_url: img,
-          })),
-          {
-            type: 'input_text',
-            text: prompt,
-          },
-        ],
-      },
-    ],
-    tools: [{ type: 'image_generation', model: 'gpt-image-2', quality, size: '1024x1536' }],
-  });
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (openai.responses.create as any)({
+      model: 'gpt-image-2',
+      input: [
+        {
+          role: 'user',
+          content: [
+            ...allRefs.map(img => ({
+              type: 'input_image',
+              image_url: img,
+            })),
+            { type: 'input_text', text: prompt },
+          ],
+        },
+      ],
+      tools: [{ type: 'image_generation', model: 'gpt-image-2', quality: 'low', size: '1024x1536' }],
+    });
 
-  // Extract base64 from response output
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  for (const block of (response.output || [])) {
-    if (block.type === 'image_generation_call' && block.result) {
-      return block.result;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const block of (response.output || [])) {
+      if (block.type === 'image_generation_call' && block.result) {
+        return block.result;
+      }
     }
+    console.error('Responses API returned no image_generation_call block');
+  } catch (err) {
+    console.error('Responses API error, falling back to images.generate:', err);
   }
-  return '';
+  // Fallback: generate without visual refs
+  return generateImageFromText(openai, prompt);
 }
 
 async function generateImageFromText(
   openai: OpenAI,
-  prompt: string,
-  quality: 'low' | 'medium' | 'high'
+  prompt: string
 ): Promise<string> {
-  const imageResponse = await openai.images.generate({
-    model: 'gpt-image-2',
-    prompt,
-    size: '1024x1536',
-    quality,
-    n: 1,
-  });
-  return imageResponse.data?.[0]?.b64_json || '';
+  try {
+    const imageResponse = await openai.images.generate({
+      model: 'gpt-image-2',
+      prompt,
+      size: '1024x1536',
+      quality: 'low',
+      n: 1,
+    });
+    const b64 = imageResponse.data?.[0]?.b64_json || '';
+    if (!b64) console.error('gpt-image-2 returned empty b64_json');
+    return b64;
+  } catch (err) {
+    console.error('gpt-image-2 failed, falling back to gpt-image-1:', err);
+    // Fallback to gpt-image-1 if gpt-image-2 is not accessible
+    const fallback = await openai.images.generate({
+      model: 'gpt-image-1',
+      prompt,
+      size: '1024x1536',
+      quality: 'low',
+      n: 1,
+    });
+    return fallback.data?.[0]?.b64_json || '';
+  }
 }
 
 export async function POST(req: NextRequest) {
@@ -113,7 +127,6 @@ export async function POST(req: NextRequest) {
 
   const peopleInstruction = buildPeopleInstruction(peopleMode, referenceDescription);
   const hasPeople = peopleMode !== 'none';
-  const quality = hasPeople ? 'high' : 'medium';
 
   const fashionSuffix = hasPeople
     ? 'Fashion editorial photography, professional model, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
@@ -154,8 +167,8 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
     const fullPrompt = `${concept.image_prompt}. Use brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.`;
 
     const base64 = hasVisualRefs
-      ? await generateImageWithReferences(openai, fullPrompt, visualRefs, quality, personRefs)
-      : await generateImageFromText(openai, fullPrompt, quality);
+      ? await generateImageWithReferences(openai, fullPrompt, visualRefs, personRefs)
+      : await generateImageFromText(openai, fullPrompt);
 
     return {
       id: Math.random().toString(36).slice(2),
