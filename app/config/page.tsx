@@ -18,6 +18,7 @@ export default function ConfigPage() {
   const [editing, setEditing] = useState<BrandKit | null>(null);
   const [form, setForm] = useState(EMPTY_FORM);
   const [showForm, setShowForm] = useState(false);
+  const [extracting, setExtracting] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -42,6 +43,32 @@ export default function ConfigPage() {
     setForm({ ...client });
     setShowForm(true);
     setSaved(false);
+  };
+
+  const handlePdfUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setExtracting(true);
+    try {
+      const fd = new FormData();
+      fd.append('pdf', file);
+      const res = await fetch('/api/extract-brand', { method: 'POST', body: fd });
+      if (!res.ok) throw new Error('Error procesando el PDF');
+      const data = await res.json();
+      setForm(f => ({
+        ...f,
+        name: data.name || f.name,
+        primaryColor: data.primaryColor || f.primaryColor,
+        secondaryColor: data.secondaryColor || f.secondaryColor,
+        accentColor: data.accentColor || f.accentColor,
+        styleDescription: data.styleDescription || f.styleDescription,
+      }));
+    } catch {
+      alert('No se pudo leer el PDF. Intentá de nuevo o completá el formulario manualmente.');
+    } finally {
+      setExtracting(false);
+      e.target.value = '';
+    }
   };
 
   const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -170,7 +197,25 @@ export default function ConfigPage() {
         {/* Form */}
         {showForm && (
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
-            <h2 className="font-semibold text-lg">{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
+            <div className="flex items-center justify-between">
+              <h2 className="font-semibold text-lg">{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
+              <label className={`cursor-pointer flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors ${extracting ? 'opacity-50 cursor-not-allowed border-white/10 text-white/40' : 'border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500'}`}>
+                {extracting ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />
+                    Leyendo manual...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                    </svg>
+                    Importar desde PDF
+                  </>
+                )}
+                <input type="file" accept=".pdf" onChange={handlePdfUpload} disabled={extracting} className="hidden" />
+              </label>
+            </div>
 
             {/* Name */}
             <div className="space-y-2">
