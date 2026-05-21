@@ -135,36 +135,58 @@ export async function POST(req: NextRequest) {
     personDescription = visionResponse.choices[0].message.content || '';
   }
 
+  const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
+
   // People instruction for concept generation
   const peopleInstruction = peopleMode === 'none'
-    ? 'NO incluir personas. Enfocarse en producto, composición, flat lay o elementos gráficos.'
+    ? 'NO incluir personas. Enfocarse en producto, composición, elementos gráficos y copy.'
     : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
-  // Step 1: GPT-4o generates 6 free creative concept prompts.
-  // Product is NOT constrained here — model focuses on style, composition, and mood.
-  // The exact product is applied in the refine step (apply-product) for maximum fidelity.
+  const conceptDirections = isProductEcommerce
+    ? `Direcciones (e-commerce de producto):
+1. Producto hero — producto centrado y protagonista sobre fondo limpio del brand kit, sin texto excepto logo
+2. Tipográfico promocional — copy de oferta como elemento central, producto integrado de forma secundaria
+3. Producto en contexto — el producto en uso real o en el ambiente donde se aplica (vehículo, industria, etc.)
+4. Layout promocional limpio — bloques de color del brand kit, producto + datos clave de la promo alineados
+5. Showcase técnico — closeup del producto destacando calidad, materiales y detalles de ingeniería
+6. Lifestyle del segmento — ambiente y elementos que representan el segmento objetivo con el producto`
+    : `Direcciones (fashion/editorial):
+1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados
+2. Tipográfico editorial — tipografía grande como elemento visual, imagen secundaria
+3. Producto hero — producto o prenda protagonista sin personas
+4. Lifestyle aspiracional — ambiente y mood que refuerzan la identidad de marca
+5. Composición geométrica — bloques de color, formas y tipografía del brand kit
+6. Editorial de moda — fotografía aspiracional de agencia internacional`;
+
+  // Step 1: GPT-4o generates 6 creative concept prompts tailored to mode.
   const conceptsResponse = await openai.chat.completions.create({
     model: 'gpt-4o',
     messages: [
       {
         role: 'system',
-        content: `Sos un director creativo senior de moda y retail premium.
-Dado un brief y un brand kit, generá exactamente 6 conceptos visuales distintos para una pieza portrait 1024x1536 (Instagram 4:5).
+        content: `Sos un director creativo senior de retail y publicidad digital.
+Dado un brief, brand kit y referencias visuales, generá exactamente 6 conceptos distintos para una pieza portrait 1024x1536.
 
 REGLAS:
 - Usá los hex exactos del brand kit como colores dominantes
-- Estilo ELEGANTE y PREMIUM, nunca genérico ni clipart
-- Direcciones: minimalista limpio, tipográfico editorial, producto hero, lifestyle aspiracional, composición geométrica, editorial de moda
-- Fondos en colores del brand kit, tipografía elegante, máx 2-3 elementos
-- Nivel de agencia de moda internacional
-- PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, códigos promocionales, "primera compra", "envío gratis" u otras ofertas. Solo incluí texto o copy que esté EXPLÍCITAMENTE en el brief.
+- Estilo PREMIUM, nunca genérico ni clipart
+${conceptDirections}
+- Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
+- Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
+- Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
+- PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
-El image_prompt debe mencionar colores hex exactos, disposición, estilo fotográfico y mood.`,
+El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`,
       },
       {
         role: 'user',
-        content: `BRAND KIT:\n${brandKitContext}\n\nBRIEF:\n${brief}\n\nPERSONAS:\n${peopleInstruction}`,
+        content: [
+          `BRAND KIT:\n${brandKitContext}`,
+          `BRIEF:\n${brief}`,
+          `PERSONAS:\n${peopleInstruction}`,
+          productDescription ? `PRODUCTOS (describí exactamente estos en los conceptos que los incluyan):\n${productDescription}` : '',
+        ].filter(Boolean).join('\n\n'),
       },
     ],
     response_format: { type: 'json_object' },
@@ -173,22 +195,40 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Pass product + person images as visual context for the fantasy concept.
-  // The model does its best with what it sees — exact fidelity comes in the apply-product step.
+  // All product images + visual refs as context. Person ref only for real-person mode.
   const inputImages = [
     ...visualRefs,
-    ...productDetailImages.slice(0, 1),
+    ...productDetailImages, // ALL uploaded products, not just first
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
   ];
 
-  // Step 2: Generate 6 concept images — creative direction only, no product constraint
+  // Step 2: Generate 6 concept images
   const imagePromises = concepts.map(async (concept: ConceptItem) => {
     const hasPeople = peopleMode !== 'none';
-    const fashionSuffix = hasPeople
-      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
-      : 'Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.';
 
-    const fullPrompt = `${concept.image_prompt} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} IMPORTANT: do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.`;
+    const styleSuffix = hasPeople
+      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+      : isProductEcommerce
+        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic where applicable.'
+        : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
+
+    const productHint = isProductEcommerce && productDetailImages.length > 0
+      ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
+      : '';
+
+    const styleHint = visualRefs.length > 0
+      ? 'Match the visual style, typography treatment and composition quality of the provided brand reference pieces.'
+      : '';
+
+    const fullPrompt = [
+      concept.image_prompt,
+      `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}.`,
+      `Typography: ${brandKit.typography || 'bold sans-serif'}.`,
+      styleSuffix,
+      productHint,
+      styleHint,
+      'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
+    ].filter(Boolean).join(' ');
 
     const base64 = await generateWithGptImage2(openai, fullPrompt, inputImages);
 
