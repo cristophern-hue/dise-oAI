@@ -4,7 +4,15 @@ import OpenAI, { toFile } from 'openai';
 export const maxDuration = 300;
 
 const EDIT_PROMPT = (instruction: string) =>
-  `Apply this adjustment to the fashion image: "${instruction}". Preserve the garment/product exactly — same colors, same print pattern, same details. Only change what the instruction specifies. Keep premium fashion editorial style and overall composition.`;
+  `Apply ONLY this specific adjustment: "${instruction}".
+
+CRITICAL — preserve EXACTLY as-is:
+- ALL text, headlines, titles, dates, promotional copy, percentages, prices, icons, and graphic elements
+- The product / garment (same appearance, position, size)
+- The overall layout and composition structure
+- Brand logos and typography style
+
+Change ONLY what the instruction explicitly requests (e.g. if it says "change background", change ONLY the background). Do not remove, rewrite, or reposition anything else. This is a targeted edit, not a full regeneration.`;
 
 export async function POST(req: NextRequest) {
   const { imageBase64, instruction, productDetailImages = [] }: {
