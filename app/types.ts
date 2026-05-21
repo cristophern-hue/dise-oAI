@@ -16,6 +16,7 @@ export interface BrandKit {
   referencePiecesStyle?: string;
   referencePiecesThumbnails?: string[];
   logoBase64?: string;
+  quickAdjustments?: string[];
 }
 
 export interface GeneratedImage {

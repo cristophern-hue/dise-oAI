@@ -980,44 +980,54 @@ export default function Home() {
                 <div className="space-y-2">
                   <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Ajustes rápidos</p>
                   <div className="flex flex-wrap gap-2">
-                    {(productDetailImages.length > 0 && peopleMode === 'none'
-                      ? [
-                          'Fondo más oscuro',
-                          'Fondo blanco limpio',
-                          'Fondo con textura industrial',
-                          'Más contraste',
-                          'Producto más grande',
-                          'Producto centrado',
-                          'Agregar sombra al producto',
-                          'Composición más minimalista',
-                          'Agregar texto del evento',
-                          'Resaltar detalles del producto',
-                          'Colores más vibrantes',
-                          'Agregar texto de marca',
-                        ]
-                      : [
-                          'Fondo más oscuro',
-                          'Fondo blanco limpio',
-                          'Más contraste',
-                          'Iluminación más suave',
-                          'Estampado más visible',
-                          'Colores más vibrantes',
-                          'Modelo mujer joven',
-                          'Modelo hombre joven',
-                          'Quitar personas',
-                          'Solo producto flat lay',
-                          'Composición más centrada',
-                          'Agregar texto de marca',
-                        ]
-                    ).map(preset => (
-                      <button
-                        key={preset}
-                        onClick={() => setRefineInput(preset)}
-                        className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#FA5A1E]/50 text-white/60 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        {preset}
-                      </button>
-                    ))}
+                    {[
+                      ...(selectedClient?.quickAdjustments || []),
+                      ...(productDetailImages.length > 0 && peopleMode === 'none'
+                        ? [
+                            'Fondo más oscuro',
+                            'Fondo blanco limpio',
+                            'Fondo con textura industrial',
+                            'Más contraste',
+                            'Producto más grande',
+                            'Producto centrado',
+                            'Agregar sombra al producto',
+                            'Composición más minimalista',
+                            'Agregar texto del evento',
+                            'Resaltar detalles del producto',
+                            'Colores más vibrantes',
+                            'Agregar texto de marca',
+                          ]
+                        : [
+                            'Fondo más oscuro',
+                            'Fondo blanco limpio',
+                            'Más contraste',
+                            'Iluminación más suave',
+                            'Estampado más visible',
+                            'Colores más vibrantes',
+                            'Modelo mujer joven',
+                            'Modelo hombre joven',
+                            'Quitar personas',
+                            'Solo producto flat lay',
+                            'Composición más centrada',
+                            'Agregar texto de marca',
+                          ]
+                      ),
+                    ].map((preset, i) => {
+                      const isClientPreset = i < (selectedClient?.quickAdjustments?.length || 0);
+                      return (
+                        <button
+                          key={`${preset}-${i}`}
+                          onClick={() => setRefineInput(preset)}
+                          className={`text-xs px-3 py-1.5 rounded-lg transition-colors border ${
+                            isClientPreset
+                              ? 'bg-[#FA5A1E]/10 border-[#FA5A1E]/30 text-[#FF912D] hover:bg-[#FA5A1E]/20'
+                              : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-[#FA5A1E]/50 text-white/60 hover:text-white'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
