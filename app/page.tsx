@@ -1,27 +1,15 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { BrandKit, GeneratedImage, Step, PeopleMode } from './types';
 import ImageCard from './components/ImageCard';
 import StepIndicator from './components/StepIndicator';
 import LoadingGrid from './components/LoadingGrid';
+import SessionDrawer from './components/SessionDrawer';
+import { dbSaveSession, dbGetAllSessions, dbDeleteSession, SavedSession } from './lib/db';
 
-const SESSION_KEY = 'disenoai_session';
-
-interface SessionData {
-  step: Step;
-  brief: string;
-  selectedClientId: string | null;
-  peopleMode: PeopleMode;
-  concepts: GeneratedImage[];
-  selectedConcepts: GeneratedImage[];
-  productDescription: string;
-  personDescription: string;
-  refineImage: GeneratedImage | null;
-  refineHistory: string[];
-  refineImageHistory: string[];
-}
+const LAST_SESSION_KEY = 'disenoai_last_session_id';
 
 export default function Home() {
   const [clients, setClients] = useState<BrandKit[]>([]);
@@ -29,6 +17,11 @@ export default function Home() {
   const [brief, setBrief] = useState('');
   const [clientRequest, setClientRequest] = useState('');
   const [generatingBrief, setGeneratingBrief] = useState(false);
+
+  const [showDrawer, setShowDrawer] = useState(false);
+  const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const [adaptFormats, setAdaptFormats] = useState<string[]>([]);
   const [adaptedImages, setAdaptedImages] = useState<{ format: string; label: string; conceptId: string; base64: string }[]>([]);
@@ -342,7 +335,8 @@ export default function Home() {
     setPeopleMode('none');
     setProductDetailImages([]);
     setReferenceImages([]);
-    try { localStorage.removeItem(SESSION_KEY); } catch {}
+    setCurrentSessionId(null);
+    localStorage.removeItem(LAST_SESSION_KEY);
   };
 
   const regenerateConcepts = async () => {
@@ -351,60 +345,136 @@ export default function Home() {
     await generateConcepts();
   };
 
-  // Auto-save session to localStorage whenever key state changes
-  useEffect(() => {
-    if (step === 'brief' && !brief && !selectedClient) return;
-    const session: SessionData = {
-      step, brief,
-      selectedClientId: selectedClient?.id || null,
-      peopleMode, concepts, selectedConcepts,
-      productDescription, personDescription,
-      refineImage, refineHistory, refineImageHistory,
-    };
-    try {
-      localStorage.setItem(SESSION_KEY, JSON.stringify(session));
-    } catch {
-      // Quota exceeded — images too large for localStorage, save without image data
-      try {
-        const light = { ...session, concepts: [], selectedConcepts: [], refineImage: null, refineImageHistory: [] };
-        localStorage.setItem(SESSION_KEY, JSON.stringify(light));
-      } catch { /* nothing we can do */ }
+  const applySessionData = useCallback((d: Record<string, unknown>, allClients: BrandKit[]) => {
+    setBrief((d.brief as string) || '');
+    setClientRequest((d.clientRequest as string) || '');
+    setPeopleMode((d.peopleMode as PeopleMode) || 'none');
+    setConcepts((d.concepts as GeneratedImage[]) || []);
+    setSelectedConcepts((d.selectedConcepts as GeneratedImage[]) || []);
+    setProductDescription((d.productDescription as string) || '');
+    setPersonDescription((d.personDescription as string) || '');
+    setRefineImage((d.refineImage as GeneratedImage | null) || null);
+    setRefineHistory((d.refineHistory as string[]) || []);
+    setRefineImageHistory((d.refineImageHistory as string[]) || []);
+    setRefineIndex((d.refineIndex as number) || 0);
+    setProductDetailImages((d.productDetailImages as string[]) || []);
+    setReferenceImages((d.referenceImages as string[]) || []);
+    setAdaptFormats((d.adaptFormats as string[]) || []);
+    setAdaptedImages((d.adaptedImages as { format: string; label: string; conceptId: string; base64: string }[]) || []);
+    const cid = d.selectedClientId as string | null;
+    if (cid) {
+      const found = allClients.find(k => k.id === cid);
+      if (found) setSelectedClient(found);
+    } else {
+      setSelectedClient(null);
     }
-  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcepts, productDescription, personDescription, refineIndex, refineImage, refineHistory, refineImageHistory]);
+    const s = (d.step as string) || 'brief';
+    setStep((s === 'adjust' ? 'refine' : s) as Step);
+  }, []);
 
-  // Restore session from localStorage on mount
+  // Load all sessions from IndexedDB on mount and restore last active session
   useEffect(() => {
-    try {
-      const raw = localStorage.getItem(SESSION_KEY);
-      if (!raw) return;
-      const s: SessionData = JSON.parse(raw);
-      if (s.step === 'brief') return;
-      // Handle legacy sessions that had 'adjust' step
-      if ((s.step as string) === 'adjust') s.step = 'refine';
-      setBrief(s.brief || '');
-      setPeopleMode(s.peopleMode || 'none');
-      setConcepts(s.concepts || []);
-      setSelectedConcepts(s.selectedConcepts || []);
-      setProductDescription(s.productDescription || '');
-      setPersonDescription(s.personDescription || '');
-      setRefineImage(s.refineImage || null);
-      setRefineImageHistory(s.refineImageHistory || []);
-      setRefineHistory(s.refineHistory || []);
-      if (s.selectedClientId) {
-        const stored = localStorage.getItem('brandKits');
-        if (stored) {
-          const kits: BrandKit[] = JSON.parse(stored);
-          const found = kits.find(k => k.id === s.selectedClientId);
-          if (found) setSelectedClient(found);
+    const stored = localStorage.getItem('brandKits');
+    const allClients: BrandKit[] = stored ? JSON.parse(stored) : [];
+
+    dbGetAllSessions().then(sessions => {
+      setSavedSessions(sessions);
+      const lastId = localStorage.getItem(LAST_SESSION_KEY);
+      if (lastId) {
+        const last = sessions.find(s => s.id === lastId);
+        if (last) {
+          setCurrentSessionId(last.id);
+          applySessionData(last.data, allClients);
         }
       }
-      setStep(s.step);
-    } catch {}
+    }).catch(console.error);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Auto-save to IndexedDB (debounced 1.5s) whenever state changes
+  useEffect(() => {
+    if (step === 'brief' && !brief.trim() && !selectedClient) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    saveTimerRef.current = setTimeout(async () => {
+      let sessionId = currentSessionId;
+      if (!sessionId) {
+        sessionId = Math.random().toString(36).slice(2) + Date.now().toString(36);
+        setCurrentSessionId(sessionId);
+        localStorage.setItem(LAST_SESSION_KEY, sessionId);
+      }
+
+      const now = new Date().toISOString();
+      const data = {
+        step, brief, clientRequest,
+        selectedClientId: selectedClient?.id || null,
+        peopleMode, concepts, selectedConcepts,
+        productDescription, personDescription,
+        refineImage, refineHistory, refineImageHistory,
+        refineIndex, productDetailImages, referenceImages,
+        adaptFormats, adaptedImages,
+      };
+
+      setSavedSessions(prev => {
+        const existing = prev.find(s => s.id === sessionId);
+        const updated: SavedSession = {
+          id: sessionId!,
+          clientName: selectedClient?.name || 'Sin cliente',
+          clientId: selectedClient?.id || null,
+          step,
+          brief,
+          createdAt: existing?.createdAt || now,
+          updatedAt: now,
+          data,
+        };
+        dbSaveSession(updated).catch(console.error);
+        localStorage.setItem(LAST_SESSION_KEY, sessionId!);
+        const rest = prev.filter(s => s.id !== sessionId);
+        return [updated, ...rest];
+      });
+    }, 1500);
+
+    return () => { if (saveTimerRef.current) clearTimeout(saveTimerRef.current); };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, brief, selectedClient, peopleMode, concepts, selectedConcepts, productDescription, personDescription, refineIndex, refineImage, refineHistory, refineImageHistory, adaptFormats, adaptedImages]);
+
+  const newSession = () => {
+    setCurrentSessionId(null);
+    localStorage.removeItem(LAST_SESSION_KEY);
+    setStep('brief');
+    setBrief('');
+    setClientRequest('');
+    setSelectedClient(null);
+    setPeopleMode('none');
+    setConcepts([]);
+    setSelectedConcepts([]);
+    setProductDescription('');
+    setPersonDescription('');
+    setRefineImage(null);
+    setRefineHistory([]);
+    setRefineImageHistory([]);
+    setRefineIndex(0);
+    setProductDetailImages([]);
+    setReferenceImages([]);
+    setAdaptFormats([]);
+    setAdaptedImages([]);
+    setError('');
+  };
+
+  const loadSessionFromDrawer = useCallback((s: SavedSession) => {
+    setCurrentSessionId(s.id);
+    localStorage.setItem(LAST_SESSION_KEY, s.id);
+    applySessionData(s.data, clients);
+  }, [clients, applySessionData]);
+
+  const deleteSessionFromDrawer = async (id: string) => {
+    await dbDeleteSession(id);
+    setSavedSessions(prev => prev.filter(s => s.id !== id));
+    if (currentSessionId === id) newSession();
+  };
+
   const exportSession = () => {
-    const session: SessionData = {
+    const session = {
       step, brief,
       selectedClientId: selectedClient?.id || null,
       peopleMode, concepts, selectedConcepts,
@@ -428,25 +498,8 @@ export default function Home() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const s: SessionData = JSON.parse(reader.result as string);
-        setBrief(s.brief || '');
-        setPeopleMode(s.peopleMode || 'none');
-        setConcepts(s.concepts || []);
-        setSelectedConcepts(s.selectedConcepts || []);
-        setProductDescription(s.productDescription || '');
-        setPersonDescription(s.personDescription || '');
-        setRefineImage(s.refineImage || null);
-        setRefineImageHistory(s.refineImageHistory || []);
-        setRefineHistory(s.refineHistory || []);
-        if (s.selectedClientId) {
-          const stored = localStorage.getItem('brandKits');
-          if (stored) {
-            const kits: BrandKit[] = JSON.parse(stored);
-            const found = kits.find(k => k.id === s.selectedClientId);
-            if (found) setSelectedClient(found);
-          }
-        }
-        setStep(s.step);
+        const s = JSON.parse(reader.result as string);
+        applySessionData(s, clients);
       } catch { setError('No se pudo importar la sesión — archivo inválido.'); }
     };
     reader.readAsText(file);
@@ -455,14 +508,33 @@ export default function Home() {
 
   return (
     <div className="min-h-screen bg-[#0d0d0d] text-white">
+      <SessionDrawer
+        open={showDrawer}
+        sessions={savedSessions}
+        currentId={currentSessionId}
+        onClose={() => setShowDrawer(false)}
+        onLoad={loadSessionFromDrawer}
+        onDelete={deleteSessionFromDrawer}
+        onNew={newSession}
+      />
+
       {/* Header */}
       <header className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+          <button
+            onClick={() => setShowDrawer(true)}
+            title="Biblioteca de sesiones"
+            className="w-8 h-8 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition-colors flex items-center justify-center relative"
+          >
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
             </svg>
-          </div>
+            {savedSessions.length > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-indigo-400 rounded-full text-[8px] font-bold text-white flex items-center justify-center">
+                {savedSessions.length > 9 ? '9+' : savedSessions.length}
+              </span>
+            )}
+          </button>
           <span className="font-semibold text-lg">Diseño AI</span>
         </div>
         <div className="flex items-center gap-3">
