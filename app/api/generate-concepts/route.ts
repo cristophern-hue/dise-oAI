@@ -288,49 +288,70 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
   ];
 
-  // Step 2: Generate 6 concept images
-  const imagePromises = concepts.map(async (concept: ConceptItem) => {
-    const hasPeople = peopleMode !== 'none';
+  const hasPeople = peopleMode !== 'none';
+  const styleSuffix = hasPeople
+    ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+    : isProductEcommerce
+      ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic where applicable.'
+      : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
+  const productHint = isProductEcommerce && productDetailImages.length > 0
+    ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
+    : '';
+  const styleHint = visualRefs.length > 0
+    ? 'Match the visual style, typography treatment and composition quality of the provided brand reference pieces.'
+    : '';
 
-    const styleSuffix = hasPeople
-      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
-      : isProductEcommerce
-        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic where applicable.'
-        : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
+  // Step 2: Stream each concept image as it completes
+  const encoder = new TextEncoder();
+  const send = (controller: ReadableStreamDefaultController, data: object) =>
+    controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
-    const productHint = isProductEcommerce && productDetailImages.length > 0
-      ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
-      : '';
+  const stream = new ReadableStream({
+    async start(controller) {
+      try {
+        await Promise.allSettled(
+          concepts.map(async (concept: ConceptItem) => {
+            const fullPrompt = [
+              concept.image_prompt,
+              `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}.`,
+              `Typography: ${brandKit.typography || 'bold sans-serif'}.`,
+              styleSuffix,
+              productHint,
+              styleHint,
+              'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
+            ].filter(Boolean).join(' ');
 
-    const styleHint = visualRefs.length > 0
-      ? 'Match the visual style, typography treatment and composition quality of the provided brand reference pieces.'
-      : '';
+            try {
+              const base64 = isProductEcommerce && productDetailImages[0]
+                ? await editProductForConcept(openai, productDetailImages[0], fullPrompt)
+                : await generateWithGptImage2(openai, fullPrompt, inputImages);
 
-    const fullPrompt = [
-      concept.image_prompt,
-      `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}.`,
-      `Typography: ${brandKit.typography || 'bold sans-serif'}.`,
-      styleSuffix,
-      productHint,
-      styleHint,
-      'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
-    ].filter(Boolean).join(' ');
-
-    const base64 = isProductEcommerce && productDetailImages[0]
-      ? await editProductForConcept(openai, productDetailImages[0], fullPrompt)
-      : await generateWithGptImage2(openai, fullPrompt, inputImages);
-
-    return {
-      id: Math.random().toString(36).slice(2),
-      base64,
-      prompt: fullPrompt,
-      conceptName: concept.concept_name,
-    };
+              send(controller, {
+                image: {
+                  id: Math.random().toString(36).slice(2),
+                  base64,
+                  prompt: fullPrompt,
+                  conceptName: concept.concept_name,
+                },
+              });
+            } catch (err) {
+              console.error(`concept "${concept.concept_name}" failed:`, err);
+              send(controller, { error: concept.concept_name });
+            }
+          })
+        );
+      } finally {
+        send(controller, { done: true, productDescription, personDescription });
+        controller.close();
+      }
+    },
   });
 
-  const images = await Promise.all(imagePromises);
-
-  // Return productDescription and personDescription so the frontend can
-  // call /api/apply-product after the user selects a concept in the refine step
-  return NextResponse.json({ images, productDescription, personDescription });
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache, no-transform',
+      'X-Accel-Buffering': 'no',
+    },
+  });
 }

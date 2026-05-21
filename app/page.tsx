@@ -40,6 +40,7 @@ export default function Home() {
   const [kvReferenceImage, setKvReferenceImage] = useState<string | null>(null);
 
   const [concepts, setConcepts] = useState<GeneratedImage[]>([]);
+  const [generatingCount, setGeneratingCount] = useState(0);
   const [selectedConcepts, setSelectedConcepts] = useState<GeneratedImage[]>([]);
   const [refineIndex, setRefineIndex] = useState(0);
   const [productDescription, setProductDescription] = useState('');
@@ -120,10 +121,41 @@ export default function Home() {
     e.target.value = '';
   };
 
+  const parseConceptStream = async (res: Response, onImage: (img: GeneratedImage) => void): Promise<{ productDescription: string; personDescription: string }> => {
+    const reader = res.body!.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    let productDesc = '';
+    let personDesc = '';
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      const parts = buffer.split('\n\n');
+      buffer = parts.pop() ?? '';
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        try {
+          const data = JSON.parse(part.slice(6));
+          if (data.image) onImage(data.image);
+          if (data.done) { productDesc = data.productDescription || ''; personDesc = data.personDescription || ''; }
+        } catch { /* ignore malformed chunk */ }
+      }
+    }
+    return { productDescription: productDesc, personDescription: personDesc };
+  };
+
   const generateConcepts = async () => {
     if (!selectedClient || !brief.trim()) return;
     if (kvMode && !kvReferenceImage) return;
-    startLoading(kvMode ? 'Reciclando KV — generando 5 conceptos...' : 'Generando 6 conceptos visuales...');
+    const count = kvMode ? 5 : 6;
+    setGeneratingCount(count);
+    setConcepts([]);
+    setSelectedConcepts([]);
+    setProductDescription('');
+    setPersonDescription('');
+    setStep('concepts');
+    startLoading(kvMode ? 'Reciclando KV...' : 'Generando conceptos...');
     setError('');
     try {
       const res = await fetch('/api/generate-concepts', {
@@ -139,13 +171,14 @@ export default function Home() {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      setConcepts(data.images);
-      setProductDescription(data.productDescription || '');
-      setPersonDescription(data.personDescription || '');
-      setStep('concepts');
+      const { productDescription: pd, personDescription: prd } = await parseConceptStream(res, img =>
+        setConcepts(prev => [...prev, img])
+      );
+      setProductDescription(pd);
+      setPersonDescription(prd);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error generando conceptos');
+      setStep('brief');
     } finally {
       stopLoading();
     }
@@ -155,7 +188,10 @@ export default function Home() {
     if (selectedConcepts.length === 0 || !selectedClient || !brief.trim()) return;
     const newCount = 6 - selectedConcepts.length;
     if (newCount <= 0) return;
-    startLoading(`Generando ${newCount} concepto${newCount > 1 ? 's' : ''} similares...`);
+    const pinned = [...selectedConcepts];
+    setGeneratingCount(6);
+    setConcepts([...pinned]);
+    startLoading(`Generando ${newCount} similar${newCount > 1 ? 'es' : ''}...`);
     setError('');
     try {
       const res = await fetch('/api/generate-concepts', {
@@ -167,14 +203,15 @@ export default function Home() {
           peopleMode,
           productDetailImages,
           referenceImages,
-          styleReferenceImages: selectedConcepts.map(c => c.base64),
+          styleReferenceImages: pinned.map(c => c.base64),
           count: newCount,
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const data = await res.json();
-      if (data.productDescription && !productDescription) setProductDescription(data.productDescription);
-      setConcepts([...selectedConcepts, ...data.images]);
+      const { productDescription: pd } = await parseConceptStream(res, img =>
+        setConcepts(prev => [...prev, img])
+      );
+      if (pd && !productDescription) setProductDescription(pd);
       setSelectedConcepts([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error generando similares');
@@ -905,10 +942,7 @@ export default function Home() {
               </div>
             </div>
 
-            {loading && step === 'concepts' ? (
-              <LoadingGrid count={selectedConcepts.length || 6} label={`${loadingMsg}${elapsedSec > 5 ? ` · ${elapsedSec}s` : ''}`} />
-            ) : (
-              <>
+            <>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {concepts.map(img => {
                     const selIdx = selectedConcepts.findIndex(c => c.id === img.id);
@@ -928,6 +962,14 @@ export default function Home() {
                       </div>
                     );
                   })}
+                  {loading && Array.from({ length: Math.max(0, generatingCount - concepts.length) }).map((_, i) => (
+                    <div key={`skeleton-${i}`} className="aspect-[2/3] rounded-xl border border-white/10 bg-white/5 animate-pulse flex flex-col justify-end p-3 gap-2">
+                      <div className="flex items-center justify-center flex-1">
+                        <div className="w-6 h-6 border-2 border-white/20 border-t-white/60 rounded-full animate-spin" />
+                      </div>
+                      <div className="h-2.5 bg-white/20 rounded-full w-2/3" />
+                    </div>
+                  ))}
                 </div>
 
                 {/* Product description editor — only for fashion/person mode; e-commerce uses images.edit directly */}
@@ -991,8 +1033,7 @@ export default function Home() {
                     )}
                   </button>
                 </div>
-              </>
-            )}
+            </>
           </div>
         )}
 
