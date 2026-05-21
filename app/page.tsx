@@ -507,7 +507,7 @@ export default function Home() {
   };
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d] text-white">
+    <div className="min-h-screen bg-[#F0EBE3]">
       <SessionDrawer
         open={showDrawer}
         sessions={savedSessions}
@@ -519,7 +519,7 @@ export default function Home() {
       />
 
       {/* Header */}
-      <header className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
+      <header className="bg-[#111111] border-b border-white/10 px-6 py-4 flex items-center justify-between text-white">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setShowDrawer(true)}
