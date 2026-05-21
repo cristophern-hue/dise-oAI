@@ -41,7 +41,7 @@ async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): 
         { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
       ],
     }],
-    max_tokens: 600,
+    max_tokens: 800,
   });
   return response.choices[0].message.content || '';
 }
@@ -108,11 +108,15 @@ export async function POST(req: NextRequest) {
   let personDescription = '';
 
   if (productRef) {
-    try {
-      const desc = await describeProductWithVision(openai, productRef);
-      productDescription = isRefusal(desc) ? '' : desc;
-    } catch {
-      productDescription = '';
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const desc = await describeProductWithVision(openai, productRef);
+        productDescription = isRefusal(desc) ? '' : desc;
+        if (productDescription) break;
+        console.warn(`describe-product: attempt ${attempt + 1} returned refusal/empty`);
+      } catch (err) {
+        console.error(`describe-product: attempt ${attempt + 1} failed:`, err);
+      }
     }
   }
 
