@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import OpenAI, { toFile } from 'openai';
 import { BrandKit } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
@@ -44,6 +44,29 @@ async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): 
     max_tokens: 800,
   });
   return response.choices[0].message.content || '';
+}
+
+async function editProductForConcept(
+  openai: OpenAI,
+  productDataUrl: string,
+  editPrompt: string,
+): Promise<string> {
+  try {
+    const base64Data = productDataUrl.split(',')[1];
+    const buffer = Buffer.from(base64Data, 'base64');
+    const imageFile = await toFile(buffer, 'product.jpg', { type: 'image/jpeg' });
+    const response = await openai.images.edit({
+      model: 'gpt-image-2',
+      image: imageFile,
+      prompt: editPrompt,
+      size: '1024x1536',
+      quality: 'medium',
+    });
+    return response.data?.[0]?.b64_json || '';
+  } catch (err) {
+    console.error('editProductForConcept failed:', err);
+    return '';
+  }
 }
 
 async function generateWithGptImage2(
@@ -175,6 +198,14 @@ ${conceptDirections}
 - Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
+${isProductEcommerce ? `
+MODO E-COMMERCE CON PRODUCTO: cada image_prompt es una INSTRUCCIÓN DE EDICIÓN para images.edit.
+El modelo recibe la foto del producto y la transforma. Describí:
+- Qué fondo agregar (color sólido del brand kit, ambiente industrial, etc.)
+- Qué texto y elementos de marca superponer (logo, nombre del evento, copy de la promo, fechas, mecánicas)
+- Cómo componer el producto en el encuadre
+- NUNCA decir "generate" — siempre "transform this product photo into..."
+El producto en la foto DEBE quedar exactamente igual — solo se agregan elementos alrededor.` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`,
@@ -230,7 +261,9 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
       'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
     ].filter(Boolean).join(' ');
 
-    const base64 = await generateWithGptImage2(openai, fullPrompt, inputImages);
+    const base64 = isProductEcommerce && productDetailImages[0]
+      ? await editProductForConcept(openai, productDetailImages[0], fullPrompt)
+      : await generateWithGptImage2(openai, fullPrompt, inputImages);
 
     return {
       id: Math.random().toString(36).slice(2),
