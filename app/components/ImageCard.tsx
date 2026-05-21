@@ -26,7 +26,7 @@ export default function ImageCard({ image, selected, onClick, showName = true }:
       />
       {showName && (
         <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3">
-          <p className="text-white text-sm font-medium truncate">{image.conceptName}</p>
+          <p className="text-[#ffffff] text-sm font-medium truncate drop-shadow-sm">{image.conceptName}</p>
         </div>
       )}
       {selected && (
