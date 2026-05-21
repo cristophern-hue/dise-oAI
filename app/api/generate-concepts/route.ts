@@ -7,7 +7,12 @@ import { buildBrandKitContext } from '@/app/api/brandKitContext';
 function isRefusal(text: string): boolean {
   if (!text || text.length < 30) return true;
   const lower = text.toLowerCase();
-  return lower.includes("i'm sorry") || lower.includes("i cannot") || lower.includes("i can't") || lower.includes("cannot assist") || lower.includes("can't assist");
+  return (
+    lower.includes("i'm sorry") || lower.includes("i cannot") || lower.includes("i can't") ||
+    lower.includes("cannot assist") || lower.includes("can't assist") ||
+    lower.includes("lo siento") || lower.includes("no puedo ayudar") || lower.includes("no puedo asistir") ||
+    lower.includes("no es posible") || lower.includes("lamentablemente no")
+  );
 }
 
 export const maxDuration = 300;

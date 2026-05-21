@@ -854,8 +854,8 @@ export default function Home() {
                   })}
                 </div>
 
-                {/* Product description editor — shown whenever product images were uploaded */}
-                {productDetailImages.length > 0 && (
+                {/* Product description editor — only for fashion/person mode; e-commerce uses images.edit directly */}
+                {productDetailImages.length > 0 && peopleMode !== 'none' && (
                   <div className="space-y-2 border border-[#FA5A1E]/20 bg-[#FA5A1E]/5 rounded-xl p-4">
                     <div className="flex items-center gap-2">
                       <svg className="w-4 h-4 text-[#FF912D] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
