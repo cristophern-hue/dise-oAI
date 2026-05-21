@@ -27,6 +27,8 @@ export default function Home() {
   const [clients, setClients] = useState<BrandKit[]>([]);
   const [selectedClient, setSelectedClient] = useState<BrandKit | null>(null);
   const [brief, setBrief] = useState('');
+  const [clientRequest, setClientRequest] = useState('');
+  const [generatingBrief, setGeneratingBrief] = useState(false);
   const [step, setStep] = useState<Step>('brief');
   const [loading, setLoading] = useState(false);
   const [loadingMsg, setLoadingMsg] = useState('');
@@ -146,6 +148,25 @@ export default function Home() {
       setError(e instanceof Error ? e.message : 'Error generando conceptos');
     } finally {
       stopLoading();
+    }
+  };
+
+  const generateBrief = async () => {
+    if (!clientRequest.trim()) return;
+    setGeneratingBrief(true);
+    try {
+      const res = await fetch('/api/generate-brief', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ clientRequest, brandKit: selectedClient }),
+      });
+      if (!res.ok) throw new Error('Error generando brief');
+      const data = await res.json();
+      setBrief(data.brief || '');
+    } catch {
+      setError('No se pudo generar el brief. Escribilo manualmente.');
+    } finally {
+      setGeneratingBrief(false);
     }
   };
 
@@ -498,17 +519,48 @@ export default function Home() {
               )}
             </div>
 
+            {/* Brief generator */}
+            <div className="space-y-3">
+              <label className="text-sm font-medium text-white/70">Solicitud del cliente</label>
+              <div className="flex gap-2 items-start">
+                <textarea
+                  value={clientRequest}
+                  onChange={e => setClientRequest(e.target.value)}
+                  placeholder="Pegá el mensaje del cliente tal como llegó. Ej: 'Hola! Necesito algo para el lanzamiento de nuestra colección de verano, algo fresco y colorido para Instagram...'"
+                  rows={3}
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 resize-none text-sm leading-relaxed"
+                />
+                <button
+                  onClick={generateBrief}
+                  disabled={!clientRequest.trim() || generatingBrief}
+                  className="shrink-0 bg-indigo-600/80 hover:bg-indigo-600 disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-3 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap"
+                >
+                  {generatingBrief ? (
+                    <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Generando...</>
+                  ) : (
+                    <>
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+                      </svg>
+                      Generar brief
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-white/30">GPT-4o convierte el mensaje en un brief creativo estructurado.</p>
+            </div>
+
             {/* Brief input */}
             <div className="space-y-3">
               <label className="text-sm font-medium text-white/70">Brief de campaña</label>
               <textarea
                 value={brief}
                 onChange={e => setBrief(e.target.value)}
-                placeholder="Ej: Banner para Instagram, Black Friday, 2x1 en café premium, mensaje principal: 'Tu momento, doble', tono aspiracional..."
+                placeholder="El brief aparecerá acá. También podés escribirlo directamente."
                 rows={5}
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 resize-none text-sm leading-relaxed"
               />
-              <p className="text-xs text-white/30">GPT-4o va a refinar este brief y generar 6 conceptos visuales distintos.</p>
+              <p className="text-xs text-white/30">Editá el brief antes de generar los conceptos.</p>
             </div>
 
             {/* People mode */}
