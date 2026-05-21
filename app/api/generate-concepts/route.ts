@@ -179,6 +179,11 @@ export async function POST(req: NextRequest) {
     ? 'NO incluir personas. Enfocarse en producto, composición, elementos gráficos y copy.'
     : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
+  const hasVisualRefs = visualRefs.length > 0;
+  const refStyleDirection = hasVisualRefs
+    ? `6. Réplica de estilo de marca — seguí EXACTAMENTE el estilo visual, composición tipográfica y tratamiento gráfico de las piezas de referencia de la marca que se incluyen como imágenes`
+    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
+
   const conceptDirections = isProductEcommerce
     ? `Direcciones (e-commerce de producto):
 1. Producto hero — producto centrado y protagonista sobre fondo limpio del brand kit, sin texto excepto logo
@@ -186,14 +191,14 @@ export async function POST(req: NextRequest) {
 3. Producto en contexto — el producto en uso real o en el ambiente donde se aplica (vehículo, industria, segmento target)
 4. Layout tipográfico de oferta — copy de descuento/oferta como elemento visual dominante, producto integrado de forma secundaria
 5. Showcase técnico — closeup del producto destacando calidad, materiales y detalles de ingeniería
-6. Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente`
+${refStyleDirection}`
     : `Direcciones (fashion/editorial):
 1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados
 2. Tipográfico editorial — tipografía grande como elemento visual, imagen secundaria
 3. Producto hero — producto o prenda protagonista sin personas
 4. Lifestyle aspiracional — ambiente y mood que refuerzan la identidad de marca
 5. Composición geométrica — bloques de color, formas y tipografía del brand kit
-6. Editorial de moda — fotografía aspiracional de agencia internacional`;
+${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
   const systemInstructions = isSimilarMode
