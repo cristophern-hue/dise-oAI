@@ -49,13 +49,24 @@ export default function ConfigPage() {
   const [newAdjustment, setNewAdjustment] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem('brandKits');
-    if (stored) setClients(JSON.parse(stored));
+    fetch('/api/brand-kits').then(r => r.json()).then(setClients).catch(console.error);
   }, []);
 
-  const persist = (updated: BrandKit[]) => {
+  const persist = async (updated: BrandKit[], changed: BrandKit | null, deletedId?: string) => {
     setClients(updated);
-    localStorage.setItem('brandKits', JSON.stringify(updated));
+    if (deletedId) {
+      await fetch('/api/brand-kits', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: deletedId }),
+      });
+    } else if (changed) {
+      await fetch('/api/brand-kits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(changed),
+      });
+    }
   };
 
   const openNew = () => {
@@ -195,22 +206,24 @@ export default function ConfigPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.styleDescription.trim()) return;
+    let kit: BrandKit;
+    let updated: BrandKit[];
     if (editing) {
-      persist(clients.map(c => c.id === editing.id ? { ...form, id: editing.id } : c));
+      kit = { ...form, id: editing.id };
+      updated = clients.map(c => c.id === editing.id ? kit : c);
     } else {
-      persist([...clients, { ...form, id: Math.random().toString(36).slice(2) }]);
+      kit = { ...form, id: Math.random().toString(36).slice(2) };
+      updated = [...clients, kit];
     }
+    await persist(updated, kit);
     setSaved(true);
-    setTimeout(() => {
-      setShowForm(false);
-      setSaved(false);
-    }, 800);
+    setTimeout(() => { setShowForm(false); setSaved(false); }, 800);
   };
 
   const handleDelete = (id: string) => {
-    persist(clients.filter(c => c.id !== id));
+    persist(clients.filter(c => c.id !== id), null, id);
   };
 
   const allColors = (client: BrandKit) =>

@@ -7,7 +7,7 @@ import ImageCard from './components/ImageCard';
 import StepIndicator from './components/StepIndicator';
 import LoadingGrid from './components/LoadingGrid';
 import SessionDrawer from './components/SessionDrawer';
-import { dbSaveSession, dbGetAllSessions, dbDeleteSession, SavedSession } from './lib/db';
+import { dbSaveSession, dbGetAllSessions, dbDeleteSession, type SavedSession } from './lib/db';
 
 const LAST_SESSION_KEY = 'disenoai_last_session_id';
 
@@ -65,8 +65,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem('brandKits');
-    if (stored) setClients(JSON.parse(stored));
+    fetch('/api/brand-kits').then(r => r.json()).then(setClients).catch(console.error);
   }, []);
 
   const readAsPng = (file: File): Promise<string> =>
@@ -409,12 +408,13 @@ export default function Home() {
     setStep((s === 'adjust' ? 'refine' : s) as Step);
   }, []);
 
-  // Load all sessions from IndexedDB on mount and restore last active session
+  // Load brand kits + sessions on mount, restore last active session
   useEffect(() => {
-    const stored = localStorage.getItem('brandKits');
-    const allClients: BrandKit[] = stored ? JSON.parse(stored) : [];
-
-    dbGetAllSessions().then(sessions => {
+    Promise.all([
+      fetch('/api/brand-kits').then(r => r.json()).catch(() => []),
+      dbGetAllSessions().catch(() => []),
+    ]).then(([allClients, sessions]: [BrandKit[], SavedSession[]]) => {
+      setClients(allClients);
       setSavedSessions(sessions);
       const lastId = localStorage.getItem(LAST_SESSION_KEY);
       if (lastId) {
