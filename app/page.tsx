@@ -203,7 +203,11 @@ export default function Home() {
     if (adaptFormats.length === 0 || selectedConcepts.length === 0) return;
     setGeneratingAdaptations(true);
     setAdaptedImages([]);
-    const FORMAT_LABELS: Record<string, string> = { story: 'Story 9:16', square: 'Cuadrado 1:1', landscape: 'Landscape 16:9' };
+    const FORMAT_LABELS: Record<string, string> = {
+      story: 'Story 9:16', square: 'Cuadrado 1:1', landscape: 'Landscape 16:9',
+      banner_desktop: 'Banner Desktop', banner_mobile: 'Banner Mobile',
+      mailing: 'Mailing', webpush: 'Webpush',
+    };
     try {
       const tasks = selectedConcepts.flatMap(concept =>
         adaptFormats.map(format => ({ concept, format }))
@@ -1162,7 +1166,11 @@ export default function Home() {
                 {[
                   { key: 'story', label: 'Story 9:16', desc: 'Instagram / TikTok' },
                   { key: 'square', label: 'Cuadrado 1:1', desc: 'Feed Instagram' },
-                  { key: 'landscape', label: 'Landscape 16:9', desc: 'Facebook / Banner' },
+                  { key: 'landscape', label: 'Landscape 16:9', desc: 'Facebook / RRSS' },
+                  { key: 'banner_desktop', label: 'Banner Desktop', desc: '1950×450 web' },
+                  { key: 'banner_mobile', label: 'Banner Mobile', desc: '800×800' },
+                  { key: 'mailing', label: 'Mailing', desc: '600×alto email' },
+                  { key: 'webpush', label: 'Webpush', desc: '720×360' },
                 ].map(f => (
                   <button
                     key={f.key}
