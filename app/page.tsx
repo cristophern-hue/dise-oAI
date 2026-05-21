@@ -207,9 +207,10 @@ export default function Home() {
     setGeneratingAdaptations(true);
     setAdaptedImages([]);
     const FORMAT_LABELS: Record<string, string> = {
-      story: 'Story 9:16', square: 'Cuadrado 1:1', landscape: 'Landscape 16:9',
-      banner_desktop: 'Banner Desktop', banner_mobile: 'Banner Mobile',
-      mailing: 'Mailing', webpush: 'Webpush',
+      story: 'Story 9:16', feed45: 'Feed 4:5', square: 'Cuadrado 1:1', landscape: 'Landscape 16:9',
+      pmax_square: 'PMax 1:1', pmax_landscape: 'PMax 1.91:1', pmax_portrait: 'PMax 4:5',
+      banner_desktop: 'Banner Desktop', banner_mobile: 'Banner Mobile', webpush: 'Webpush',
+      mailing: 'Mailing',
     };
     try {
       const tasks = selectedConcepts.flatMap(concept =>
@@ -1016,8 +1017,19 @@ export default function Home() {
             <div className="grid md:grid-cols-2 gap-8 items-start">
               {/* Image preview */}
               <div className="space-y-3">
-                <div className="rounded-xl overflow-hidden border border-white/10">
-                  <img src={`data:image/png;base64,${refineImage.base64}`} alt="Concepto" className="w-full" />
+                <div className="rounded-xl overflow-hidden border border-white/10 relative">
+                  <img
+                    src={`data:image/png;base64,${refineImage.base64}`}
+                    alt="Concepto"
+                    className={`w-full transition-all duration-300 ${loading ? 'blur-sm scale-[1.02]' : ''}`}
+                  />
+                  {loading && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/30 backdrop-blur-[2px]">
+                      <div className="w-8 h-8 border-3 border-white/30 border-t-white rounded-full animate-spin mb-2" style={{ borderWidth: '3px' }} />
+                      <p className="text-[#ffffff] text-sm font-medium">{loadingMsg || 'Aplicando...'}</p>
+                      {elapsedSec > 3 && <p className="text-[#ffffff]/60 text-xs mt-1">{elapsedSec}s</p>}
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={() => {
@@ -1232,16 +1244,29 @@ export default function Home() {
                 <h3 className="text-base font-semibold mb-1">Adaptaciones de tamaño</h3>
                 <p className="text-white/40 text-sm">Generá los mismos conceptos en otros formatos para distintas plataformas.</p>
               </div>
-              <div className="flex flex-wrap gap-3">
-                {[
-                  { key: 'story', label: 'Story 9:16', desc: 'Instagram / TikTok' },
-                  { key: 'square', label: 'Cuadrado 1:1', desc: 'Feed Instagram' },
-                  { key: 'landscape', label: 'Landscape 16:9', desc: 'Facebook / RRSS' },
+              {[
+                { group: 'RRSS', items: [
+                  { key: 'story', label: 'Story 9:16', desc: 'Instagram / TikTok / Reels' },
+                  { key: 'feed45', label: 'Feed 4:5', desc: 'Instagram / Facebook' },
+                  { key: 'square', label: 'Cuadrado 1:1', desc: 'Instagram / Facebook' },
+                  { key: 'landscape', label: 'Landscape 16:9', desc: 'Facebook / YouTube' },
+                ]},
+                { group: 'Google Ads / PMax', items: [
+                  { key: 'pmax_square', label: '1:1', desc: 'PMax · Display' },
+                  { key: 'pmax_landscape', label: '1.91:1', desc: 'PMax · Display' },
+                  { key: 'pmax_portrait', label: '4:5', desc: 'PMax · Display' },
+                ]},
+                { group: 'Banners & Email', items: [
                   { key: 'banner_desktop', label: 'Banner Desktop', desc: '1950×450 web' },
                   { key: 'banner_mobile', label: 'Banner Mobile', desc: '800×800' },
-                  { key: 'mailing', label: 'Mailing', desc: '600×alto email' },
                   { key: 'webpush', label: 'Webpush', desc: '720×360' },
-                ].map(f => (
+                  { key: 'mailing', label: 'Mailing', desc: '600×alto email' },
+                ]},
+              ].map(({ group, items }) => (
+                <div key={group} className="space-y-2">
+                  <p className="text-xs text-white/40 font-medium uppercase tracking-wider">{group}</p>
+                  <div className="flex flex-wrap gap-3">
+                {items.map(f => (
                   <button
                     key={f.key}
                     onClick={() => setAdaptFormats(prev => prev.includes(f.key) ? prev.filter(x => x !== f.key) : [...prev, f.key])}
@@ -1255,7 +1280,9 @@ export default function Home() {
                     <p className="text-xs text-white/40">{f.desc}</p>
                   </button>
                 ))}
-              </div>
+                  </div>
+                </div>
+              ))}
               <button
                 onClick={generateAdaptations}
                 disabled={adaptFormats.length === 0 || generatingAdaptations}
