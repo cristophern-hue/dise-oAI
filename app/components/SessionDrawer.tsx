@@ -12,7 +12,7 @@ const STEP_LABELS: Record<string, string> = {
 const STEP_COLORS: Record<string, string> = {
   brief: 'bg-white/10 text-white/40',
   concepts: 'bg-blue-500/20 text-blue-400',
-  refine: 'bg-indigo-500/20 text-indigo-400',
+  refine: 'bg-[#FA5A1E]/20 text-[#FF912D]',
   done: 'bg-emerald-500/20 text-emerald-400',
 };
 
@@ -80,7 +80,7 @@ export default function SessionDrawer({
         <div className="px-3 py-3 border-b border-white/10">
           <button
             onClick={() => { onNew(); onClose(); }}
-            className="w-full bg-indigo-600 hover:bg-indigo-500 text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
+            className="w-full bg-[#FA5A1E] hover:bg-[#FF912D] text-white text-sm font-medium py-2 px-4 rounded-lg transition-colors flex items-center justify-center gap-2"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -101,7 +101,7 @@ export default function SessionDrawer({
                 key={s.id}
                 className={`group relative mx-2 mb-1 rounded-xl px-3 py-3 cursor-pointer transition-colors ${
                   s.id === currentId
-                    ? 'bg-indigo-500/15 border border-indigo-500/30'
+                    ? 'bg-[#FA5A1E]/15 border border-[#FA5A1E]/30'
                     : 'hover:bg-white/5 border border-transparent'
                 }`}
                 onClick={() => { onLoad(s); onClose(); }}

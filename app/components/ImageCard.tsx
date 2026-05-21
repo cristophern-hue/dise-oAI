@@ -15,7 +15,7 @@ export default function ImageCard({ image, selected, onClick, showName = true }:
       onClick={onClick}
       className={`relative cursor-pointer rounded-xl overflow-hidden border-2 transition-all duration-200 ${
         selected
-          ? 'border-indigo-500 shadow-lg shadow-indigo-500/30 scale-[1.02]'
+          ? 'border-[#FF912D] shadow-lg shadow-[#FA5A1E]/30 scale-[1.02]'
           : 'border-white/10 hover:border-white/30'
       }`}
     >
@@ -30,7 +30,7 @@ export default function ImageCard({ image, selected, onClick, showName = true }:
         </div>
       )}
       {selected && (
-        <div className="absolute top-2 right-2 bg-indigo-500 rounded-full w-6 h-6 flex items-center justify-center">
+        <div className="absolute top-2 right-2 bg-[#FF912D] rounded-full w-6 h-6 flex items-center justify-center">
           <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
           </svg>
