@@ -157,6 +157,7 @@ REGLAS:
 - Direcciones: minimalista limpio, tipográfico editorial, producto hero, lifestyle aspiracional, composición geométrica, editorial de moda
 - Fondos en colores del brand kit, tipografía elegante, máx 2-3 elementos
 - Nivel de agencia de moda internacional
+- PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, códigos promocionales, "primera compra", "envío gratis" u otras ofertas. Solo incluí texto o copy que esté EXPLÍCITAMENTE en el brief.
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo fotográfico y mood.`,
@@ -187,7 +188,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo fotogr�
       ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
       : 'Premium fashion campaign, agency quality, NOT generic AI art, portrait 4:5.';
 
-    const fullPrompt = `${concept.image_prompt} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix}`;
+    const fullPrompt = `${concept.image_prompt} Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Typography: ${brandKit.typography || 'elegant serif'}. ${fashionSuffix} IMPORTANT: do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.`;
 
     const base64 = await generateWithGptImage2(openai, fullPrompt, inputImages);
 
