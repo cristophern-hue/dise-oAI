@@ -7,7 +7,7 @@ import ImageCard from './components/ImageCard';
 import StepIndicator from './components/StepIndicator';
 import LoadingGrid from './components/LoadingGrid';
 import SessionDrawer from './components/SessionDrawer';
-import { dbSaveSession, dbGetAllSessions, dbDeleteSession, SavedSession } from './lib/db';
+import { dbSaveSession, dbGetAllSessions, dbDeleteSession, type SavedSession } from './lib/db';
 
 const LAST_SESSION_KEY = 'disenoai_last_session_id';
 
@@ -65,8 +65,7 @@ export default function Home() {
   };
 
   useEffect(() => {
-    const stored = localStorage.getItem('brandKits');
-    if (stored) setClients(JSON.parse(stored));
+    fetch('/api/brand-kits').then(r => r.json()).then(setClients).catch(console.error);
   }, []);
 
   const readAsPng = (file: File): Promise<string> =>
@@ -203,7 +202,11 @@ export default function Home() {
     if (adaptFormats.length === 0 || selectedConcepts.length === 0) return;
     setGeneratingAdaptations(true);
     setAdaptedImages([]);
-    const FORMAT_LABELS: Record<string, string> = { story: 'Story 9:16', square: 'Cuadrado 1:1', landscape: 'Landscape 16:9' };
+    const FORMAT_LABELS: Record<string, string> = {
+      story: 'Story 9:16', square: 'Cuadrado 1:1', landscape: 'Landscape 16:9',
+      banner_desktop: 'Banner Desktop', banner_mobile: 'Banner Mobile',
+      mailing: 'Mailing', webpush: 'Webpush',
+    };
     try {
       const tasks = selectedConcepts.flatMap(concept =>
         adaptFormats.map(format => ({ concept, format }))
@@ -237,8 +240,9 @@ export default function Home() {
 
   const enterRefine = async () => {
     if (selectedConcepts.length === 0) return;
-    // If product was uploaded, apply it to each selected concept before entering refine
-    if (productDetailImages.length > 0) {
+    const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
+    // In e-commerce mode the product is already embedded via images.edit — skip apply-product
+    if (productDetailImages.length > 0 && !isProductEcommerce) {
       startLoading(`Aplicando producto a ${selectedConcepts.length} concepto${selectedConcepts.length > 1 ? 's' : ''}... (puede tardar 1-2 min)`);
       setError('');
       try {
@@ -404,12 +408,13 @@ export default function Home() {
     setStep((s === 'adjust' ? 'refine' : s) as Step);
   }, []);
 
-  // Load all sessions from IndexedDB on mount and restore last active session
+  // Load brand kits + sessions on mount, restore last active session
   useEffect(() => {
-    const stored = localStorage.getItem('brandKits');
-    const allClients: BrandKit[] = stored ? JSON.parse(stored) : [];
-
-    dbGetAllSessions().then(sessions => {
+    Promise.all([
+      fetch('/api/brand-kits').then(r => r.json()).catch(() => []),
+      dbGetAllSessions().catch(() => []),
+    ]).then(([allClients, sessions]: [BrandKit[], SavedSession[]]) => {
+      setClients(allClients);
       setSavedSessions(sessions);
       const lastId = localStorage.getItem(LAST_SESSION_KEY);
       if (lastId) {
@@ -854,8 +859,8 @@ export default function Home() {
                   })}
                 </div>
 
-                {/* Product description editor — shown whenever product images were uploaded */}
-                {productDetailImages.length > 0 && (
+                {/* Product description editor — only for fashion/person mode; e-commerce uses images.edit directly */}
+                {productDetailImages.length > 0 && peopleMode !== 'none' && (
                   <div className="space-y-2 border border-[#FA5A1E]/20 bg-[#FA5A1E]/5 rounded-xl p-4">
                     <div className="flex items-center gap-2">
                       <svg className="w-4 h-4 text-[#FF912D] shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -979,44 +984,54 @@ export default function Home() {
                 <div className="space-y-2">
                   <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Ajustes rápidos</p>
                   <div className="flex flex-wrap gap-2">
-                    {(productDetailImages.length > 0 && peopleMode === 'none'
-                      ? [
-                          'Fondo más oscuro',
-                          'Fondo blanco limpio',
-                          'Fondo con textura industrial',
-                          'Más contraste',
-                          'Producto más grande',
-                          'Producto centrado',
-                          'Agregar sombra al producto',
-                          'Composición más minimalista',
-                          'Agregar texto del evento',
-                          'Resaltar detalles del producto',
-                          'Colores más vibrantes',
-                          'Agregar texto de marca',
-                        ]
-                      : [
-                          'Fondo más oscuro',
-                          'Fondo blanco limpio',
-                          'Más contraste',
-                          'Iluminación más suave',
-                          'Estampado más visible',
-                          'Colores más vibrantes',
-                          'Modelo mujer joven',
-                          'Modelo hombre joven',
-                          'Quitar personas',
-                          'Solo producto flat lay',
-                          'Composición más centrada',
-                          'Agregar texto de marca',
-                        ]
-                    ).map(preset => (
-                      <button
-                        key={preset}
-                        onClick={() => setRefineInput(preset)}
-                        className="text-xs bg-white/5 hover:bg-white/10 border border-white/10 hover:border-[#FA5A1E]/50 text-white/60 hover:text-white px-3 py-1.5 rounded-lg transition-colors"
-                      >
-                        {preset}
-                      </button>
-                    ))}
+                    {[
+                      ...(selectedClient?.quickAdjustments || []),
+                      ...(productDetailImages.length > 0 && peopleMode === 'none'
+                        ? [
+                            'Fondo más oscuro',
+                            'Fondo blanco limpio',
+                            'Fondo con textura industrial',
+                            'Más contraste',
+                            'Producto más grande',
+                            'Producto centrado',
+                            'Agregar sombra al producto',
+                            'Composición más minimalista',
+                            'Agregar texto del evento',
+                            'Resaltar detalles del producto',
+                            'Colores más vibrantes',
+                            'Agregar texto de marca',
+                          ]
+                        : [
+                            'Fondo más oscuro',
+                            'Fondo blanco limpio',
+                            'Más contraste',
+                            'Iluminación más suave',
+                            'Estampado más visible',
+                            'Colores más vibrantes',
+                            'Modelo mujer joven',
+                            'Modelo hombre joven',
+                            'Quitar personas',
+                            'Solo producto flat lay',
+                            'Composición más centrada',
+                            'Agregar texto de marca',
+                          ]
+                      ),
+                    ].map((preset, i) => {
+                      const isClientPreset = i < (selectedClient?.quickAdjustments?.length || 0);
+                      return (
+                        <button
+                          key={`${preset}-${i}`}
+                          onClick={() => setRefineInput(preset)}
+                          className={`text-xs px-3 py-1.5 rounded-lg transition-colors border ${
+                            isClientPreset
+                              ? 'bg-[#FA5A1E]/10 border-[#FA5A1E]/30 text-[#FF912D] hover:bg-[#FA5A1E]/20'
+                              : 'bg-white/5 hover:bg-white/10 border-white/10 hover:border-[#FA5A1E]/50 text-white/60 hover:text-white'
+                          }`}
+                        >
+                          {preset}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 
@@ -1151,7 +1166,11 @@ export default function Home() {
                 {[
                   { key: 'story', label: 'Story 9:16', desc: 'Instagram / TikTok' },
                   { key: 'square', label: 'Cuadrado 1:1', desc: 'Feed Instagram' },
-                  { key: 'landscape', label: 'Landscape 16:9', desc: 'Facebook / Banner' },
+                  { key: 'landscape', label: 'Landscape 16:9', desc: 'Facebook / RRSS' },
+                  { key: 'banner_desktop', label: 'Banner Desktop', desc: '1950×450 web' },
+                  { key: 'banner_mobile', label: 'Banner Mobile', desc: '800×800' },
+                  { key: 'mailing', label: 'Mailing', desc: '600×alto email' },
+                  { key: 'webpush', label: 'Webpush', desc: '720×360' },
                 ].map(f => (
                   <button
                     key={f.key}

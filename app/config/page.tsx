@@ -32,6 +32,7 @@ const EMPTY_FORM: Omit<BrandKit, 'id'> = {
   referencePiecesStyle: undefined,
   referencePiecesThumbnails: [],
   logoBase64: undefined,
+  quickAdjustments: [],
 };
 
 const PRIMARY_LABELS = ['P1', 'P2', 'P3'];
@@ -45,15 +46,27 @@ export default function ConfigPage() {
   const [extracting, setExtracting] = useState(false);
   const [analyzingRefs, setAnalyzingRefs] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [newAdjustment, setNewAdjustment] = useState('');
 
   useEffect(() => {
-    const stored = localStorage.getItem('brandKits');
-    if (stored) setClients(JSON.parse(stored));
+    fetch('/api/brand-kits').then(r => r.json()).then(setClients).catch(console.error);
   }, []);
 
-  const persist = (updated: BrandKit[]) => {
+  const persist = async (updated: BrandKit[], changed: BrandKit | null, deletedId?: string) => {
     setClients(updated);
-    localStorage.setItem('brandKits', JSON.stringify(updated));
+    if (deletedId) {
+      await fetch('/api/brand-kits', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: deletedId }),
+      });
+    } else if (changed) {
+      await fetch('/api/brand-kits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(changed),
+      });
+    }
   };
 
   const openNew = () => {
@@ -193,22 +206,24 @@ export default function ConfigPage() {
     reader.readAsDataURL(file);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!form.name.trim() || !form.styleDescription.trim()) return;
+    let kit: BrandKit;
+    let updated: BrandKit[];
     if (editing) {
-      persist(clients.map(c => c.id === editing.id ? { ...form, id: editing.id } : c));
+      kit = { ...form, id: editing.id };
+      updated = clients.map(c => c.id === editing.id ? kit : c);
     } else {
-      persist([...clients, { ...form, id: Math.random().toString(36).slice(2) }]);
+      kit = { ...form, id: Math.random().toString(36).slice(2) };
+      updated = [...clients, kit];
     }
+    await persist(updated, kit);
     setSaved(true);
-    setTimeout(() => {
-      setShowForm(false);
-      setSaved(false);
-    }, 800);
+    setTimeout(() => { setShowForm(false); setSaved(false); }, 800);
   };
 
   const handleDelete = (id: string) => {
-    persist(clients.filter(c => c.id !== id));
+    persist(clients.filter(c => c.id !== id), null, id);
   };
 
   const allColors = (client: BrandKit) =>
@@ -447,6 +462,51 @@ export default function ConfigPage() {
                     Quitar
                   </button>
                 )}
+              </div>
+            </div>
+
+            {/* Quick adjustments */}
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-white/60">Ajustes rápidos del cliente</label>
+                <p className="text-xs text-white/30 mt-0.5">Aparecen primero en el paso de afinación. Ej: "Fondo con textura industrial", "Logo en esquina superior".</p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {(form.quickAdjustments || []).map((adj, i) => (
+                  <span key={i} className="flex items-center gap-1.5 bg-[#FA5A1E]/10 border border-[#FA5A1E]/30 text-[#FF912D] text-xs px-3 py-1.5 rounded-lg">
+                    {adj}
+                    <button
+                      onClick={() => setForm(f => ({ ...f, quickAdjustments: (f.quickAdjustments || []).filter((_, idx) => idx !== i) }))}
+                      className="text-[#FF912D]/60 hover:text-[#FF912D] ml-0.5"
+                    >×</button>
+                  </span>
+                ))}
+              </div>
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={newAdjustment}
+                  onChange={e => setNewAdjustment(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && newAdjustment.trim()) {
+                      setForm(f => ({ ...f, quickAdjustments: [...(f.quickAdjustments || []), newAdjustment.trim()] }));
+                      setNewAdjustment('');
+                    }
+                  }}
+                  placeholder="Escribí un ajuste y presioná Enter..."
+                  className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-2.5 text-white placeholder-white/25 focus:outline-none focus:border-[#FF912D] text-sm"
+                />
+                <button
+                  onClick={() => {
+                    if (!newAdjustment.trim()) return;
+                    setForm(f => ({ ...f, quickAdjustments: [...(f.quickAdjustments || []), newAdjustment.trim()] }));
+                    setNewAdjustment('');
+                  }}
+                  disabled={!newAdjustment.trim()}
+                  className="bg-white/10 hover:bg-white/15 disabled:opacity-40 text-white px-4 py-2.5 rounded-xl text-sm transition-colors"
+                >
+                  + Agregar
+                </button>
               </div>
             </div>
 
