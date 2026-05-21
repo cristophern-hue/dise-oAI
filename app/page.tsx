@@ -148,6 +148,38 @@ export default function Home() {
     }
   };
 
+  const generateSimilar = async () => {
+    if (selectedConcepts.length === 0 || !selectedClient || !brief.trim()) return;
+    const newCount = 6 - selectedConcepts.length;
+    if (newCount <= 0) return;
+    startLoading(`Generando ${newCount} concepto${newCount > 1 ? 's' : ''} similares...`);
+    setError('');
+    try {
+      const res = await fetch('/api/generate-concepts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief,
+          brandKit: selectedClient,
+          peopleMode,
+          productDetailImages,
+          referenceImages,
+          styleReferenceImages: selectedConcepts.map(c => c.base64),
+          count: newCount,
+        }),
+      });
+      if (!res.ok) throw new Error(await res.text());
+      const data = await res.json();
+      if (data.productDescription && !productDescription) setProductDescription(data.productDescription);
+      setConcepts([...selectedConcepts, ...data.images]);
+      setSelectedConcepts([]);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Error generando similares');
+    } finally {
+      stopLoading();
+    }
+  };
+
   const generateBrief = async () => {
     if (!clientRequest.trim()) return;
     setGeneratingBrief(true);
@@ -857,6 +889,19 @@ export default function Home() {
                         Descargar todos
                       </button>
                     )}
+                    {selectedConcepts.length > 0 && selectedConcepts.length < 6 && (
+                      <button
+                        onClick={generateSimilar}
+                        disabled={loading}
+                        title="Genera variaciones que siguen la línea visual de los seleccionados"
+                        className="text-white/50 hover:text-white/80 text-sm border border-white/10 hover:border-[#FA5A1E]/50 hover:text-[#FF912D] px-3 py-1.5 rounded-lg transition-colors disabled:opacity-40 flex items-center gap-1.5"
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                        </svg>
+                        {loading ? `${elapsedSec > 0 ? `${elapsedSec}s...` : 'Generando...'}` : `Generar ${6 - selectedConcepts.length} similares`}
+                      </button>
+                    )}
                   </div>
                   <button
                     onClick={enterRefine}
@@ -934,20 +979,36 @@ export default function Home() {
                 <div className="space-y-2">
                   <p className="text-xs text-white/40 font-medium uppercase tracking-wider">Ajustes rápidos</p>
                   <div className="flex flex-wrap gap-2">
-                    {[
-                      'Fondo más oscuro',
-                      'Fondo blanco limpio',
-                      'Más contraste',
-                      'Iluminación más suave',
-                      'Estampado más visible',
-                      'Colores más vibrantes',
-                      'Modelo mujer joven',
-                      'Modelo hombre joven',
-                      'Quitar personas',
-                      'Solo producto flat lay',
-                      'Composición más centrada',
-                      'Agregar texto de marca',
-                    ].map(preset => (
+                    {(productDetailImages.length > 0 && peopleMode === 'none'
+                      ? [
+                          'Fondo más oscuro',
+                          'Fondo blanco limpio',
+                          'Fondo con textura industrial',
+                          'Más contraste',
+                          'Producto más grande',
+                          'Producto centrado',
+                          'Agregar sombra al producto',
+                          'Composición más minimalista',
+                          'Agregar texto del evento',
+                          'Resaltar detalles del producto',
+                          'Colores más vibrantes',
+                          'Agregar texto de marca',
+                        ]
+                      : [
+                          'Fondo más oscuro',
+                          'Fondo blanco limpio',
+                          'Más contraste',
+                          'Iluminación más suave',
+                          'Estampado más visible',
+                          'Colores más vibrantes',
+                          'Modelo mujer joven',
+                          'Modelo hombre joven',
+                          'Quitar personas',
+                          'Solo producto flat lay',
+                          'Composición más centrada',
+                          'Agregar texto de marca',
+                        ]
+                    ).map(preset => (
                       <button
                         key={preset}
                         onClick={() => setRefineInput(preset)}

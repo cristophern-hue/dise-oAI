@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI, { toFile } from 'openai';
+import type { ChatCompletionContentPart } from 'openai/resources/chat/completions';
 import { BrandKit } from '@/app/types';
 import { buildBrandKitContext } from '@/app/api/brandKitContext';
 
@@ -111,16 +112,29 @@ async function generateWithGptImage2(
 }
 
 export async function POST(req: NextRequest) {
-  const { brief, brandKit, peopleMode = 'none', productDetailImages = [], referenceImages = [] }: {
+  const {
+    brief, brandKit, peopleMode = 'none',
+    productDetailImages = [], referenceImages = [],
+    styleReferenceImages = [], count = 6,
+  }: {
     brief: string;
     brandKit: BrandKit;
     peopleMode: PeopleMode;
     productDetailImages: string[];
     referenceImages: string[];
+    styleReferenceImages: string[];
+    count: number;
   } = await req.json();
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
   const brandKitContext = buildBrandKitContext(brandKit);
+
+  const isSimilarMode = styleReferenceImages.length > 0;
+  const targetCount = isSimilarMode ? Math.max(1, Math.min(count, 6)) : 6;
+  // Raw base64 → data URLs for Responses API / vision
+  const styleReferenceDataUrls = styleReferenceImages.map(
+    (b64: string) => b64.startsWith('data:') ? b64 : `data:image/png;base64,${b64}`
+  );
 
   // Visual refs from brand kit (style guide for generation)
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
@@ -181,13 +195,30 @@ export async function POST(req: NextRequest) {
 5. Composición geométrica — bloques de color, formas y tipografía del brand kit
 6. Editorial de moda — fotografía aspiracional de agencia internacional`;
 
-  // Step 1: GPT-4o generates 6 creative concept prompts tailored to mode.
-  const conceptsResponse = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      {
-        role: 'system',
-        content: `Sos un director creativo senior de retail y publicidad digital.
+  // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
+  const systemInstructions = isSimilarMode
+    ? `Sos un director creativo senior de retail y publicidad digital.
+Se te pasan conceptos visuales de referencia que el cliente aprobó. Tu tarea es generar exactamente ${targetCount} variaciones distintas que mantengan la misma línea gráfica (paleta, tratamiento tipográfico, mood, composición general) pero con diferencias claras en disposición, elementos secundarios y approach visual. No copies — varía.
+
+REGLAS:
+- Respetá el estilo visual de los conceptos de referencia
+- Usá los hex exactos del brand kit como colores dominantes
+- Estilo PREMIUM, nunca genérico ni clipart
+- Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
+- Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
+- PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
+${isProductEcommerce ? `
+MODO E-COMMERCE CON PRODUCTO: cada image_prompt es una INSTRUCCIÓN DE EDICIÓN para images.edit.
+El modelo recibe la foto del producto y la transforma. Describí:
+- Qué fondo agregar (color sólido del brand kit, ambiente industrial, etc.)
+- Qué texto y elementos de marca superponer
+- Cómo componer el producto en el encuadre
+- NUNCA decir "generate" — siempre "transform this product photo into..."
+El producto DEBE quedar exactamente igual — solo se agregan elementos alrededor.` : ''}
+
+Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
+El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`
+    : `Sos un director creativo senior de retail y publicidad digital.
 Dado un brief, brand kit y referencias visuales, generá exactamente 6 conceptos distintos para una pieza portrait 1024x1536.
 
 REGLAS:
@@ -208,17 +239,31 @@ El modelo recibe la foto del producto y la transforma. Describí:
 El producto en la foto DEBE quedar exactamente igual — solo se agregan elementos alrededor.` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
-El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`,
-      },
-      {
-        role: 'user',
-        content: [
-          `BRAND KIT:\n${brandKitContext}`,
-          `BRIEF:\n${brief}`,
-          `PERSONAS:\n${peopleInstruction}`,
-          productDescription ? `PRODUCTOS (describí exactamente estos en los conceptos que los incluyan):\n${productDescription}` : '',
-        ].filter(Boolean).join('\n\n'),
-      },
+El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`;
+
+  const userTextContent = [
+    `BRAND KIT:\n${brandKitContext}`,
+    `BRIEF:\n${brief}`,
+    `PERSONAS:\n${peopleInstruction}`,
+    productDescription ? `PRODUCTOS (describí exactamente estos en los conceptos que los incluyan):\n${productDescription}` : '',
+    isSimilarMode ? `CONCEPTOS DE REFERENCIA (generá variaciones de esta línea visual):` : '',
+  ].filter(Boolean).join('\n\n');
+
+  const userMessageContent: ChatCompletionContentPart[] = [
+    { type: 'text', text: userTextContent },
+    ...(isSimilarMode
+      ? styleReferenceDataUrls.map(url => ({
+          type: 'image_url' as const,
+          image_url: { url, detail: 'low' as const },
+        }))
+      : []),
+  ];
+
+  const conceptsResponse = await openai.chat.completions.create({
+    model: 'gpt-4o',
+    messages: [
+      { role: 'system', content: systemInstructions },
+      { role: 'user', content: userMessageContent },
     ],
     response_format: { type: 'json_object' },
   });
@@ -226,10 +271,10 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // All product images + visual refs as context. Person ref only for real-person mode.
+  // In similar mode: style references lead; otherwise brand visual refs lead.
   const inputImages = [
-    ...visualRefs,
-    ...productDetailImages, // ALL uploaded products, not just first
+    ...(isSimilarMode ? styleReferenceDataUrls : visualRefs),
+    ...productDetailImages,
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
   ];
 
