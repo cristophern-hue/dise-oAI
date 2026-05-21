@@ -227,7 +227,7 @@ export default function ConfigPage() {
     <div className="min-h-screen bg-[#0d0d0d] text-white">
       <header className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center">
+          <div className="w-8 h-8 rounded-lg bg-[#FA5A1E] flex items-center justify-center">
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
             </svg>
@@ -247,7 +247,7 @@ export default function ConfigPage() {
           </div>
           <button
             onClick={openNew}
-            className="bg-indigo-600 hover:bg-indigo-500 text-white font-medium px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 text-sm"
+            className="bg-[#FA5A1E] hover:bg-[#FF912D] text-white font-medium px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 text-sm"
           >
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -260,7 +260,7 @@ export default function ConfigPage() {
         {clients.length === 0 && !showForm ? (
           <div className="border border-dashed border-white/20 rounded-2xl p-12 text-center">
             <p className="text-white/40 mb-4">No hay clientes aún</p>
-            <button onClick={openNew} className="text-indigo-400 hover:text-indigo-300 font-medium transition-colors">
+            <button onClick={openNew} className="text-[#FF912D] hover:text-[#FFB950] font-medium transition-colors">
               + Crear el primero
             </button>
           </div>
@@ -307,9 +307,9 @@ export default function ConfigPage() {
           <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-6">
             <div className="flex items-center justify-between">
               <h2 className="font-semibold text-lg">{editing ? 'Editar cliente' : 'Nuevo cliente'}</h2>
-              <label className={`cursor-pointer flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors ${extracting ? 'opacity-50 cursor-not-allowed border-white/10 text-white/40' : 'border-indigo-500/40 text-indigo-400 hover:bg-indigo-500/10 hover:border-indigo-500'}`}>
+              <label className={`cursor-pointer flex items-center gap-2 text-sm px-4 py-2 rounded-xl border transition-colors ${extracting ? 'opacity-50 cursor-not-allowed border-white/10 text-white/40' : 'border-[#FA5A1E]/40 text-[#FF912D] hover:bg-[#FA5A1E]/10 hover:border-[#FF912D]'}`}>
                 {extracting ? (
-                  <><div className="w-4 h-4 border-2 border-indigo-400/30 border-t-indigo-400 rounded-full animate-spin" />Leyendo manual...</>
+                  <><div className="w-4 h-4 border-2 border-[#FF912D]/30 border-t-[#FF912D] rounded-full animate-spin" />Leyendo manual...</>
                 ) : (
                   <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" /></svg>Importar desde PDF</>
                 )}
@@ -325,7 +325,7 @@ export default function ConfigPage() {
                 value={form.name}
                 onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                 placeholder="Ej: Kayser"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-[#FF912D] text-sm"
               />
             </div>
 
@@ -371,7 +371,7 @@ export default function ConfigPage() {
                 value={form.typography}
                 onChange={e => setForm(f => ({ ...f, typography: e.target.value }))}
                 placeholder="Ej: Peridot PE (principal), Peridot PE Wide (secundaria), Peridot PE Extended (complementaria)"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 text-sm"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-[#FF912D] text-sm"
               />
             </div>
 
@@ -383,7 +383,7 @@ export default function ConfigPage() {
                 onChange={e => setForm(f => ({ ...f, styleDescription: e.target.value }))}
                 placeholder="Estilo visual, tono, audiencia, reglas de uso del logo, guía de imágenes, prohibiciones, aplicaciones RRSS..."
                 rows={5}
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-indigo-500 resize-none text-sm leading-relaxed"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-[#FF912D] resize-none text-sm leading-relaxed"
               />
             </div>
 
@@ -421,8 +421,8 @@ export default function ConfigPage() {
                 )}
               </div>
               {form.referencePiecesStyle && (
-                <div className="bg-indigo-500/5 border border-indigo-500/20 rounded-xl p-3">
-                  <p className="text-xs text-indigo-400 font-medium mb-1">Estilo extraído</p>
+                <div className="bg-[#FA5A1E]/5 border border-[#FA5A1E]/20 rounded-xl p-3">
+                  <p className="text-xs text-[#FF912D] font-medium mb-1">Estilo extraído</p>
                   <p className="text-xs text-white/50 leading-relaxed line-clamp-3">{form.referencePiecesStyle}</p>
                 </div>
               )}
@@ -456,7 +456,7 @@ export default function ConfigPage() {
                 onClick={handleSave}
                 disabled={!form.name.trim() || !form.styleDescription.trim()}
                 className={`flex-1 font-medium px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
-                  saved ? 'bg-green-600 text-white' : 'bg-indigo-600 hover:bg-indigo-500 disabled:opacity-40 disabled:cursor-not-allowed text-white'
+                  saved ? 'bg-green-600 text-white' : 'bg-[#FA5A1E] hover:bg-[#FF912D] disabled:opacity-40 disabled:cursor-not-allowed text-white'
                 }`}
               >
                 {saved ? (
