@@ -190,12 +190,12 @@ export async function POST(req: NextRequest) {
     : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
 
   const conceptDirections = isProductEcommerce
-    ? `Direcciones (e-commerce de producto):
-1. Producto hero — producto centrado y protagonista sobre fondo limpio del brand kit, sin texto excepto logo
-2. Pieza full promocional — producto(s) visible(s) + nombre del evento como headline principal + descripción del evento (fechas, % de descuento, mecánicas clave como cuotas/envío/retiro) todo integrado en una composición visual completa lista para publicar
-3. Producto en contexto — el producto en uso real o en el ambiente donde se aplica (vehículo, industria, segmento target)
-4. Layout tipográfico de oferta — copy de descuento/oferta como elemento visual dominante, producto integrado de forma secundaria
-5. Showcase técnico — closeup del producto destacando calidad, materiales y detalles de ingeniería
+    ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás:
+1. Producto hero absoluto — el producto LLENA el encuadre (85% del frame), fondo color sólido del brand kit, sin texto excepto logo pequeño en esquina. Composición minimalista y apretada.
+2. Pieza full promocional — headline del evento grande arriba, producto(s) en el centro, TODAS las mecánicas del brief (fechas, descuento, cuotas, despacho, retiro) como iconos o bullets abajo. Composición completa lista para publicar.
+3. Producto en contexto ambiental — el producto aparece PEQUEÑO (máx 30% del frame) integrado en su entorno real (motor, camión, taller industrial). El ambiente es el protagonista, el producto está en uso natural. Muy diferente al héroe — acá el escenario manda.
+4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame como elemento gráfico dominante. Producto flotando pequeño en un corner. SIN fotografía realista — composición abstracta de formas y texto.
+5. Showcase técnico dramático — macro/closeup extremo del producto con iluminación de estudio, fondo oscuro con gradiente de luz lateral. Detalle de materiales y construcción. Sin texto.
 ${refStyleDirection}`
     : `Direcciones (fashion/editorial):
 1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados
