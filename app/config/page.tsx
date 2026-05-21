@@ -224,8 +224,8 @@ export default function ConfigPage() {
   ];
 
   return (
-    <div className="min-h-screen bg-[#0d0d0d] text-white">
-      <header className="border-b border-white/10 px-6 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-[#F0EBE3]">
+      <header className="bg-[#111111] border-b border-white/10 px-6 py-4 flex items-center justify-between text-white">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-lg bg-[#FA5A1E] flex items-center justify-center">
             <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">

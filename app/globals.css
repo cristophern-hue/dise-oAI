@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #F0EBE3;
+  --foreground: #111111;
 }
 
 @theme inline {
@@ -11,15 +11,57 @@
   --font-sans: var(--font-dm-sans), 'DM Sans', sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
-}
-
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
 }
+
+/* ── Light theme for main content area ───────────────────────────────── */
+main {
+  color: #111111;
+}
+
+/* Text */
+main .text-white { color: #111111 !important; }
+main .text-white\/90 { color: #1a1a1a !important; }
+main .text-white\/80 { color: #333333 !important; }
+main .text-white\/70 { color: #555555 !important; }
+main .text-white\/60 { color: #666666 !important; }
+main .text-white\/50 { color: #888888 !important; }
+main .text-white\/40 { color: #999999 !important; }
+main .text-white\/30 { color: #bbbbbb !important; }
+main .text-white\/25 { color: #cccccc !important; }
+main .text-white\/20 { color: #dddddd !important; }
+
+/* Hover text */
+main .hover\:text-white:hover { color: #111111 !important; }
+main .hover\:text-white\/80:hover { color: #333333 !important; }
+
+/* Placeholder */
+main .placeholder-white\/25::placeholder { color: #b8b0a8 !important; }
+main .placeholder-white\/20::placeholder { color: #c8c1ba !important; }
+
+/* Backgrounds */
+main .bg-white\/5 { background-color: #ffffff !important; }
+main .bg-white\/10 { background-color: #f5f0e8 !important; }
+main .hover\:bg-white\/5:hover { background-color: #f5f0e8 !important; }
+main .hover\:bg-white\/10:hover { background-color: #ede8df !important; }
+
+/* Borders */
+main .border-white\/10 { border-color: #e5ddd3 !important; }
+main .border-white\/20 { border-color: #d8d0c6 !important; }
+main .border-dashed.border-white\/20 { border-color: #d0c8be !important; }
+main .hover\:border-white\/20:hover { border-color: #ccc6bc !important; }
+main .hover\:border-white\/50:hover { border-color: #bbb5ac !important; }
+
+/* Error block on light bg */
+main .bg-red-500\/10 { background-color: #fef2f2 !important; }
+main .border-red-500\/30 { border-color: #fca5a5 !important; }
+main .text-red-400 { color: #dc2626 !important; }
+
+/* Cards with shadow instead of ghost bg */
+main .bg-white\/5.border.border-white\/10,
+main .rounded-xl.border.border-white\/10 {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+}
+
