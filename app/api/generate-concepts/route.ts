@@ -145,11 +145,11 @@ export async function POST(req: NextRequest) {
   const conceptDirections = isProductEcommerce
     ? `Direcciones (e-commerce de producto):
 1. Producto hero — producto centrado y protagonista sobre fondo limpio del brand kit, sin texto excepto logo
-2. Tipográfico promocional — copy de oferta como elemento central, producto integrado de forma secundaria
-3. Producto en contexto — el producto en uso real o en el ambiente donde se aplica (vehículo, industria, etc.)
-4. Layout promocional limpio — bloques de color del brand kit, producto + datos clave de la promo alineados
+2. Pieza full promocional — producto(s) visible(s) + nombre del evento como headline principal + descripción del evento (fechas, % de descuento, mecánicas clave como cuotas/envío/retiro) todo integrado en una composición visual completa lista para publicar
+3. Producto en contexto — el producto en uso real o en el ambiente donde se aplica (vehículo, industria, segmento target)
+4. Layout tipográfico de oferta — copy de descuento/oferta como elemento visual dominante, producto integrado de forma secundaria
 5. Showcase técnico — closeup del producto destacando calidad, materiales y detalles de ingeniería
-6. Lifestyle del segmento — ambiente y elementos que representan el segmento objetivo con el producto`
+6. Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente`
     : `Direcciones (fashion/editorial):
 1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados
 2. Tipográfico editorial — tipografía grande como elemento visual, imagen secundaria
