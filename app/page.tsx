@@ -237,8 +237,9 @@ export default function Home() {
 
   const enterRefine = async () => {
     if (selectedConcepts.length === 0) return;
-    // If product was uploaded, apply it to each selected concept before entering refine
-    if (productDetailImages.length > 0) {
+    const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
+    // In e-commerce mode the product is already embedded via images.edit — skip apply-product
+    if (productDetailImages.length > 0 && !isProductEcommerce) {
       startLoading(`Aplicando producto a ${selectedConcepts.length} concepto${selectedConcepts.length > 1 ? 's' : ''}... (puede tardar 1-2 min)`);
       setError('');
       try {
