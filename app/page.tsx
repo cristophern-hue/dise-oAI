@@ -1015,15 +1015,23 @@ export default function Home() {
 
             <>
                 {/* Generation progress bar */}
-                {loading && (
-                  <div className="bg-[#111111]/60 border border-white/10 rounded-xl px-4 py-3 space-y-2.5">
+                {(loading || (generatingCount > 0 && concepts.length >= generatingCount)) && (
+                  <div className={`border rounded-xl px-4 py-3 space-y-2.5 transition-colors ${concepts.length >= generatingCount && generatingCount > 0 ? 'bg-green-900/20 border-green-500/20' : 'bg-[#111111]/60 border-white/10'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-3.5 h-3.5 border-2 border-[#FF912D]/40 border-t-[#FF912D] rounded-full animate-spin shrink-0" />
+                        {concepts.length >= generatingCount && generatingCount > 0 ? (
+                          <svg className="w-3.5 h-3.5 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <div className="w-3.5 h-3.5 border-2 border-[#FF912D]/40 border-t-[#FF912D] rounded-full animate-spin shrink-0" />
+                        )}
                         <span className="text-sm text-white/80">
                           {concepts.length === 0
                             ? 'Analizando brief y diseñando conceptos...'
-                            : `${concepts.length} de ${generatingCount} concepto${concepts.length !== 1 ? 's' : ''} listo${concepts.length !== 1 ? 's' : ''}`}
+                            : concepts.length >= generatingCount
+                              ? `${generatingCount} concepto${generatingCount !== 1 ? 's' : ''} listo${generatingCount !== 1 ? 's' : ''}`
+                              : `${concepts.length} de ${generatingCount} concepto${concepts.length !== 1 ? 's' : ''} listo${concepts.length !== 1 ? 's' : ''}...`}
                         </span>
                       </div>
                       <span className="text-xs text-white/30 tabular-nums">{elapsedSec}s</span>
