@@ -211,13 +211,13 @@ export async function POST(req: NextRequest) {
     : isCorporate
       ? 'Personas opcionales: si aparecen deben ser profesionales en contexto corporativo (reunión, oficina, ciudad). No es obligatorio incluirlas — priorizá composición gráfica y tipografía.'
       : isEvents
-        ? 'Personas opcionales: si aparecen deben ser ponentes, panelistas o asistentes al evento. No es obligatorio — priorizá composición gráfica, tipografía de impacto y elementos de urgencia (fecha, CTA).'
+        ? 'NO incluir personas. Enfocarse exclusivamente en tipografía de impacto, iconografía digital, elementos gráficos del brand kit y copy del evento (título, fecha, CTA).'
         : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
   const hasVisualRefs = visualRefs.length > 0;
   const refStyleDirection = hasVisualRefs
     ? `6. Réplica de estilo de marca — seguí EXACTAMENTE el estilo visual, composición tipográfica y tratamiento gráfico de las piezas de referencia de la marca que se incluyen como imágenes`
-    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Comunidad y experiencia — momento de networking, sala llena de asistentes, ambiente de aprendizaje y conexión' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
+    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Impacto y presencia digital — composición tipográfica bold, elementos gráficos de transmisión en vivo, paleta del brand kit con máximo contraste' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
 
   const conceptDirections = isProductEcommerce
     ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás.
@@ -231,11 +231,11 @@ REGLA OBLIGATORIA PARA TODAS: cada pieza DEBE incluir como mínimo un headline o
 ${refStyleDirection}`
     : isEvents
       ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital:
-1. CTA de registro urgente — headline del evento en tipografía bold XL, fecha y hora prominentes, botón o banner de registro. Fondo de color sólido del brand kit o gradiente de marca. Máxima claridad y urgencia.
-2. Speaker o ponente destacado — nombre y foto (si hay referencia) o silueta/avatar del speaker, título y credenciales, composición que transmite autoridad y expertise. Headline del evento como soporte.
-3. Agenda visual — programa del evento como elemento gráfico: sesiones, horarios o tracks dispuestos en layout limpio. Tipografía estructurada, íconos de temas, paleta del brand kit.
-4. Cuenta regresiva / urgencia — countdown visual con días/horas/minutos hasta el evento, elementos de expectativa y FOMO. Fondo oscuro del brand kit con tipografía de alto impacto.
-5. Online / livestreaming — iconografía de transmisión en vivo (play, ondas, pantalla), elementos digitales. Comunica accesibilidad y alcance global. Copy: "En vivo" / "Online" / "Gratis".
+1. CTA de registro urgente — headline del evento en tipografía bold XL, fecha y hora prominentes, botón o banner de registro. Fondo de color sólido del brand kit o gradiente de marca. Máxima claridad y urgencia. Sin personas.
+2. Tipográfico de impacto — nombre del evento ocupa 70% del frame en tipografía extra-bold, subtítulo y fecha como elementos secundarios. Fondo abstracto con formas geométricas o gradiente del brand kit. Sin personas.
+3. Agenda visual — programa del evento como elemento gráfico: sesiones, horarios o tracks dispuestos en layout limpio. Tipografía estructurada, íconos de temas, paleta del brand kit. Sin personas.
+4. Cuenta regresiva / urgencia — countdown visual con días/horas/minutos hasta el evento, elementos de expectativa y FOMO. Fondo oscuro del brand kit con tipografía de alto impacto. Sin personas.
+5. Online / livestreaming — iconografía de transmisión en vivo (play, ondas, pantalla), elementos digitales. Comunica accesibilidad y alcance global. Copy: "En vivo" / "Online" / "Gratis". Sin personas.
 ${refStyleDirection}`
       : isCorporate
       ? `Direcciones (corporativo/servicios) — CADA UNA visualmente DISTINTA, estilo institucional premium:
