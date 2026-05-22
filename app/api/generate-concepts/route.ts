@@ -48,6 +48,17 @@ Describí en este orden exacto:
 
 6. ELEMENTOS ÚNICOS: cualquier detalle que diferencie esta prenda de una genérica del mismo color — una costura decorativa, un detalle en la pretina, una textura inusual, un corte asimétrico
 
+7. AUSENCIAS CRÍTICAS (igual de importante que lo anterior):
+   Listá explícitamente qué NO tiene esta prenda. Esto evita que la IA invente features genéricos.
+   Ejemplos obligatorios para pantalones:
+   - Si NO tiene bolsillos cargo → escribí "SIN bolsillos cargo ni bolsillos laterales de ningún tipo"
+   - Si NO tiene bolsillos con solapa/flap → escribí "SIN bolsillos con solapa ni flap pockets"
+   - Si NO tiene cintura elástica → escribí "SIN elástico en pretina — solo presillas para cinturón"
+   - Si NO tiene pliegues → escribí "SIN pliegues ni pinzas"
+   - Si NO tiene dobladillo tipo jogger → escribí "ruedo simple, SIN dobladillo elástico"
+   Para cualquier prenda: siempre describí qué pockets NO tiene además de los que SÍ tiene.
+   Una prenda bien descrita dice tanto lo que ES como lo que NO ES.
+
 REGLA CLAVE: Para prendas de color sólido (pantalones, remeras básicas, camisas lisas), el color es el único diferenciador. Dedicá mínimo 3 oraciones al color exacto con todos sus matices, temperatura, comportamiento con la luz y acabado. Una descripción vaga del color ("pantalón negro") producirá resultados incorrectos.`;
 
 async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): Promise<string> {

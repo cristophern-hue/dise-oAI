@@ -330,10 +330,13 @@ export default function Home() {
               }),
             });
             const result = res.ok
-              ? await res.json().then((data: { base64?: string; applied?: boolean }) => ({
-                  concept: data.base64 ? { ...concept, base64: data.base64 } : concept,
-                  applied: data.applied === true,
-                }))
+              ? await res.json().then((data: { base64?: string; applied?: boolean; appliedVia?: string }) => {
+                  console.log(`apply-product [${concept.conceptName}]: applied=${data.applied} via=${data.appliedVia}`);
+                  return {
+                    concept: data.base64 ? { ...concept, base64: data.base64 } : concept,
+                    applied: data.applied === true,
+                  };
+                })
               : { concept, applied: false };
             setApplyProgress(p => p ? { ...p, done: p.done + 1 } : p);
             return result;

@@ -33,26 +33,38 @@ export async function POST(req: NextRequest) {
     ? `\nHay ${productDetailImages.length} imágenes de referencia de productos — aplicá TODOS los productos visibles en cada imagen (ej: remera + pantalón, campera + falda).`
     : '';
 
-  const prompt = `Tomá este concepto visual de moda y ÚNICAMENTE reemplazá las prendas/productos de la persona por los productos exactos que aparecen en las imágenes de referencia. TODO lo demás debe quedar IDÉNTICO.
+  const prompt = `You are a precision fashion image editor. Replace the clothing in the concept image with the EXACT garment(s) from the reference product photo(s). Everything else stays identical.
+
+STEP 1 — Study the reference product photo carefully:
+- What is the EXACT silhouette? (slim, straight, wide-leg, relaxed, etc.)
+- What pockets are visible? Count them and note their exact position and type.
+- What is the EXACT waist construction? (belt loops only, elastic, etc.)
+- What is the leg opening width?
+
+STEP 2 — Reproduce faithfully:
 ${productPart}
 ${personPart}
 ${multiProductNote}
 
-QUÉ CAMBIAR:
-- Las prendas/ropa de la persona → reemplazarlas por los productos de referencia exactos
+SILHOUETTE FIDELITY — the most critical rule:
+- If the reference is SLIM fit → output MUST be slim fit. Never widen it.
+- If the reference has NO cargo pockets → output MUST have zero cargo pockets. This is non-negotiable.
+- If the reference has NO side flap pockets → output MUST have none.
+- If the reference shows ONLY front slash pockets → output has ONLY front slash pockets.
+- The exact leg width, rise, and hem treatment must match the reference photo.
+- DO NOT invent any feature not clearly visible in the reference product photo.
+- DO NOT add cargo pockets, patch pockets, or flap pockets unless they are explicitly in the reference.
+- DO NOT widen or loosen the silhouette beyond what is shown.
 
-QUÉ NO TOCAR (debe quedar pixel-perfect igual):
-- TODOS los textos, tipografías, títulos, subtítulos, slogans y copy que aparecen en la imagen
-- El fondo, colores del fondo, degradados y texturas
-- La composición y layout general
-- La iluminación y mood
-- Logos, íconos o elementos gráficos de marca
-- La pose y posición de la persona
+WHAT TO CHANGE: replace the person's clothing with the exact reference garment(s).
+WHAT NOT TO CHANGE (pixel-perfect):
+- All text, typography, headlines, slogans, copy, dates
+- Background, colors, gradients, textures
+- Composition, layout, lighting, mood
+- Brand logos, icons, graphic elements
+- The person's pose, position, skin tone, face
 
-REGLAS de producto:
-- Cada prenda debe verse EXACTAMENTE igual a su imagen de referencia: mismo color, mismo estampado, misma silueta
-- Si hay múltiples prendas de referencia, aplicá TODAS
-- Estilo fashion editorial premium, fotorrealista`;
+Style: fashion editorial premium, photorealistic.`;
 
   const conceptDataUrl = `data:image/png;base64,${conceptImageBase64}`;
   const productImageContent = productDetailImages.map(img => ({
@@ -83,7 +95,7 @@ REGLAS de producto:
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     for (const block of (response.output || [])) {
       if (block.type === 'image_generation_call' && block.result) {
-        return NextResponse.json({ base64: block.result, applied: true });
+        return NextResponse.json({ base64: block.result, applied: true, appliedVia: 'responses' });
       }
     }
     console.error('apply-product: Responses API returned no image block');
@@ -91,28 +103,61 @@ REGLAS de producto:
     console.error('apply-product Responses API (gpt-4o) failed:', err);
   }
 
-  // Fallback: images.edit con prompt descriptivo fuerte
+  // Fallback A: images.edit using PRODUCT IMAGE as the base (not concept).
+  // This preserves the garment identity better — the product IS the input, we just place it on a model.
+  if (productDescription) {
+    try {
+      const productBase64 = productDetailImages[0].startsWith('data:')
+        ? productDetailImages[0].split(',')[1]
+        : productDetailImages[0];
+      const productBuffer = Buffer.from(productBase64, 'base64');
+      const productFile = await toFile(productBuffer, 'product.png', { type: 'image/png' });
+      const conceptStyle = 'fashion editorial style, premium photography, studio lighting, photorealistic';
+      const fallbackAPrompt = [
+        `This is a product photo. Transform it into a fashion editorial image: place this exact garment on a fashion model.`,
+        `CRITICAL: The garment must remain 100% identical — same silhouette, same pockets (only what is visible here), same fit, same color, same details.`,
+        `DO NOT add, remove or change any pockets, details or features. What you see is what must appear.`,
+        personDescription ? `The model should match: ${personDescription}.` : 'Use a fashion model appropriate for the garment.',
+        conceptStyle,
+        productDescription ? `Garment reference: ${productDescription}` : '',
+      ].filter(Boolean).join(' ');
+
+      const res = await openai.images.edit({
+        model: 'gpt-image-2',
+        image: productFile,
+        prompt: fallbackAPrompt,
+        size: '1024x1536',
+        quality: 'high',
+      });
+      const base64 = res.data?.[0]?.b64_json || '';
+      if (base64) return NextResponse.json({ base64, applied: true, appliedVia: 'edit-product-base' });
+      console.error('apply-product: fallback A (product base) returned empty');
+    } catch (err) {
+      console.error('apply-product fallback A failed:', err);
+    }
+  }
+
+  // Fallback B: images.edit using concept as base with descriptive prompt
   try {
     const buffer = Buffer.from(conceptImageBase64, 'base64');
     const imageFile = await toFile(buffer, 'image.png', { type: 'image/png' });
-    const editPrompt = productDescription
-      ? `Replace the main clothing/garment in this fashion image with the following product, preserving all composition, background, lighting and style. Product to apply: ${productDescription}.${personPart}`
-      : `Replace the main clothing/garment in this fashion editorial image with the product from the reference. Keep the composition, background, lighting, and overall mood exactly the same.${personPart}`;
+    const fallbackBPrompt = productDescription
+      ? `Replace the main clothing/garment in this fashion image with the following product EXACTLY as described — do not invent features not mentioned. Preserving all composition, background, lighting. Product: ${productDescription}.${personPart}`
+      : `Replace the main clothing/garment in this fashion editorial image with the reference product. Keep the composition, background, lighting, and overall mood exactly the same.${personPart}`;
 
-    const response = await openai.images.edit({
+    const res = await openai.images.edit({
       model: 'gpt-image-2',
       image: imageFile,
-      prompt: editPrompt,
+      prompt: fallbackBPrompt,
       size: '1024x1536',
       quality: 'high',
     });
-    const base64 = response.data?.[0]?.b64_json || '';
-    if (base64) return NextResponse.json({ base64, applied: true });
-    console.error('apply-product: images.edit returned empty b64_json');
+    const base64 = res.data?.[0]?.b64_json || '';
+    if (base64) return NextResponse.json({ base64, applied: true, appliedVia: 'edit-concept-base' });
+    console.error('apply-product: fallback B returned empty b64_json');
   } catch (err) {
-    console.error('apply-product images.edit fallback failed:', err);
+    console.error('apply-product fallback B failed:', err);
   }
 
-  // Last resort: return original with flag so client can warn the user
-  return NextResponse.json({ base64: conceptImageBase64, applied: false });
+  return NextResponse.json({ base64: conceptImageBase64, applied: false, appliedVia: 'none' });
 }
