@@ -174,11 +174,14 @@ export default function Home() {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const { productDescription: pd, personDescription: prd } = await parseConceptStream(res, img =>
-        setConcepts(prev => [...prev, img])
-      );
+      let received = 0;
+      const { productDescription: pd, personDescription: prd } = await parseConceptStream(res, img => {
+        received++;
+        setConcepts(prev => [...prev, img]);
+      });
       setProductDescription(pd);
       setPersonDescription(prd);
+      if (received === 0) setError('No se generaron imágenes. Revisá que el brief no esté vacío y volvé a intentar.');
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error generando conceptos');
       setStep('brief');
@@ -211,11 +214,14 @@ export default function Home() {
         }),
       });
       if (!res.ok) throw new Error(await res.text());
-      const { productDescription: pd } = await parseConceptStream(res, img =>
-        setConcepts(prev => [...prev, img])
-      );
+      let added = 0;
+      const { productDescription: pd } = await parseConceptStream(res, img => {
+        added++;
+        setConcepts(prev => [...prev, img]);
+      });
       if (pd && !productDescription) setProductDescription(pd);
-      setSelectedConcepts([]);
+      if (added === 0) setError('No se pudieron generar variaciones. Intentá de nuevo o usá Regenerar para empezar desde cero.');
+      else setSelectedConcepts([]);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Error generando similares');
     } finally {

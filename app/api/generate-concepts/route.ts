@@ -404,6 +404,11 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
                 ? await editProductForConcept(openai, productDetailImages[0], fullPrompt)
                 : await generateWithGptImage2(openai, fullPrompt, inputImages);
 
+              if (!base64) {
+                console.error(`concept "${concept.concept_name}" returned empty base64`);
+                send(controller, { error: concept.concept_name });
+                return;
+              }
               send(controller, {
                 image: {
                   id: Math.random().toString(36).slice(2),
