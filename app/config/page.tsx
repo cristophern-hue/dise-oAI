@@ -32,6 +32,8 @@ const EMPTY_FORM: Omit<BrandKit, 'id'> = {
   referencePiecesStyle: undefined,
   referencePiecesThumbnails: [],
   logoBase64: undefined,
+  logoDark: undefined,
+  logoLight: undefined,
   quickAdjustments: [],
 };
 
@@ -198,12 +200,39 @@ export default function ConfigPage() {
     }
   };
 
-  const handleLogoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const compressLogo = (file: File): Promise<string> =>
+    new Promise(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const dataUrl = reader.result as string;
+        const img = new Image();
+        img.onload = () => {
+          const MAX = 512;
+          let { naturalWidth: w, naturalHeight: h } = img;
+          if (w > MAX || h > MAX) {
+            if (w > h) { h = Math.round(h * MAX / w); w = MAX; }
+            else { w = Math.round(w * MAX / h); h = MAX; }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d')!;
+          ctx.clearRect(0, 0, w, h);
+          ctx.drawImage(img, 0, 0, w, h);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => resolve(dataUrl);
+        img.src = dataUrl;
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+
+  const handleLogoUpload = (variant: 'logoDark' | 'logoLight') => async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => setForm(f => ({ ...f, logoBase64: reader.result as string }));
-    reader.readAsDataURL(file);
+    const dataUrl = await compressLogo(file);
+    setForm(f => ({ ...f, [variant]: dataUrl, ...(variant === 'logoDark' ? { logoBase64: undefined } : {}) }));
+    e.target.value = '';
   };
 
   const handleSave = async () => {
@@ -443,25 +472,60 @@ export default function ConfigPage() {
               )}
             </div>
 
-            {/* Logo */}
-            <div className="space-y-2">
-              <label className="text-sm text-white/60">Logo (opcional)</label>
-              <div className="flex items-center gap-4">
-                {form.logoBase64 && (
-                  <img src={form.logoBase64} alt="Logo" className="w-16 h-16 rounded-xl object-contain bg-white/10 p-2" />
-                )}
-                <label className="cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 hover:border-white/20 rounded-xl px-4 py-3 text-sm text-white/60 hover:text-white transition-colors flex items-center gap-2">
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
-                  </svg>
-                  {form.logoBase64 ? 'Cambiar logo' : 'Subir logo'}
-                  <input type="file" accept="image/*" onChange={handleLogoUpload} className="hidden" />
-                </label>
-                {form.logoBase64 && (
-                  <button onClick={() => setForm(f => ({ ...f, logoBase64: undefined }))} className="text-white/30 hover:text-red-400 text-xs transition-colors">
-                    Quitar
-                  </button>
-                )}
+            {/* Logos */}
+            <div className="space-y-3">
+              <div>
+                <label className="text-sm text-white/60">Logos</label>
+                <p className="text-xs text-white/30 mt-0.5">La IA elige la versión correcta según el fondo de cada pieza y lo replica visualmente.</p>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Dark logo */}
+                <div className="space-y-2">
+                  <p className="text-xs text-white/40">Logo oscuro <span className="text-white/25">(fondos claros)</span></p>
+                  <div className="bg-white rounded-xl p-3 flex items-center justify-center min-h-[80px] border border-black/10">
+                    {(form.logoDark || form.logoBase64) ? (
+                      <img src={form.logoDark || form.logoBase64} alt="Logo oscuro" className="max-h-16 max-w-full object-contain" />
+                    ) : (
+                      <span className="text-black/20 text-xs">Sin logo</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <label className="flex-1 cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-xs text-white/60 hover:text-white transition-colors text-center">
+                      {(form.logoDark || form.logoBase64) ? 'Cambiar' : 'Subir'}
+                      <input type="file" accept="image/*" onChange={handleLogoUpload('logoDark')} className="hidden" />
+                    </label>
+                    {(form.logoDark || form.logoBase64) && (
+                      <button
+                        onClick={() => setForm(f => ({ ...f, logoDark: undefined, logoBase64: undefined }))}
+                        className="text-white/30 hover:text-red-400 text-xs px-2 transition-colors"
+                      >Quitar</button>
+                    )}
+                  </div>
+                </div>
+
+                {/* Light logo */}
+                <div className="space-y-2">
+                  <p className="text-xs text-white/40">Logo blanco <span className="text-white/25">(fondos oscuros)</span></p>
+                  <div className="bg-[#111111] rounded-xl p-3 flex items-center justify-center min-h-[80px] border border-white/10">
+                    {form.logoLight ? (
+                      <img src={form.logoLight} alt="Logo blanco" className="max-h-16 max-w-full object-contain" />
+                    ) : (
+                      <span className="text-white/20 text-xs">Sin logo</span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <label className="flex-1 cursor-pointer bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg px-3 py-2 text-xs text-white/60 hover:text-white transition-colors text-center">
+                      {form.logoLight ? 'Cambiar' : 'Subir'}
+                      <input type="file" accept="image/*" onChange={handleLogoUpload('logoLight')} className="hidden" />
+                    </label>
+                    {form.logoLight && (
+                      <button
+                        onClick={() => setForm(f => ({ ...f, logoLight: undefined }))}
+                        className="text-white/30 hover:text-red-400 text-xs px-2 transition-colors"
+                      >Quitar</button>
+                    )}
+                  </div>
+                </div>
               </div>
             </div>
 

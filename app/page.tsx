@@ -17,6 +17,8 @@ export default function Home() {
   const [brief, setBrief] = useState('');
   const [clientRequest, setClientRequest] = useState('');
   const [generatingBrief, setGeneratingBrief] = useState(false);
+  const [productUrl, setProductUrl] = useState('');
+  const [scrapingUrl, setScrapingUrl] = useState(false);
 
   const [showDrawer, setShowDrawer] = useState(false);
   const [savedSessions, setSavedSessions] = useState<SavedSession[]>([]);
@@ -51,6 +53,7 @@ export default function Home() {
   const [refineHistory, setRefineHistory] = useState<string[]>([]);
   const [refineImageHistory, setRefineImageHistory] = useState<string[]>([]);
   const refineInputRef = useRef<HTMLInputElement>(null);
+  const [applyProgress, setApplyProgress] = useState<{ done: number; total: number } | null>(null);
 
 
   const startLoading = (msg: string) => {
@@ -239,6 +242,29 @@ export default function Home() {
     }
   };
 
+  const scrapeProductUrl = async () => {
+    if (!productUrl.trim()) return;
+    setScrapingUrl(true);
+    try {
+      const res = await fetch('/api/scrape-product', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: productUrl.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || 'Error leyendo URL');
+      }
+      const data = await res.json();
+      setBrief(data.brief || '');
+      setProductUrl('');
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'No se pudo leer la URL del producto.');
+    } finally {
+      setScrapingUrl(false);
+    }
+  };
+
   const generateAdaptations = async () => {
     if (adaptFormats.length === 0 || selectedConcepts.length === 0) return;
     setGeneratingAdaptations(true);
@@ -285,7 +311,9 @@ export default function Home() {
     const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
     // In e-commerce mode the product is already embedded via images.edit — skip apply-product
     if (productDetailImages.length > 0 && !isProductEcommerce) {
-      startLoading(`Aplicando producto a ${selectedConcepts.length} concepto${selectedConcepts.length > 1 ? 's' : ''}... (puede tardar 1-2 min)`);
+      const total = selectedConcepts.length;
+      setApplyProgress({ done: 0, total });
+      startLoading(`Aplicando producto...`);
       setError('');
       try {
         const results = await Promise.all(
@@ -301,12 +329,17 @@ export default function Home() {
                 personDescription,
               }),
             });
-            if (!res.ok) return { concept, applied: false };
-            const data = await res.json();
-            return {
-              concept: data.base64 ? { ...concept, base64: data.base64 } : concept,
-              applied: data.applied === true,
-            };
+            const result = res.ok
+              ? await res.json().then((data: { base64?: string; applied?: boolean; appliedVia?: string }) => {
+                  console.log(`apply-product [${concept.conceptName}]: applied=${data.applied} via=${data.appliedVia}`);
+                  return {
+                    concept: data.base64 ? { ...concept, base64: data.base64 } : concept,
+                    applied: data.applied === true,
+                  };
+                })
+              : { concept, applied: false };
+            setApplyProgress(p => p ? { ...p, done: p.done + 1 } : p);
+            return result;
           })
         );
         const applied = results.map(r => r.concept);
@@ -323,6 +356,7 @@ export default function Home() {
         setError(e instanceof Error ? e.message : 'Error aplicando producto');
       } finally {
         stopLoading();
+        setApplyProgress(null);
       }
       return;
     }
@@ -666,9 +700,29 @@ export default function Home() {
         {/* Step: BRIEF */}
         {step === 'brief' && (
           <div className="space-y-8">
-            <div>
-              <h1 className="text-3xl font-bold mb-2">Nueva pieza</h1>
-              <p className="text-white/50">Seleccioná el cliente y escribí el brief de la campaña.</p>
+            <div className="flex items-start justify-between flex-wrap gap-4">
+              <div>
+                <h1 className="text-3xl font-bold mb-2">{kvMode ? 'Reciclar KV' : 'Nueva pieza'}</h1>
+                <p className="text-white/50">{kvMode ? 'Generá variaciones basadas en un KV aprobado.' : 'Seleccioná el cliente y escribí el brief de la campaña.'}</p>
+              </div>
+              {/* Mode tabs */}
+              <div className="flex gap-1 p-1 bg-white/5 border border-white/10 rounded-xl self-start">
+                <button
+                  onClick={() => { setKvMode(false); setKvReferenceImage(null); }}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${!kvMode ? 'bg-[#FA5A1E] text-white shadow-sm' : 'text-white/50 hover:text-white/70'}`}
+                >
+                  Nueva pieza
+                </button>
+                <button
+                  onClick={() => setKvMode(true)}
+                  className={`px-4 py-2 rounded-lg text-sm font-medium transition-all flex items-center gap-1.5 ${kvMode ? 'bg-[#FA5A1E] text-white shadow-sm' : 'text-white/50 hover:text-white/70'}`}
+                >
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                  </svg>
+                  Reciclar KV
+                </button>
+              </div>
             </div>
 
             {/* Client selector */}
@@ -710,18 +764,20 @@ export default function Home() {
 
             {/* Brief generator */}
             <div className="space-y-3">
-              <label className="text-sm font-medium text-white/70">Solicitud del cliente</label>
+              <label className="text-sm font-medium text-white/70">Generar brief desde...</label>
+
+              {/* From client message */}
               <div className="flex gap-2 items-start">
                 <textarea
                   value={clientRequest}
                   onChange={e => setClientRequest(e.target.value)}
-                  placeholder="Pegá el mensaje del cliente tal como llegó. Ej: 'Hola! Necesito algo para el lanzamiento de nuestra colección de verano, algo fresco y colorido para Instagram...'"
-                  rows={3}
+                  placeholder="Mensaje del cliente: 'Hola! Necesito algo para el lanzamiento de nuestra colección de verano...'"
+                  rows={2}
                   className="flex-1 bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white placeholder-white/25 focus:outline-none focus:border-[#FF912D] resize-none text-sm leading-relaxed"
                 />
                 <button
                   onClick={generateBrief}
-                  disabled={!clientRequest.trim() || generatingBrief}
+                  disabled={!clientRequest.trim() || generatingBrief || scrapingUrl}
                   className="shrink-0 bg-[#FA5A1E]/80 hover:bg-[#FA5A1E] disabled:opacity-40 disabled:cursor-not-allowed text-white text-sm font-medium px-4 py-3 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap"
                 >
                   {generatingBrief ? (
@@ -731,12 +787,40 @@ export default function Home() {
                       <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
                       </svg>
-                      Generar brief
+                      Desde mensaje
                     </>
                   )}
                 </button>
               </div>
-              <p className="text-xs text-white/30">GPT-4o convierte el mensaje en un brief creativo estructurado.</p>
+
+              {/* From product URL */}
+              <div className="flex gap-2 items-center">
+                <div className="flex-1 flex items-center gap-2 bg-white/5 border border-white/10 hover:border-white/20 focus-within:border-[#FF912D] rounded-xl px-4 py-2.5 transition-colors">
+                  <svg className="w-3.5 h-3.5 text-white/30 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                  </svg>
+                  <input
+                    type="url"
+                    value={productUrl}
+                    onChange={e => setProductUrl(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && scrapeProductUrl()}
+                    placeholder="URL del producto (ej: tienda.com/producto)"
+                    className="flex-1 bg-transparent text-white placeholder-white/25 focus:outline-none text-sm"
+                  />
+                </div>
+                <button
+                  onClick={scrapeProductUrl}
+                  disabled={!productUrl.trim() || scrapingUrl || generatingBrief}
+                  className="shrink-0 bg-white/10 hover:bg-white/15 disabled:opacity-40 disabled:cursor-not-allowed text-white/80 text-sm font-medium px-4 py-2.5 rounded-xl transition-colors flex items-center gap-2 whitespace-nowrap"
+                >
+                  {scrapingUrl ? (
+                    <><div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />Leyendo...</>
+                  ) : (
+                    <>Leer producto</>
+                  )}
+                </button>
+              </div>
+              <p className="text-xs text-white/30">GPT-4o analiza el mensaje o scrapeá el producto desde su URL para generar el brief.</p>
             </div>
 
             {/* Brief input */}
@@ -833,60 +917,47 @@ export default function Home() {
               )}
             </div>
 
-            {/* Reciclar KV */}
-            <div className={`rounded-xl border transition-all ${kvMode ? 'border-[#FF912D] bg-[#FA5A1E]/5' : 'border-white/10 bg-white/5'}`}>
-              <button
-                onClick={() => { setKvMode(v => !v); setKvReferenceImage(null); }}
-                className="w-full flex items-center justify-between px-4 py-3 text-left"
-              >
-                <div className="flex items-center gap-3">
-                  <svg className={`w-5 h-5 ${kvMode ? 'text-[#FF912D]' : 'text-white/40'}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  <div>
-                    <p className={`text-sm font-medium ${kvMode ? 'text-[#FF912D]' : 'text-white/70'}`}>Reciclar KV</p>
-                    <p className="text-xs text-white/40">Generá 5 conceptos basados en un KV aprobado existente</p>
+            {/* KV upload — only shown in Reciclar KV mode */}
+            {kvMode && (
+              <div className="border-2 border-dashed border-[#FA5A1E]/40 rounded-2xl p-6 space-y-4 bg-[#FA5A1E]/3">
+                <div>
+                  <p className="text-sm font-medium text-[#FF912D] mb-1">KV de referencia</p>
+                  <p className="text-xs text-white/40">Subí el KV aprobado. Se generarán 5 variaciones que mantienen su línea gráfica adaptadas al brief de arriba.</p>
+                </div>
+                {kvReferenceImage ? (
+                  <div className="flex items-center gap-4">
+                    <div className="relative w-28 h-28 rounded-xl overflow-hidden border border-[#FA5A1E]/40 shrink-0">
+                      <img src={`data:image/png;base64,${kvReferenceImage}`} alt="KV referencia" className="w-full h-full object-cover" />
+                    </div>
+                    <div className="space-y-2">
+                      <p className="text-sm text-[#FF912D]">KV cargado</p>
+                      <p className="text-xs text-white/40">Se generarán 5 variaciones de este estilo adaptadas al brief.</p>
+                      <button
+                        onClick={() => setKvReferenceImage(null)}
+                        className="text-xs text-white/30 hover:text-red-400 transition-colors"
+                      >Quitar KV</button>
+                    </div>
                   </div>
-                </div>
-                <div className={`w-9 h-5 rounded-full transition-colors ${kvMode ? 'bg-[#FA5A1E]' : 'bg-white/20'} flex items-center px-0.5`}>
-                  <div className={`w-4 h-4 bg-white rounded-full shadow transition-transform ${kvMode ? 'translate-x-4' : 'translate-x-0'}`} />
-                </div>
-              </button>
-              {kvMode && (
-                <div className="px-4 pb-4 space-y-3 border-t border-[#FA5A1E]/20 pt-3">
-                  <p className="text-xs text-white/50">Subí el KV que querés usar como referencia visual. Se generarán 5 conceptos que siguen su línea gráfica adaptados al brief de arriba.</p>
-                  <div className="flex gap-3 items-center">
-                    {kvReferenceImage ? (
-                      <div className="relative w-24 h-24 rounded-xl overflow-hidden border border-[#FA5A1E]/30 shrink-0">
-                        <img src={`data:image/png;base64,${kvReferenceImage}`} alt="KV referencia" className="w-full h-full object-cover" />
-                        <button
-                          onClick={() => setKvReferenceImage(null)}
-                          className="absolute top-1 right-1 w-5 h-5 bg-black/70 rounded-full flex items-center justify-center text-white/80 hover:text-white text-xs"
-                        >×</button>
-                      </div>
-                    ) : (
-                      <label className="w-24 h-24 rounded-xl border-2 border-dashed border-[#FA5A1E]/40 hover:border-[#FF912D] flex flex-col items-center justify-center cursor-pointer transition-colors gap-1 shrink-0">
-                        <svg className="w-6 h-6 text-[#FF912D]/60" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
-                        <span className="text-xs text-[#FF912D]/60">KV</span>
-                        <input type="file" accept="image/*" onChange={async e => {
-                          const file = e.target.files?.[0];
-                          if (!file) return;
-                          const png = await readAsPng(file);
-                          // strip data URL prefix — store raw base64
-                          setKvReferenceImage(png.split(',')[1] || png);
-                          e.target.value = '';
-                        }} className="hidden" />
-                      </label>
-                    )}
-                    {kvReferenceImage && (
-                      <p className="text-xs text-[#FF912D]/80">KV cargado — se generarán 5 variaciones adaptadas al brief.</p>
-                    )}
-                  </div>
-                </div>
-              )}
-            </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center gap-3 py-8 rounded-xl border border-dashed border-[#FA5A1E]/30 hover:border-[#FF912D] cursor-pointer transition-colors bg-white/3">
+                    <svg className="w-8 h-8 text-[#FF912D]/50" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <div className="text-center">
+                      <p className="text-sm text-[#FF912D]/80 font-medium">Subí el KV aprobado</p>
+                      <p className="text-xs text-white/30 mt-0.5">PNG, JPG, WEBP</p>
+                    </div>
+                    <input type="file" accept="image/*" onChange={async e => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const png = await readAsPng(file);
+                      setKvReferenceImage(png.split(',')[1] || png);
+                      e.target.value = '';
+                    }} className="hidden" />
+                  </label>
+                )}
+              </div>
+            )}
 
             <button
               onClick={generateConcepts}
@@ -943,6 +1014,53 @@ export default function Home() {
             </div>
 
             <>
+                {/* Generation progress bar */}
+                {loading && (
+                  <div className="bg-[#111111]/60 border border-white/10 rounded-xl px-4 py-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-3.5 h-3.5 border-2 border-[#FF912D]/40 border-t-[#FF912D] rounded-full animate-spin shrink-0" />
+                        <span className="text-sm text-white/80">
+                          {concepts.length === 0
+                            ? 'Analizando brief y diseñando conceptos...'
+                            : `${concepts.length} de ${generatingCount} concepto${concepts.length !== 1 ? 's' : ''} listo${concepts.length !== 1 ? 's' : ''}`}
+                        </span>
+                      </div>
+                      <span className="text-xs text-white/30 tabular-nums">{elapsedSec}s</span>
+                    </div>
+                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#FA5A1E] to-[#FF912D] rounded-full transition-all duration-700 ease-out"
+                        style={{ width: `${generatingCount > 0 ? Math.max(4, (concepts.length / generatingCount) * 100) : 4}%` }}
+                      />
+                    </div>
+                    {concepts.length === 0 && (
+                      <p className="text-xs text-white/30">GPT-4o diseña los conceptos → gpt-image-2 los genera en paralelo</p>
+                    )}
+                  </div>
+                )}
+
+                {/* Apply-product progress bar */}
+                {applyProgress && (
+                  <div className="bg-[#111111]/60 border border-[#FA5A1E]/20 rounded-xl px-4 py-3 space-y-2.5">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-3.5 h-3.5 border-2 border-[#FF912D]/40 border-t-[#FF912D] rounded-full animate-spin shrink-0" />
+                        <span className="text-sm text-white/80">
+                          Aplicando producto — {applyProgress.done} de {applyProgress.total} listo{applyProgress.done !== 1 ? 's' : ''}
+                        </span>
+                      </div>
+                      <span className="text-xs text-white/30 tabular-nums">{elapsedSec}s</span>
+                    </div>
+                    <div className="h-1.5 bg-white/10 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-[#FA5A1E] to-[#FF912D] rounded-full transition-all duration-700 ease-out"
+                        style={{ width: `${Math.max(4, (applyProgress.done / applyProgress.total) * 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
+
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
                   {concepts.map(img => {
                     const selIdx = selectedConcepts.findIndex(c => c.id === img.id);

@@ -15,7 +15,9 @@ export interface BrandKit {
   // Previous pieces analysis
   referencePiecesStyle?: string;
   referencePiecesThumbnails?: string[];
-  logoBase64?: string;
+  logoBase64?: string;   // legacy, kept for backward compat
+  logoDark?: string;     // logo oscuro para fondos claros
+  logoLight?: string;    // logo blanco/claro para fondos oscuros
   quickAdjustments?: string[];
 }
 

@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import OpenAI, { toFile } from 'openai';
 import type { ChatCompletionContentPart } from 'openai/resources/chat/completions';
 import { BrandKit } from '@/app/types';
-import { buildBrandKitContext } from '@/app/api/brandKitContext';
+import { buildBrandKitContext, extractLogoImages } from '@/app/api/brandKitContext';
 
 function isRefusal(text: string): boolean {
   if (!text || text.length < 30) return true;
@@ -28,14 +28,38 @@ const PRODUCT_DESCRIPTION_PROMPT = `Sos un técnico de producto de moda de alta 
 
 Describí en este orden exacto:
 
-1. TIPO DE PRENDA: categoría (remera, vestido, campera, etc.), silueta y corte (oversize, entallado, recto, etc.), largo
-2. COLOR BASE Y FONDO: tono exacto y profundidad (no "azul" sino "azul marino oscuro casi negro", "blanco roto cálido", etc.)
-3. ESTAMPADO / PRINT (es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, qué tamaño relativo al total de la prenda, cómo se distribuye (all-over, centrado, borde, repetición, etc.), orientación, y cómo contrasta con el fondo. Si hay texto, copialo exactamente.
-4. MATERIALES Y TEXTURA: acabado (mate, satinado, brillante), peso visual, transparencia
-5. DETALLES DE CONFECCIÓN: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños, bolsillos, costuras decorativas, piping, botones, cierres, terminaciones
-6. ELEMENTOS ÚNICOS: cualquier detalle que diferencie esta prenda de una genérica
+1. TIPO DE PRENDA: categoría (remera, pantalón, vestido, campera, etc.), silueta y corte (slim, straight, wide-leg, oversize, entallado, etc.), largo exacto (hasta el tobillo, a la rodilla, etc.)
 
-IMPORTANTE sobre el estampado: nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición. El nivel de especificidad del estampado determina si la IA lo reproduce correctamente.`;
+2. COLOR BASE — CRÍTICO PARA PRENDAS LISAS: para colores sólidos (el caso más difícil) describí con máxima precisión:
+   - Tono exacto: no "negro" sino "negro mate profundo sin brillo", no "azul" sino "azul marino oscuro con subtono violeta", no "gris" sino "gris carbón medio con ligero subtono verdoso"
+   - Temperatura del color: frío, cálido o neutro
+   - Saturación y profundidad: intenso, apagado, lavado, oscuro, claro
+   - Cómo se comporta con la luz: absorbe la luz (mate), la refleja levemente (satinado suave), brilla (lustrado)
+   - Para prendas con una sola trama de color, estos detalles son TODO — dedicá más palabras al color que a cualquier otra cosa
+
+3. ESTAMPADO / PRINT (cuando existe, es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, qué tamaño relativo al total de la prenda, cómo se distribuye (all-over, centrado, borde, repetición, etc.), orientación, y cómo contrasta con el fondo. Si hay texto, copialo exactamente. Nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición.
+
+4. MATERIALES Y TEXTURA: tipo de tela inferido (denim, punto, tela plana, etc.), acabado (mate, satinado, brillante), peso visual (liviano, pesado, estructurado), transparencia, textura superficial visible
+
+5. DETALLES DE CONFECCIÓN:
+   - Para pantalones: pretina (elástica, con presillas para cinturón, ancho), tiro (bajo, medio, alto), bolsillos (cantidad, tipo, posición), bota (angosta, recta, acampanada, ancho exacto estimado), cierre (visible/invisible, color), terminación del ruedo (doblado, overlock, costura plana)
+   - Para remeras/tops: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños, dobladillo
+   - Para todas: costuras decorativas, piping, botones, cierres, terminaciones especiales
+
+6. ELEMENTOS ÚNICOS: cualquier detalle que diferencie esta prenda de una genérica del mismo color — una costura decorativa, un detalle en la pretina, una textura inusual, un corte asimétrico
+
+7. AUSENCIAS CRÍTICAS (igual de importante que lo anterior):
+   Listá explícitamente qué NO tiene esta prenda. Esto evita que la IA invente features genéricos.
+   Ejemplos obligatorios para pantalones:
+   - Si NO tiene bolsillos cargo → escribí "SIN bolsillos cargo ni bolsillos laterales de ningún tipo"
+   - Si NO tiene bolsillos con solapa/flap → escribí "SIN bolsillos con solapa ni flap pockets"
+   - Si NO tiene cintura elástica → escribí "SIN elástico en pretina — solo presillas para cinturón"
+   - Si NO tiene pliegues → escribí "SIN pliegues ni pinzas"
+   - Si NO tiene dobladillo tipo jogger → escribí "ruedo simple, SIN dobladillo elástico"
+   Para cualquier prenda: siempre describí qué pockets NO tiene además de los que SÍ tiene.
+   Una prenda bien descrita dice tanto lo que ES como lo que NO ES.
+
+REGLA CLAVE: Para prendas de color sólido (pantalones, remeras básicas, camisas lisas), el color es el único diferenciador. Dedicá mínimo 3 oraciones al color exacto con todos sus matices, temperatura, comportamiento con la luz y acabado. Una descripción vaga del color ("pantalón negro") producirá resultados incorrectos.`;
 
 async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): Promise<string> {
   const response = await openai.chat.completions.create({
@@ -144,6 +168,7 @@ export async function POST(req: NextRequest) {
   // Visual refs from brand kit (style guide for generation)
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
   const productRef: string | null = productDetailImages[0] || null;
+  const logos = extractLogoImages(brandKit);
 
   // Generate product + person descriptions — returned to frontend for the apply-product step
   let productDescription = '';
@@ -198,11 +223,11 @@ export async function POST(req: NextRequest) {
 5. Showcase técnico dramático — macro/closeup extremo del producto con iluminación de estudio, fondo oscuro con gradiente de luz lateral. Detalle de materiales y construcción. Sin texto.
 ${refStyleDirection}`
     : `Direcciones (fashion/editorial):
-1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados
-2. Tipográfico editorial — tipografía grande como elemento visual, imagen secundaria
-3. Producto hero — producto o prenda protagonista sin personas
-4. Lifestyle aspiracional — ambiente y mood que refuerzan la identidad de marca
-5. Composición geométrica — bloques de color, formas y tipografía del brand kit
+1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados. Incluir nombre de marca o tagline sutil en tipografía pequeña.
+2. Tipográfico editorial — tipografía grande como elemento visual dominante, imagen secundaria. Texto es protagonista.
+3. Producto hero — producto o prenda protagonista sin personas. Copy mínimo: nombre de marca en esquina.
+4. Lifestyle aspiracional — ambiente y mood que refuerzan la identidad de marca. Incluir nombre de marca o tagline en tipografía elegante y sutil.
+5. Composición geométrica — bloques de color, formas y tipografía del brand kit. Texto integrado como elemento gráfico.
 ${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
@@ -281,11 +306,15 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
   const concepts: ConceptItem[] = parsed.concepts || [];
 
+  // Logo images to pass as visual references — gpt-image-2 can replicate them faithfully
+  const logoImages = [logos.dark, logos.light].filter(Boolean) as string[];
+
   // In similar mode: style references lead; otherwise brand visual refs lead.
   const inputImages = [
     ...(isSimilarMode ? styleReferenceDataUrls : visualRefs),
     ...productDetailImages,
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
+    ...logoImages,
   ];
 
   const hasPeople = peopleMode !== 'none';
@@ -299,6 +328,26 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     : '';
   const styleHint = visualRefs.length > 0
     ? 'Match the visual style, typography treatment and composition quality of the provided brand reference pieces.'
+    : '';
+
+  const logoHint = logoImages.length > 0
+    ? (() => {
+        const base = 'Include the brand logo in the bottom-right corner (≈8% of frame width, clear space around it). ';
+        if (logos.dark && logos.light) {
+          return base +
+            'Two logo versions are provided as reference images: a dark/colored version and a white/reversed version. ' +
+            'RULE: use the WHITE logo on dark or saturated color backgrounds; use the DARK logo on light or white backgrounds. ' +
+            'Replicate the logo faithfully — same shape, proportions, colors, and elements. Never distort or recolor it.';
+        }
+        if (logos.dark) {
+          return base +
+            'The dark logo version is provided as a reference image. Replicate it faithfully on a background area with sufficient contrast. ' +
+            'Never distort or recolor it.';
+        }
+        return base +
+          'The white/light logo version is provided as a reference image. Replicate it faithfully on dark or colored backgrounds. ' +
+          'Never distort or recolor it.';
+      })()
     : '';
 
   // Step 2: Stream each concept image as it completes
@@ -318,6 +367,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               styleSuffix,
               productHint,
               styleHint,
+              logoHint,
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
             ].filter(Boolean).join(' ');
 
