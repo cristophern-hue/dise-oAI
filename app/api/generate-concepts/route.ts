@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI, { toFile } from 'openai';
 import type { ChatCompletionContentPart } from 'openai/resources/chat/completions';
-import { BrandKit } from '@/app/types';
+import { BrandKit, PeopleMode } from '@/app/types';
 import { buildBrandKitContext, extractLogoImages } from '@/app/api/brandKitContext';
 
 function isRefusal(text: string): boolean {
@@ -16,8 +16,6 @@ function isRefusal(text: string): boolean {
 }
 
 export const maxDuration = 300;
-
-type PeopleMode = 'none' | 'ai' | 'real';
 
 interface ConceptItem {
   concept_name: string;
@@ -205,18 +203,21 @@ export async function POST(req: NextRequest) {
 
   const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
   const isCorporate = peopleMode === 'corporate';
+  const isEvents = peopleMode === 'events';
 
   // People instruction for concept generation
   const peopleInstruction = peopleMode === 'none'
     ? 'NO incluir personas. Enfocarse en producto, composición, elementos gráficos y copy.'
     : isCorporate
       ? 'Personas opcionales: si aparecen deben ser profesionales en contexto corporativo (reunión, oficina, ciudad). No es obligatorio incluirlas — priorizá composición gráfica y tipografía.'
-      : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
+      : isEvents
+        ? 'Personas opcionales: si aparecen deben ser ponentes, panelistas o asistentes al evento. No es obligatorio — priorizá composición gráfica, tipografía de impacto y elementos de urgencia (fecha, CTA).'
+        : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
   const hasVisualRefs = visualRefs.length > 0;
   const refStyleDirection = hasVisualRefs
     ? `6. Réplica de estilo de marca — seguí EXACTAMENTE el estilo visual, composición tipográfica y tratamiento gráfico de las piezas de referencia de la marca que se incluyen como imágenes`
-    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
+    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Comunidad y experiencia — momento de networking, sala llena de asistentes, ambiente de aprendizaje y conexión' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
 
   const conceptDirections = isProductEcommerce
     ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás:
@@ -226,7 +227,15 @@ export async function POST(req: NextRequest) {
 4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame como elemento gráfico dominante. Producto flotando pequeño en un corner. SIN fotografía realista — composición abstracta de formas y texto.
 5. Showcase técnico dramático — macro/closeup extremo del producto con iluminación de estudio, fondo oscuro con gradiente de luz lateral. Detalle de materiales y construcción. Sin texto.
 ${refStyleDirection}`
-    : isCorporate
+    : isEvents
+      ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital:
+1. CTA de registro urgente — headline del evento en tipografía bold XL, fecha y hora prominentes, botón o banner de registro. Fondo de color sólido del brand kit o gradiente de marca. Máxima claridad y urgencia.
+2. Speaker o ponente destacado — nombre y foto (si hay referencia) o silueta/avatar del speaker, título y credenciales, composición que transmite autoridad y expertise. Headline del evento como soporte.
+3. Agenda visual — programa del evento como elemento gráfico: sesiones, horarios o tracks dispuestos en layout limpio. Tipografía estructurada, íconos de temas, paleta del brand kit.
+4. Cuenta regresiva / urgencia — countdown visual con días/horas/minutos hasta el evento, elementos de expectativa y FOMO. Fondo oscuro del brand kit con tipografía de alto impacto.
+5. Online / livestreaming — iconografía de transmisión en vivo (play, ondas, pantalla), elementos digitales. Comunica accesibilidad y alcance global. Copy: "En vivo" / "Online" / "Gratis".
+${refStyleDirection}`
+      : isCorporate
       ? `Direcciones (corporativo/servicios) — CADA UNA visualmente DISTINTA, estilo institucional premium:
 1. Titular impactante — headline del brief en tipografía bold XL ocupa 60% del frame. Fondo con foto de archivo de alta calidad (ciudad, arquitectura, abstracto) o color sólido del brand kit. Logo y copy de apoyo presentes.
 2. Personas en contexto profesional — profesionales en reunión, espacio de trabajo moderno o entorno urbano. Actitud de confianza y liderazgo. Headline y logo de marca bien posicionados. Calidad fotográfica premium.
@@ -332,6 +341,8 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const hasPeople = peopleMode !== 'none';
   const styleSuffix = isCorporate
     ? 'Premium institutional design, B2B advertising quality, clean and trustworthy. NOT generic stock photo aesthetic. If people appear: professional business context, diverse team, confident expression. Portrait 4:5.'
+    : isEvents
+    ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. If people appear: engaged audience, confident speaker, professional setting. Portrait 4:5.'
     : hasPeople
       ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
       : isProductEcommerce

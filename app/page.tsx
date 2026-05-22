@@ -309,8 +309,8 @@ export default function Home() {
   const enterRefine = async () => {
     if (selectedConcepts.length === 0) return;
     const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
-    // Skip apply-product in e-commerce mode (product already embedded) and corporate mode (no product)
-    if (productDetailImages.length > 0 && !isProductEcommerce && peopleMode !== 'corporate') {
+    // Skip apply-product in e-commerce mode (product already embedded), corporate mode, and events mode
+    if (productDetailImages.length > 0 && !isProductEcommerce && peopleMode !== 'corporate' && peopleMode !== 'events') {
       const total = selectedConcepts.length;
       setApplyProgress({ done: 0, total });
       startLoading(`Aplicando producto...`);
@@ -845,10 +845,11 @@ export default function Home() {
                   { value: 'none', label: 'PRODUCTO', desc: 'Anuncio centrado en un producto físico', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
                   { value: 'real', label: 'FASHION', desc: 'Prendas y moda con personas usando el producto', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
                   { value: 'corporate', label: 'CORPORATIVO', desc: 'Agencias, bancos, servicios y empresas B2B', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 00-1-1h-2a1 1 0 00-1 1v5m4 0H9' },
+                  { value: 'events', label: 'EVENTOS', desc: 'Conferencias, webinars, workshops y lanzamientos', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
                 ] as const).map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); if (opt.value === 'corporate') setProductDetailImages([]); }}
+                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); if (opt.value === 'corporate' || opt.value === 'events') setProductDetailImages([]); }}
                     className={`p-4 rounded-xl border text-left transition-all ${
                       peopleMode === opt.value
                         ? 'border-[#FF912D] bg-[#FA5A1E]/10'
@@ -864,8 +865,8 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Product detail upload — hidden in corporate mode */}
-              {peopleMode !== 'corporate' && <div className="space-y-2">
+              {/* Product detail upload — hidden in corporate and events modes */}
+              {peopleMode !== 'corporate' && peopleMode !== 'events' && <div className="space-y-2">
                 <p className="text-xs font-medium text-white/60">Foto del producto / estampado en detalle</p>
                 <p className="text-xs text-white/30">Primer plano del estampado o producto sobre fondo neutro — más detalle = mejor resultado.</p>
                 <div className="flex gap-3 flex-wrap">
