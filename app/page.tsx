@@ -327,6 +327,7 @@ export default function Home() {
                 productDescription,
                 peopleMode,
                 personDescription,
+                conceptName: concept.conceptName,
               }),
             });
             const result = res.ok
@@ -1407,9 +1408,27 @@ export default function Home() {
 
             {/* Adaptaciones de tamaño */}
             <div className="border-t border-white/10 pt-6 space-y-4">
-              <div>
-                <h3 className="text-base font-semibold mb-1">Adaptaciones de tamaño</h3>
-                <p className="text-white/40 text-sm">Generá los mismos conceptos en otros formatos para distintas plataformas.</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-semibold mb-1">Adaptaciones de tamaño</h3>
+                  <p className="text-white/40 text-sm">Generá los mismos conceptos en otros formatos para distintas plataformas.</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => setAdaptFormats(['story','feed45','square','landscape','pmax_square','pmax_landscape','pmax_portrait','banner_desktop','banner_mobile','webpush','mailing'])}
+                    className="text-xs text-[#FF912D] hover:text-[#FFB950] border border-[#FA5A1E]/30 hover:border-[#FF912D] px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Todos
+                  </button>
+                  {adaptFormats.length > 0 && (
+                    <button
+                      onClick={() => setAdaptFormats([])}
+                      className="text-xs text-white/40 hover:text-white/70 border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
               </div>
               {[
                 { group: 'RRSS', items: [
