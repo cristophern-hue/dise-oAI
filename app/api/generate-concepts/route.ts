@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import OpenAI, { toFile } from 'openai';
 import type { ChatCompletionContentPart } from 'openai/resources/chat/completions';
-import { BrandKit } from '@/app/types';
+import { BrandKit, PeopleMode } from '@/app/types';
 import { buildBrandKitContext, extractLogoImages } from '@/app/api/brandKitContext';
 
 function isRefusal(text: string): boolean {
@@ -17,8 +17,6 @@ function isRefusal(text: string): boolean {
 
 export const maxDuration = 300;
 
-type PeopleMode = 'none' | 'ai' | 'real';
-
 interface ConceptItem {
   concept_name: string;
   image_prompt: string;
@@ -31,11 +29,12 @@ Describí en este orden exacto:
 1. TIPO DE PRENDA: categoría (remera, pantalón, vestido, campera, etc.), silueta y corte (slim, straight, wide-leg, oversize, entallado, etc.), largo exacto (hasta el tobillo, a la rodilla, etc.)
 
 2. COLOR BASE — CRÍTICO PARA PRENDAS LISAS: para colores sólidos (el caso más difícil) describí con máxima precisión:
-   - Tono exacto: no "negro" sino "negro mate profundo sin brillo", no "azul" sino "azul marino oscuro con subtono violeta", no "gris" sino "gris carbón medio con ligero subtono verdoso"
+   - CÓDIGO HEX ESTIMADO: analizá visualmente el color de la tela e indicá su código hexadecimal aproximado. Ejemplos: #C4B49A para beige arena cálido, #2B3A4A para azul marino oscuro, #1A1A1A para negro profundo. Sé específico — esto es lo más importante para que la IA reproduzca el color exacto. Formato: "Color hex aproximado: #XXXXXX"
+   - Tono exacto en palabras: no "negro" sino "negro mate profundo sin brillo", no "azul" sino "azul marino oscuro con subtono violeta", no "gris" sino "gris carbón medio con ligero subtono verdoso"
    - Temperatura del color: frío, cálido o neutro
    - Saturación y profundidad: intenso, apagado, lavado, oscuro, claro
    - Cómo se comporta con la luz: absorbe la luz (mate), la refleja levemente (satinado suave), brilla (lustrado)
-   - Para prendas con una sola trama de color, estos detalles son TODO — dedicá más palabras al color que a cualquier otra cosa
+   - Para prendas con una sola trama de color, el hex es TODO — sin él el generador produce su propio "beige genérico"
 
 3. ESTAMPADO / PRINT (cuando existe, es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, qué tamaño relativo al total de la prenda, cómo se distribuye (all-over, centrado, borde, repetición, etc.), orientación, y cómo contrasta con el fondo. Si hay texto, copialo exactamente. Nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición.
 
@@ -203,26 +202,50 @@ export async function POST(req: NextRequest) {
   }
 
   const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
+  const isCorporate = peopleMode === 'corporate';
+  const isEvents = peopleMode === 'events';
 
   // People instruction for concept generation
   const peopleInstruction = peopleMode === 'none'
     ? 'NO incluir personas. Enfocarse en producto, composición, elementos gráficos y copy.'
-    : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
+    : isCorporate
+      ? 'Personas opcionales: si aparecen deben ser profesionales en contexto corporativo (reunión, oficina, ciudad). No es obligatorio incluirlas — priorizá composición gráfica y tipografía.'
+      : isEvents
+        ? 'Personas opcionales: si aparecen deben ser ponentes, panelistas o asistentes al evento. No es obligatorio — priorizá composición gráfica, tipografía de impacto y elementos de urgencia (fecha, CTA).'
+        : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
   const hasVisualRefs = visualRefs.length > 0;
   const refStyleDirection = hasVisualRefs
     ? `6. Réplica de estilo de marca — seguí EXACTAMENTE el estilo visual, composición tipográfica y tratamiento gráfico de las piezas de referencia de la marca que se incluyen como imágenes`
-    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
+    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Comunidad y experiencia — momento de networking, sala llena de asistentes, ambiente de aprendizaje y conexión' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
 
   const conceptDirections = isProductEcommerce
-    ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás:
-1. Producto hero absoluto — el producto LLENA el encuadre (85% del frame), fondo color sólido del brand kit, sin texto excepto logo pequeño en esquina. Composición minimalista y apretada.
-2. Pieza full promocional — headline del evento grande arriba, producto(s) en el centro, TODAS las mecánicas del brief (fechas, descuento, cuotas, despacho, retiro) como iconos o bullets abajo. Composición completa lista para publicar.
-3. Producto en contexto ambiental — el producto aparece PEQUEÑO (máx 30% del frame) integrado en su entorno real (motor, camión, taller industrial). El ambiente es el protagonista, el producto está en uso natural. Muy diferente al héroe — acá el escenario manda.
-4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame como elemento gráfico dominante. Producto flotando pequeño en un corner. SIN fotografía realista — composición abstracta de formas y texto.
-5. Showcase técnico dramático — macro/closeup extremo del producto con iluminación de estudio, fondo oscuro con gradiente de luz lateral. Detalle de materiales y construcción. Sin texto.
+    ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás.
+REGLA OBLIGATORIA PARA TODAS: cada pieza DEBE incluir como mínimo un headline o nombre de producto en tipografía visible + logo de marca. Ninguna pieza puede quedar sin copy — sin texto no hay anuncio.
+
+1. Producto hero con headline — el producto ocupa 70% del frame, fondo color sólido del brand kit. Headline corto del brief en tipografía bold arriba o abajo del producto. Nombre del producto/línea. Logo en esquina. Composición limpia y directa.
+2. Pieza full promocional — headline del brief grande arriba, producto(s) en el centro, TODAS las mecánicas del brief (fechas, descuento, cuotas, despacho, retiro) como iconos o bullets abajo. Composición completa lista para publicar.
+3. Producto en contexto ambiental — el producto integrado en su entorno real (motor, taller, cocina, exterior según el brief). Overlay semitransparente con headline corto y nombre de marca. El ambiente es el protagonista pero el copy está presente.
+4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame como elemento gráfico dominante. Producto flotando pequeño en un corner. Headline y claim del brief como elementos tipográficos estructurales.
+5. Showcase técnico con copy — macro/closeup del producto con iluminación de estudio dramática, fondo oscuro con gradiente lateral. Nombre del producto en tipografía elegante + tagline corto del brief. Logo en esquina inferior.
 ${refStyleDirection}`
-    : `Direcciones (fashion/editorial):
+    : isEvents
+      ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital:
+1. CTA de registro urgente — headline del evento en tipografía bold XL, fecha y hora prominentes, botón o banner de registro. Fondo de color sólido del brand kit o gradiente de marca. Máxima claridad y urgencia.
+2. Speaker o ponente destacado — nombre y foto (si hay referencia) o silueta/avatar del speaker, título y credenciales, composición que transmite autoridad y expertise. Headline del evento como soporte.
+3. Agenda visual — programa del evento como elemento gráfico: sesiones, horarios o tracks dispuestos en layout limpio. Tipografía estructurada, íconos de temas, paleta del brand kit.
+4. Cuenta regresiva / urgencia — countdown visual con días/horas/minutos hasta el evento, elementos de expectativa y FOMO. Fondo oscuro del brand kit con tipografía de alto impacto.
+5. Online / livestreaming — iconografía de transmisión en vivo (play, ondas, pantalla), elementos digitales. Comunica accesibilidad y alcance global. Copy: "En vivo" / "Online" / "Gratis".
+${refStyleDirection}`
+      : isCorporate
+      ? `Direcciones (corporativo/servicios) — CADA UNA visualmente DISTINTA, estilo institucional premium:
+1. Titular impactante — headline del brief en tipografía bold XL ocupa 60% del frame. Fondo con foto de archivo de alta calidad (ciudad, arquitectura, abstracto) o color sólido del brand kit. Logo y copy de apoyo presentes.
+2. Personas en contexto profesional — profesionales en reunión, espacio de trabajo moderno o entorno urbano. Actitud de confianza y liderazgo. Headline y logo de marca bien posicionados. Calidad fotográfica premium.
+3. Datos y resultados — números grandes, porcentajes o métricas del brief como elementos visuales principales. Íconos minimalistas, líneas de datos, gráficos abstractos en paleta del brand kit. Fondo oscuro o degradado del brand kit.
+4. Abstracto geométrico — formas geométricas abstractas (círculos, líneas, grillas) en paleta del brand kit. Sugieren conexión, crecimiento o innovación. Tipografía institucional elegante como elemento gráfico central. Sin fotografía realista.
+5. Arquitectura y espacio aspiracional — edificio corporativo moderno, skyline o espacio interior premium como imagen dominante. Overlay semitransparente en color del brand kit. Headline y propuesta de valor sobre la imagen.
+${refStyleDirection}`
+      : `Direcciones (fashion/editorial):
 1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados. Incluir nombre de marca o tagline sutil en tipografía pequeña.
 2. Tipográfico editorial — tipografía grande como elemento visual dominante, imagen secundaria. Texto es protagonista.
 3. Producto hero — producto o prenda protagonista sin personas. Copy mínimo: nombre de marca en esquina.
@@ -264,6 +287,7 @@ ${conceptDirections}
 - Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
+- TODA pieza de e-commerce DEBE tener como mínimo: headline o nombre del producto visible + logo. Una imagen sin copy no es un anuncio.
 ${isProductEcommerce ? `
 MODO E-COMMERCE CON PRODUCTO: cada image_prompt es una INSTRUCCIÓN DE EDICIÓN para images.edit.
 El modelo recibe la foto del producto y la transforma. Describí:
@@ -318,11 +342,15 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   ];
 
   const hasPeople = peopleMode !== 'none';
-  const styleSuffix = hasPeople
-    ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
-    : isProductEcommerce
-      ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic where applicable.'
-      : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
+  const styleSuffix = isCorporate
+    ? 'Premium institutional design, B2B advertising quality, clean and trustworthy. NOT generic stock photo aesthetic. If people appear: professional business context, diverse team, confident expression. Portrait 4:5.'
+    : isEvents
+    ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. If people appear: engaged audience, confident speaker, professional setting. Portrait 4:5.'
+    : hasPeople
+      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+      : isProductEcommerce
+        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic where applicable.'
+        : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
     : '';

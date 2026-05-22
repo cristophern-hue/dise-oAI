@@ -309,8 +309,8 @@ export default function Home() {
   const enterRefine = async () => {
     if (selectedConcepts.length === 0) return;
     const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
-    // In e-commerce mode the product is already embedded via images.edit — skip apply-product
-    if (productDetailImages.length > 0 && !isProductEcommerce) {
+    // Skip apply-product in e-commerce mode (product already embedded), corporate mode, and events mode
+    if (productDetailImages.length > 0 && !isProductEcommerce && peopleMode !== 'corporate' && peopleMode !== 'events') {
       const total = selectedConcepts.length;
       setApplyProgress({ done: 0, total });
       startLoading(`Aplicando producto...`);
@@ -327,6 +327,7 @@ export default function Home() {
                 productDescription,
                 peopleMode,
                 personDescription,
+                conceptName: concept.conceptName,
               }),
             });
             const result = res.ok
@@ -841,12 +842,14 @@ export default function Home() {
               <label className="text-sm font-medium text-white/70">Personas en la imagen</label>
               <div className="grid grid-cols-2 gap-3">
                 {([
-                  { value: 'none', label: 'PRODUCTO', desc: 'Cuando querés hacer el anuncio alrededor de un producto', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
-                  { value: 'real', label: 'FASHION', desc: 'Cuando querés mostrar personas usando el producto', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+                  { value: 'none', label: 'PRODUCTO', desc: 'Anuncio centrado en un producto físico', icon: 'M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z' },
+                  { value: 'real', label: 'FASHION', desc: 'Prendas y moda con personas usando el producto', icon: 'M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z' },
+                  { value: 'corporate', label: 'CORPORATIVO', desc: 'Agencias, bancos, servicios y empresas B2B', icon: 'M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-2 10v-5a1 1 0 00-1-1h-2a1 1 0 00-1 1v5m4 0H9' },
+                  { value: 'events', label: 'EVENTOS', desc: 'Conferencias, webinars, workshops y lanzamientos', icon: 'M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z' },
                 ] as const).map(opt => (
                   <button
                     key={opt.value}
-                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); setProductDetailImages([]); }}
+                    onClick={() => { setPeopleMode(opt.value); if (opt.value !== 'real') setReferenceImages([]); if (opt.value === 'corporate' || opt.value === 'events') setProductDetailImages([]); }}
                     className={`p-4 rounded-xl border text-left transition-all ${
                       peopleMode === opt.value
                         ? 'border-[#FF912D] bg-[#FA5A1E]/10'
@@ -862,8 +865,8 @@ export default function Home() {
                 ))}
               </div>
 
-              {/* Product detail upload — always shown */}
-              <div className="space-y-2">
+              {/* Product detail upload — hidden in corporate and events modes */}
+              {peopleMode !== 'corporate' && peopleMode !== 'events' && <div className="space-y-2">
                 <p className="text-xs font-medium text-white/60">Foto del producto / estampado en detalle</p>
                 <p className="text-xs text-white/30">Primer plano del estampado o producto sobre fondo neutro — más detalle = mejor resultado.</p>
                 <div className="flex gap-3 flex-wrap">
@@ -886,7 +889,7 @@ export default function Home() {
                     </label>
                   )}
                 </div>
-              </div>
+              </div>}
 
               {/* Person reference upload — only in 'real' mode */}
               {peopleMode === 'real' && (
@@ -1015,15 +1018,23 @@ export default function Home() {
 
             <>
                 {/* Generation progress bar */}
-                {loading && (
-                  <div className="bg-[#111111]/60 border border-white/10 rounded-xl px-4 py-3 space-y-2.5">
+                {(loading || (generatingCount > 0 && concepts.length >= generatingCount)) && (
+                  <div className={`border rounded-xl px-4 py-3 space-y-2.5 transition-colors ${concepts.length >= generatingCount && generatingCount > 0 ? 'bg-green-900/20 border-green-500/20' : 'bg-[#111111]/60 border-white/10'}`}>
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2.5">
-                        <div className="w-3.5 h-3.5 border-2 border-[#FF912D]/40 border-t-[#FF912D] rounded-full animate-spin shrink-0" />
+                        {concepts.length >= generatingCount && generatingCount > 0 ? (
+                          <svg className="w-3.5 h-3.5 text-green-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" />
+                          </svg>
+                        ) : (
+                          <div className="w-3.5 h-3.5 border-2 border-[#FF912D]/40 border-t-[#FF912D] rounded-full animate-spin shrink-0" />
+                        )}
                         <span className="text-sm text-white/80">
                           {concepts.length === 0
                             ? 'Analizando brief y diseñando conceptos...'
-                            : `${concepts.length} de ${generatingCount} concepto${concepts.length !== 1 ? 's' : ''} listo${concepts.length !== 1 ? 's' : ''}`}
+                            : concepts.length >= generatingCount
+                              ? `${generatingCount} concepto${generatingCount !== 1 ? 's' : ''} listo${generatingCount !== 1 ? 's' : ''}`
+                              : `${concepts.length} de ${generatingCount} concepto${concepts.length !== 1 ? 's' : ''} listo${concepts.length !== 1 ? 's' : ''}...`}
                         </span>
                       </div>
                       <span className="text-xs text-white/30 tabular-nums">{elapsedSec}s</span>
@@ -1399,9 +1410,27 @@ export default function Home() {
 
             {/* Adaptaciones de tamaño */}
             <div className="border-t border-white/10 pt-6 space-y-4">
-              <div>
-                <h3 className="text-base font-semibold mb-1">Adaptaciones de tamaño</h3>
-                <p className="text-white/40 text-sm">Generá los mismos conceptos en otros formatos para distintas plataformas.</p>
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h3 className="text-base font-semibold mb-1">Adaptaciones de tamaño</h3>
+                  <p className="text-white/40 text-sm">Generá los mismos conceptos en otros formatos para distintas plataformas.</p>
+                </div>
+                <div className="flex gap-2 shrink-0">
+                  <button
+                    onClick={() => setAdaptFormats(['story','feed45','square','landscape','pmax_square','pmax_landscape','pmax_portrait','banner_desktop','banner_mobile','webpush','mailing'])}
+                    className="text-xs text-[#FF912D] hover:text-[#FFB950] border border-[#FA5A1E]/30 hover:border-[#FF912D] px-3 py-1.5 rounded-lg transition-colors"
+                  >
+                    Todos
+                  </button>
+                  {adaptFormats.length > 0 && (
+                    <button
+                      onClick={() => setAdaptFormats([])}
+                      className="text-xs text-white/40 hover:text-white/70 border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg transition-colors"
+                    >
+                      Limpiar
+                    </button>
+                  )}
+                </div>
               </div>
               {[
                 { group: 'RRSS', items: [
