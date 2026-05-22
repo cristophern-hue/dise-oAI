@@ -204,16 +204,19 @@ export async function POST(req: NextRequest) {
   }
 
   const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
+  const isCorporate = peopleMode === 'corporate';
 
   // People instruction for concept generation
   const peopleInstruction = peopleMode === 'none'
     ? 'NO incluir personas. Enfocarse en producto, composición, elementos gráficos y copy.'
-    : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
+    : isCorporate
+      ? 'Personas opcionales: si aparecen deben ser profesionales en contexto corporativo (reunión, oficina, ciudad). No es obligatorio incluirlas — priorizá composición gráfica y tipografía.'
+      : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
   const hasVisualRefs = visualRefs.length > 0;
   const refStyleDirection = hasVisualRefs
     ? `6. Réplica de estilo de marca — seguí EXACTAMENTE el estilo visual, composición tipográfica y tratamiento gráfico de las piezas de referencia de la marca que se incluyen como imágenes`
-    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
+    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
 
   const conceptDirections = isProductEcommerce
     ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás:
@@ -223,7 +226,15 @@ export async function POST(req: NextRequest) {
 4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame como elemento gráfico dominante. Producto flotando pequeño en un corner. SIN fotografía realista — composición abstracta de formas y texto.
 5. Showcase técnico dramático — macro/closeup extremo del producto con iluminación de estudio, fondo oscuro con gradiente de luz lateral. Detalle de materiales y construcción. Sin texto.
 ${refStyleDirection}`
-    : `Direcciones (fashion/editorial):
+    : isCorporate
+      ? `Direcciones (corporativo/servicios) — CADA UNA visualmente DISTINTA, estilo institucional premium:
+1. Titular impactante — headline del brief en tipografía bold XL ocupa 60% del frame. Fondo con foto de archivo de alta calidad (ciudad, arquitectura, abstracto) o color sólido del brand kit. Logo y copy de apoyo presentes.
+2. Personas en contexto profesional — profesionales en reunión, espacio de trabajo moderno o entorno urbano. Actitud de confianza y liderazgo. Headline y logo de marca bien posicionados. Calidad fotográfica premium.
+3. Datos y resultados — números grandes, porcentajes o métricas del brief como elementos visuales principales. Íconos minimalistas, líneas de datos, gráficos abstractos en paleta del brand kit. Fondo oscuro o degradado del brand kit.
+4. Abstracto geométrico — formas geométricas abstractas (círculos, líneas, grillas) en paleta del brand kit. Sugieren conexión, crecimiento o innovación. Tipografía institucional elegante como elemento gráfico central. Sin fotografía realista.
+5. Arquitectura y espacio aspiracional — edificio corporativo moderno, skyline o espacio interior premium como imagen dominante. Overlay semitransparente en color del brand kit. Headline y propuesta de valor sobre la imagen.
+${refStyleDirection}`
+      : `Direcciones (fashion/editorial):
 1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados. Incluir nombre de marca o tagline sutil en tipografía pequeña.
 2. Tipográfico editorial — tipografía grande como elemento visual dominante, imagen secundaria. Texto es protagonista.
 3. Producto hero — producto o prenda protagonista sin personas. Copy mínimo: nombre de marca en esquina.
@@ -319,11 +330,13 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   ];
 
   const hasPeople = peopleMode !== 'none';
-  const styleSuffix = hasPeople
-    ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
-    : isProductEcommerce
-      ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic where applicable.'
-      : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
+  const styleSuffix = isCorporate
+    ? 'Premium institutional design, B2B advertising quality, clean and trustworthy. NOT generic stock photo aesthetic. If people appear: professional business context, diverse team, confident expression. Portrait 4:5.'
+    : hasPeople
+      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+      : isProductEcommerce
+        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic where applicable.'
+        : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
     : '';
