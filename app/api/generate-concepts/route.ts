@@ -293,7 +293,8 @@ REGLAS:
 - Usá los hex exactos del brand kit como colores dominantes
 - Estilo PREMIUM, nunca genérico ni clipart
 - TODO el copy, titulares y texto visible en las imágenes DEBE estar en ESPAÑOL. Nunca inglés, nunca "Indulge in Luxury", nunca "Summer Dreams" ni frases genéricas anglosajones.
-- Usá el nombre de campaña del brief como el copy principal (no inventar taglines en inglés).
+- NOMBRE DE CAMPAÑA/EVENTO: si el brief menciona un nombre (ej: "Pijamania", "Black Friday", "Cyber Monday"), usalo EXACTAMENTE como está escrito — sin traducirlo, modificarlo, reemplazarlo ni inventar uno alternativo. Ese nombre es el headline principal.
+- PROHIBICIÓN ABSOLUTA de inventar nombres de campaña, nombres de eventos, nombres de colecciones o cualquier copy que no esté textualmente en el brief.
 - Si el brief tiene un porcentaje de descuento, ese número debe dominar visualmente en las piezas promocionales.
 ${conceptDirections}
 - Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
@@ -451,7 +452,8 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               logoHint,
               isEvents ? 'ABSOLUTELY NO HUMANS, NO PEOPLE, NO SILHOUETTES, NO AUDIENCE, NO SPEAKER FIGURES. Pure typographic and geometric graphic design only.' : '',
               isEvents ? `USE ONLY THESE EXACT HEX COLORS: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT add purple, violet, neon, or any color not in this brand kit.` : '',
-              'ALL TEXT IN THE IMAGE MUST BE IN SPANISH. Zero English words in any headline, label, CTA, or body copy. Use the exact campaign name and copy from the brief — do not invent English taglines.',
+              'ALL TEXT IN THE IMAGE MUST BE IN SPANISH. Zero English words in any headline, label, CTA, or body copy.',
+              'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
             ].filter(Boolean).join(' ');
