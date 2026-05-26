@@ -47,6 +47,7 @@ export async function POST(req: NextRequest) {
     '- Reproducí SOLO los bolsillos visibles en la referencia. Si NO hay bolsillos cargo → CERO bolsillos cargo.',
     '- No inventar ningún detalle que no esté en la foto de referencia.',
     '- ANTI-ALUCINACIÓN: no agregar botones, bordados, prints, logos ni adornos que no estén en la referencia.',
+    '- POSICIÓN Y ESCALA DE ESTAMPADOS — CRÍTICO: el gráfico/print debe ocupar EXACTAMENTE las mismas proporciones y posición que en las fotos de referencia. Si el gráfico llega casi hasta el ruedo de la remera → debe llegar hasta ahí, no quedarse a mitad de camino. Si el texto está a 3 cm arriba del gráfico → esa distancia. No reducir la escala ni dejar espacios en blanco donde la referencia muestra gráfico. Las fotos de referencia son la fuente de verdad absoluta para tamaño y posición del print.',
     garmentDesc,
     personPart,
     conceptContext,

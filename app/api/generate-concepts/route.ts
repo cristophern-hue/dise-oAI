@@ -43,7 +43,12 @@ Describí en este orden exacto:
    - Cómo se comporta con la luz: absorbe la luz (mate), la refleja levemente (satinado suave), brilla (lustrado)
    - Para prendas con una sola trama de color, el hex es TODO — sin él el generador produce su propio "beige genérico"
 
-3. ESTAMPADO / PRINT (cuando existe, es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, qué tamaño relativo al total de la prenda, cómo se distribuye (all-over, centrado, borde, repetición, etc.), orientación, y cómo contrasta con el fondo. Si hay texto, copialo exactamente. Nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición.
+3. ESTAMPADO / PRINT (cuando existe, es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, y además:
+   - TAMAÑO PROPORCIONAL: qué porcentaje del frente de la prenda ocupa el gráfico. Ej: "el gato ocupa aproximadamente el 55% del frente de la remera, desde unos 8 cm abajo del cuello hasta casi el ruedo"
+   - POSICIÓN EXACTA: dónde está ubicado. ¿Centrado horizontalmente? ¿Arriba, en el centro, o abajo del frente? ¿Empieza justo debajo del pecho o desde el centro del torso?
+   - JERARQUÍA DE ELEMENTOS: si hay texto + gráfico, describí cuál está arriba y a qué distancia. Ej: "texto 'DRINK COFFEE' centrado a unos 3 cm arriba del gato, en tipografía negra bold de aprox 2 cm de alto"
+   - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición, y si hay variación de escala o color entre motivos
+   Nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición relativa.
 
 4. MATERIALES Y TEXTURA: tipo de tela inferido (denim, punto, tela plana, etc.), acabado (mate, satinado, brillante), peso visual (liviano, pesado, estructurado), transparencia, textura superficial visible
 
