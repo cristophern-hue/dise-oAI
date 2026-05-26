@@ -314,7 +314,7 @@ REGLAS:
 - PROHIBICIÓN ABSOLUTA de inventar nombres de campaña, taglines genéricos, nombres de colecciones o cualquier copy que no esté textualmente en el brief. "Suavidad que acompaña tus momentos" es inventado y está PROHIBIDO si no está en el brief.
 - Si el brief tiene un porcentaje de descuento, ese número debe dominar visualmente en las piezas promocionales.
 - PRENDA: si el brief es sobre un tipo de prenda específico (pijamas, remeras, pantalones, etc.), la persona SIEMPRE viste ESA prenda. NUNCA un blazer, traje, vestido de oficina u otra prenda distinta. Si el brief dice pijamas → todos los conceptos muestran pijamas.
-- AMBIENTE COHERENTE CON EL PRODUCTO: cuando el concepto usa un ambiente real (lifestyle, escena doméstica, exterior), ese ambiente debe ser coherente con el contexto de uso del producto. Inferí el ambiente correcto desde el brief. Ejemplos: pijamas/ropa de descanso → dormitorio, cama, sofá, sala, hogar cálido — NUNCA cocina de lujo, restaurante, exterior urbano ni oficina. Ropa deportiva → gimnasio, parque. Ropa formal → ciudad, oficina. EXCEPCIÓN: conceptos editoriales, tipográficos o gráficos (fondo de estudio, geometrías, composición abstracta) no requieren ambiente literal — el fondo es diseño, no locación.
+- AMBIENTE COHERENTE CON EL PRODUCTO: inferí el tipo de producto del brief y de la descripción del producto, y especificá explícitamente en cada image_prompt el ambiente coherente con ese tipo. Pijamas/ropa de descanso → dormitorio, cama, sofá, sala cálida, entorno de hogar. Ropa deportiva → gimnasio, parque, exterior activo. Ropa formal → ciudad, oficina, arquitectura urbana. NUNCA pongas una persona con pijamas en cocina de lujo, restaurante, exterior urbano ni oficina. EXCEPCIÓN: conceptos editoriales, tipográficos o de composición gráfica abstracta (estudio, fondo geométrico, overlay de color) no requieren ambiente literal — el fondo es diseño, no locación. Para cada image_prompt que use un ambiente real, escribí explícitamente el tipo de setting coherente con el producto.
 ${conceptDirections}
 - Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
 - Si hay descripción de producto, TODOS los conceptos muestran ESA MISMA prenda reproducida con fidelidad. La variedad viene exclusivamente de la COMPOSICIÓN, layout, jerarquía tipográfica y mood — no del producto.
@@ -454,7 +454,12 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
             const fashionModelHint = hasPeople && !isCorporate && !isEvents
               ? FASHION_MODEL_POOL[conceptIdx % FASHION_MODEL_POOL.length]
               : '';
+            const productTypeContext = hasPeople && !isEvents && !isCorporate && productDescription
+              ? `PRODUCT TYPE: ${productDescription.split('\n').filter(Boolean)[0]?.slice(0, 180) || productDescription.slice(0, 180)}`
+              : '';
+
             const fullPrompt = [
+              productTypeContext,
               concept.image_prompt,
               `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}.`,
               `Typography: ${brandKit.typography || 'bold sans-serif'}.`,
