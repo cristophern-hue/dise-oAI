@@ -40,27 +40,32 @@ Respondé SOLO con JSON válido: { "variations": [ { "variation_name": "...", "i
     response_format: { type: 'json_object' },
   });
 
-  const parsed = JSON.parse(variationsResponse.choices[0].message.content || '{}');
+  const raw = variationsResponse.choices[0].message.content || '{}';
+  const parsed = JSON.parse(raw);
   const variations: VariationItem[] = parsed.variations || [];
 
-  const imagePromises = variations.map(async (variation: VariationItem) => {
-    const prompt = `${variation.image_prompt} ${fashionSuffix}`.trim();
-    const imageResponse = await openai.images.generate({
-      model: 'gpt-image-2',
-      prompt,
-      size: '1024x1536',
-      quality: 'high',
-      n: 1,
-    });
+  const imageResults = await Promise.allSettled(
+    variations.map(async (variation: VariationItem) => {
+      const prompt = `${variation.image_prompt} ${fashionSuffix}`.trim();
+      const imageResponse = await openai.images.generate({
+        model: 'gpt-image-2',
+        prompt,
+        size: '1024x1536',
+        quality: 'high',
+        n: 1,
+      });
+      return {
+        id: Math.random().toString(36).slice(2),
+        base64: imageResponse.data?.[0]?.b64_json || '',
+        prompt: variation.image_prompt,
+        conceptName: variation.variation_name,
+      };
+    })
+  );
 
-    return {
-      id: Math.random().toString(36).slice(2),
-      base64: imageResponse.data?.[0]?.b64_json || '',
-      prompt: variation.image_prompt,
-      conceptName: variation.variation_name,
-    };
-  });
+  const images = imageResults
+    .filter((r): r is PromiseFulfilledResult<GeneratedImage> => r.status === 'fulfilled' && !!r.value.base64)
+    .map(r => r.value);
 
-  const images = await Promise.all(imagePromises);
   return NextResponse.json({ images });
 }

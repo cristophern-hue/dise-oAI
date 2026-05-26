@@ -211,13 +211,13 @@ export async function POST(req: NextRequest) {
     : isCorporate
       ? 'Personas opcionales: si aparecen deben ser profesionales en contexto corporativo (reunión, oficina, ciudad). No es obligatorio incluirlas — priorizá composición gráfica y tipografía.'
       : isEvents
-        ? 'Personas opcionales: si aparecen deben ser ponentes, panelistas o asistentes al evento. No es obligatorio — priorizá composición gráfica, tipografía de impacto y elementos de urgencia (fecha, CTA).'
+        ? 'PROHIBICIÓN ABSOLUTA: CERO personas, CERO siluetas, CERO audiencias, CERO figuras humanas en ningún prompt. Solo tipografía, iconografía digital y elementos gráficos.'
         : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
   const hasVisualRefs = visualRefs.length > 0;
   const refStyleDirection = hasVisualRefs
     ? `6. Réplica de estilo de marca — seguí EXACTAMENTE el estilo visual, composición tipográfica y tratamiento gráfico de las piezas de referencia de la marca que se incluyen como imágenes`
-    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Comunidad y experiencia — momento de networking, sala llena de asistentes, ambiente de aprendizaje y conexión' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
+    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Impacto y presencia digital — composición tipográfica bold, elementos gráficos de transmisión en vivo, paleta del brand kit con máximo contraste' : 'Editorial de moda — fotografía aspiracional de agencia internacional'}`;
 
   const conceptDirections = isProductEcommerce
     ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás.
@@ -230,12 +230,18 @@ REGLA OBLIGATORIA PARA TODAS: cada pieza DEBE incluir como mínimo un headline o
 5. Showcase técnico con copy — macro/closeup del producto con iluminación de estudio dramática, fondo oscuro con gradiente lateral. Nombre del producto en tipografía elegante + tagline corto del brief. Logo en esquina inferior.
 ${refStyleDirection}`
     : isEvents
-      ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital:
-1. CTA de registro urgente — headline del evento en tipografía bold XL, fecha y hora prominentes, botón o banner de registro. Fondo de color sólido del brand kit o gradiente de marca. Máxima claridad y urgencia.
-2. Speaker o ponente destacado — nombre y foto (si hay referencia) o silueta/avatar del speaker, título y credenciales, composición que transmite autoridad y expertise. Headline del evento como soporte.
-3. Agenda visual — programa del evento como elemento gráfico: sesiones, horarios o tracks dispuestos en layout limpio. Tipografía estructurada, íconos de temas, paleta del brand kit.
-4. Cuenta regresiva / urgencia — countdown visual con días/horas/minutos hasta el evento, elementos de expectativa y FOMO. Fondo oscuro del brand kit con tipografía de alto impacto.
-5. Online / livestreaming — iconografía de transmisión en vivo (play, ondas, pantalla), elementos digitales. Comunica accesibilidad y alcance global. Copy: "En vivo" / "Online" / "Gratis".
+      ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital.
+REGLAS ABSOLUTAS PARA TODAS LAS DIRECCIONES:
+- CERO personas, siluetas, audiencias, figuras humanas o sombras de personas en ningún prompt
+- CERO contenido inventado: no inventar nombres de sesiones, speakers, tiempos ni agenda que no estén en el brief
+- Si el brief no tiene agenda detallada, usar solo "Sesión 1", "Sesión 2" como placeholders genéricos
+- USAR SOLO los colores hex del brand kit — no inventar paletas púrpuras, neón ni gradientes que no estén en el brand kit
+
+1. CTA de registro urgente — título del evento en tipografía bold XL, fecha y hora del brief prominentes, elemento gráfico tipo botón/banner "Registrate". Fondo sólido del color primario del brand kit. Solo elementos tipográficos y gráficos.
+2. Tipográfico de impacto — nombre del evento ocupa 70% del frame en tipografía extra-bold, subtítulo y fecha del brief como secundarios. Fondo con formas geométricas abstractas en paleta del brand kit. Solo tipografía y formas.
+3. Agenda visual — layout de programa con íconos genéricos y horarios del brief. Si el brief no tiene sesiones, usar "Sesión 1 · Sesión 2 · Sesión 3" como estructura visual. Paleta del brand kit. Solo tipografía e íconos.
+4. Cuenta regresiva / urgencia — countdown tipográfico grande DÍAS / HORAS / MINUTOS, fondo oscuro del brand kit, elementos de líneas y formas geométricas para tensión visual. Solo tipografía y formas.
+5. Online / livestreaming — íconos de play, ondas o pantalla como elemento central, copy "En vivo" / "Online" / "Gratis", formas circulares o de señal. Solo iconografía y tipografía en paleta del brand kit.
 ${refStyleDirection}`
       : isCorporate
       ? `Direcciones (corporativo/servicios) — CADA UNA visualmente DISTINTA, estilo institucional premium:
@@ -288,6 +294,11 @@ ${conceptDirections}
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 - TODA pieza de e-commerce DEBE tener como mínimo: headline o nombre del producto visible + logo. Una imagen sin copy no es un anuncio.
+- NUNCA inventar logos gráficos — si no hay imagen de logo de referencia, solo colocar el nombre de la marca en texto tipográfico.
+${isEvents ? `MODO EVENTOS — PROHIBICIONES ABSOLUTAS EN CADA image_prompt:
+- CERO personas, siluetas de personas, audiencias, figuras humanas o sombras de personas — si el prompt incluye personas, es incorrecto.
+- CERO contenido inventado: no inventar nombres de sesiones, ponentes, horarios ni agenda no presente en el brief.
+- USAR EXCLUSIVAMENTE los hex del brand kit. Ningún color exterior a la paleta del brand kit.` : ''}
 ${isProductEcommerce ? `
 MODO E-COMMERCE CON PRODUCTO: cada image_prompt es una INSTRUCCIÓN DE EDICIÓN para images.edit.
 El modelo recibe la foto del producto y la transforma. Describí:
@@ -313,7 +324,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ...(isSimilarMode
       ? styleReferenceDataUrls.map(url => ({
           type: 'image_url' as const,
-          image_url: { url, detail: 'low' as const },
+          image_url: { url, detail: 'high' as const },
         }))
       : []),
   ];
@@ -327,7 +338,13 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     response_format: { type: 'json_object' },
   });
 
-  const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
+  const rawContent = conceptsResponse.choices[0].message.content;
+  if (!rawContent) {
+    console.error('generate-concepts: GPT returned null content (possible content filter)');
+    const controller2 = new ReadableStream({ start(c) { c.close(); } });
+    return new Response(controller2, { headers: { 'Content-Type': 'text/event-stream' } });
+  }
+  const parsed = JSON.parse(rawContent);
   const concepts: ConceptItem[] = parsed.concepts || [];
 
   // Logo images to pass as visual references — gpt-image-2 can replicate them faithfully
@@ -354,7 +371,9 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
     : '';
-  const styleHint = visualRefs.length > 0
+  const styleHint = isSimilarMode
+    ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
+    : visualRefs.length > 0
     ? 'Match the visual style, typography treatment and composition quality of the provided brand reference pieces.'
     : '';
 
@@ -396,6 +415,8 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               productHint,
               styleHint,
               logoHint,
+              isEvents ? 'ABSOLUTELY NO HUMANS, NO PEOPLE, NO SILHOUETTES, NO AUDIENCE, NO SPEAKER FIGURES. Pure typographic and geometric graphic design only.' : '',
+              isEvents ? `USE ONLY THESE EXACT HEX COLORS: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT add purple, violet, neon, or any color not in this brand kit.` : '',
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
             ].filter(Boolean).join(' ');
 

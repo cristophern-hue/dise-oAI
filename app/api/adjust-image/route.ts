@@ -15,11 +15,12 @@ CRITICAL — preserve EXACTLY as-is:
 Change ONLY what the instruction explicitly requests (e.g. if it says "change background", change ONLY the background). Do not remove, rewrite, or reposition anything else. This is a targeted edit, not a full regeneration.`;
 
 export async function POST(req: NextRequest) {
-  const { imageBase64, instruction, productDetailImages = [] }: {
+  const { imageBase64, instruction: rawInstruction, productDetailImages = [] }: {
     imageBase64: string;
     instruction: string;
     productDetailImages: string[];
   } = await req.json();
+  const instruction = (rawInstruction || '').slice(0, 1000);
 
   const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
