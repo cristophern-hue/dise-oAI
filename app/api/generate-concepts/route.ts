@@ -377,9 +377,9 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     : isEvents
     ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. Portrait 4:5.'
     : hasPeople
-      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic. FULL BODY SHOT — the model must be fully visible from head to toe, the complete outfit shown without any cropping of legs or feet. Reserve the lower 25% of the frame for text/logo overlay on a dark or color-blocked band, keeping the model fully visible above it.'
+      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic. FULL BODY SHOT — the model must be fully visible from head to toe, no cropping of legs or feet. Text elements composited naturally into the composition — they can appear top, bottom, side, or overlaid, depending on the concept direction. Each concept should have a visually distinct layout.'
       : isProductEcommerce
-        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping. Text and logo in a dedicated color band at the bottom of the frame, NOT overlapping the body.'
+        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping.'
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
