@@ -351,9 +351,12 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const logoImages = [logos.dark, logos.light].filter(Boolean) as string[];
 
   // In similar mode: style references lead; otherwise brand visual refs lead.
+  // Product images are NOT included in fashion/people mode — passing a product photo that
+  // contains a real person causes gpt-image-2 to clone that person across all 6 concepts.
+  // In people mode the product is described via text (productDescription) instead.
   const inputImages = [
     ...(isSimilarMode ? styleReferenceDataUrls : visualRefs),
-    ...productDetailImages,
+    ...(isProductEcommerce ? productDetailImages : []),
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
     ...logoImages,
   ];
@@ -370,6 +373,12 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
+    : '';
+
+  // In fashion/people mode the product image is NOT passed as visual input, so we inject
+  // the text description so the model knows what garment to feature.
+  const productDescHint = hasPeople && !isEvents && !isCorporate && productDescription
+    ? `Garment to feature: ${productDescription}`
     : '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
@@ -402,17 +411,35 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const send = (controller: ReadableStreamDefaultController, data: object) =>
     controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
+  // Each fashion concept gets a distinct model character to avoid cloning across images
+  const FASHION_MODEL_POOL = [
+    'Unique model: light-skinned woman, straight blonde hair, slender, 25-28 yrs.',
+    'Unique model: medium-tan woman, curly dark hair, athletic build, 28-33 yrs.',
+    'Unique model: dark-skinned woman, natural textured hair, 24-30 yrs.',
+    'Unique model: warm-toned woman, straight black hair, petite, 26-31 yrs.',
+    'Unique model: light-medium woman, wavy auburn hair, tall, 27-33 yrs.',
+    'Unique model: olive-skinned woman, long dark waves, 25-30 yrs.',
+  ];
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
         await Promise.allSettled(
-          concepts.map(async (concept: ConceptItem) => {
+          concepts.map(async (concept: ConceptItem, conceptIdx: number) => {
+            const fashionModelHint = hasPeople && !isCorporate && !isEvents
+              ? FASHION_MODEL_POOL[conceptIdx % FASHION_MODEL_POOL.length]
+              : '';
             const fullPrompt = [
               concept.image_prompt,
               `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}.`,
               `Typography: ${brandKit.typography || 'bold sans-serif'}.`,
               styleSuffix,
               productHint,
+              productDescHint,
+              fashionModelHint,
+              hasPeople && !isCorporate && !isEvents
+                ? 'Create a completely ORIGINAL AI-generated model — do NOT replicate the appearance or face of any person from uploaded reference images.'
+                : '',
               styleHint,
               logoHint,
               isEvents ? 'ABSOLUTELY NO HUMANS, NO PEOPLE, NO SILHOUETTES, NO AUDIENCE, NO SPEAKER FIGURES. Pure typographic and geometric graphic design only.' : '',
