@@ -255,12 +255,12 @@ ${refStyleDirection}`
 4. Abstracto geométrico — formas geométricas abstractas (círculos, líneas, grillas) en paleta del brand kit. Sugieren conexión, crecimiento o innovación. Tipografía institucional elegante como elemento gráfico central. Sin fotografía realista.
 5. Arquitectura y espacio aspiracional — edificio corporativo moderno, skyline o espacio interior premium como imagen dominante. Overlay semitransparente en color del brand kit. Headline y propuesta de valor sobre la imagen.
 ${refStyleDirection}`
-      : `Direcciones (fashion/editorial):
-1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados. Incluir nombre de marca o tagline sutil en tipografía pequeña.
-2. Tipográfico editorial — tipografía grande como elemento visual dominante, imagen secundaria. Texto es protagonista.
-3. Producto hero — producto o prenda protagonista sin personas. Copy mínimo: nombre de marca en esquina.
-4. Lifestyle aspiracional — ambiente y mood que refuerzan la identidad de marca. Incluir nombre de marca o tagline en tipografía elegante y sutil.
-5. Composición geométrica — bloques de color, formas y tipografía del brand kit. Texto integrado como elemento gráfico.
+      : `Direcciones (fashion/campaña) — CADA UNA visualmente DISTINTA. La persona SIEMPRE viste la prenda del brief — nunca inventar ropa distinta.
+1. Offer Focus — el descuento o beneficio del brief es el elemento tipográfico dominante (ej: "30% OFF" en tipografía heavy XL). La persona y la prenda son protagonistas. Fondo sólido del brand kit. Copy en español.
+2. Lifestyle Focus — la persona usa la prenda en un ambiente cotidiano cálido que refleja el tono del brief. Texto grande con mensaje de uso/beneficio. Tipografía editorial en español.
+3. Aspirational Focus — editorial premium aspiracional. La persona en actitud sofisticada con la prenda. Nombre de marca o tagline elegante en tipografía sutil. Iluminación y composición de campaña internacional.
+4. Tipográfico editorial — tipografía bold XL del brief como elemento visual dominante (nombre de campaña, claim o descuento). La persona y la prenda en segundo plano. Texto es protagonista. Todo en español.
+5. Daily Use Focus — momento cotidiano real y cercano (en casa, desayunando, leyendo). Tono casual y auténtico. Copy corto y relatable en español. Composición relajada.
 ${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
