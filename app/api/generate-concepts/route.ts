@@ -429,7 +429,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
           'The white/light logo version is provided as a reference image. Replicate it faithfully on dark or colored backgrounds. ' +
           'Never distort or recolor it.';
       })()
-    : '';
+    : `BRAND MARK — NO LOGO IMAGE PROVIDED: do NOT invent any graphic symbol, icon, monogram, lettermark, or decorative mark. Place ONLY the brand name "${brandKit.name}" as plain typographic text in the bottom-right corner (small, ≈8% of frame width, with clear space around it). Zero invented graphic elements — text only.`;
 
   // Step 2: Stream each concept image as it completes
   const encoder = new TextEncoder();
