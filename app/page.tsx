@@ -70,9 +70,7 @@ export default function Home() {
     if (loadingStartRef.current) { clearInterval(loadingStartRef.current); loadingStartRef.current = null; }
   };
 
-  useEffect(() => {
-    fetch('/api/brand-kits').then(r => r.json()).then(setClients).catch(console.error);
-  }, []);
+  // brand-kits are loaded by the combined useEffect below alongside sessions
 
   const readAsPng = (file: File): Promise<string> =>
     new Promise(resolve => {
@@ -179,6 +177,7 @@ export default function Home() {
         received++;
         setConcepts(prev => [...prev, img]);
       });
+      setGeneratingCount(received); // sync counter to actual received so progress shows 100%
       setProductDescription(pd);
       setPersonDescription(prd);
       if (received === 0) setError('No se generaron imágenes. Revisá que el brief no esté vacío y volvé a intentar.');
@@ -620,10 +619,15 @@ export default function Home() {
     const file = e.target.files?.[0];
     if (!file) return;
     const reader = new FileReader();
-    reader.onload = () => {
+    reader.onload = async () => {
       try {
         const s = JSON.parse(reader.result as string);
-        applySessionData(s, clients);
+        // If brand kits haven't loaded yet, fetch them now so the client can be matched
+        const currentClients = clients.length > 0
+          ? clients
+          : await fetch('/api/brand-kits').then(r => r.json()).catch(() => []);
+        if (currentClients.length > 0 && clients.length === 0) setClients(currentClients);
+        applySessionData(s, currentClients);
       } catch { setError('No se pudo importar la sesión — archivo inválido.'); }
     };
     reader.readAsText(file);

@@ -327,7 +327,13 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     response_format: { type: 'json_object' },
   });
 
-  const parsed = JSON.parse(conceptsResponse.choices[0].message.content || '{}');
+  const rawContent = conceptsResponse.choices[0].message.content;
+  if (!rawContent) {
+    console.error('generate-concepts: GPT returned null content (possible content filter)');
+    const controller2 = new ReadableStream({ start(c) { c.close(); } });
+    return new Response(controller2, { headers: { 'Content-Type': 'text/event-stream' } });
+  }
+  const parsed = JSON.parse(rawContent);
   const concepts: ConceptItem[] = parsed.concepts || [];
 
   // Logo images to pass as visual references — gpt-image-2 can replicate them faithfully
