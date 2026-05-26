@@ -468,6 +468,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               logoHint,
               isEvents ? 'ABSOLUTELY NO HUMANS, NO PEOPLE, NO SILHOUETTES, NO AUDIENCE, NO SPEAKER FIGURES. Pure typographic and geometric graphic design only.' : '',
               isEvents ? `USE ONLY THESE EXACT HEX COLORS: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT add purple, violet, neon, or any color not in this brand kit.` : '',
+              'LEGIBILIDAD — CRÍTICO: todo texto visible debe tener alto contraste con el fondo inmediato. Si el fondo es claro (beige, crema, blanco, gris claro) → texto oscuro (negro, gris oscuro, marino). Si el fondo es oscuro → texto blanco o muy claro. NUNCA texto claro sobre fondo claro ni texto oscuro sobre fondo oscuro. El número del descuento especialmente debe ser legible de un vistazo. Si hay riesgo de baja legibilidad, agregar un bloque de color sólido, sombra o área de contraste detrás del texto.',
               'ALL TEXT IN THE IMAGE MUST BE IN SPANISH. Zero English words in any headline, label, CTA, or body copy.',
               'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
               `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
