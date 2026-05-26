@@ -255,12 +255,15 @@ ${refStyleDirection}`
 4. Abstracto geométrico — formas geométricas abstractas (círculos, líneas, grillas) en paleta del brand kit. Sugieren conexión, crecimiento o innovación. Tipografía institucional elegante como elemento gráfico central. Sin fotografía realista.
 5. Arquitectura y espacio aspiracional — edificio corporativo moderno, skyline o espacio interior premium como imagen dominante. Overlay semitransparente en color del brand kit. Headline y propuesta de valor sobre la imagen.
 ${refStyleDirection}`
-      : `Direcciones (fashion/editorial) — CADA UNA visualmente DISTINTA. La persona SIEMPRE viste la prenda del brief — nunca inventar ropa distinta.
-1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados. Incluir nombre de campaña del brief y nombre de marca en tipografía visible.
-2. Tipográfico editorial — tipografía grande como elemento visual dominante, imagen secundaria. El nombre de campaña y/o descuento del brief son el texto protagonista. En español.
-3. Producto hero — prenda protagonista con iluminación de estudio. Copy visible: nombre de campaña + descuento si aplica. Nombre de marca en esquina.
-4. Lifestyle aspiracional — ambiente y mood que refuerzan la identidad de marca. Nombre de campaña del brief en tipografía elegante visible.
-5. Composición geométrica — bloques de color, formas y tipografía del brand kit. Nombre de campaña y descuento del brief integrados como elementos tipográficos estructurales.
+      : `Direcciones (fashion/editorial) — las 6 piezas muestran el MISMO producto pero con estructuras visuales COMPLETAMENTE DISTINTAS entre sí. La persona viste siempre la misma prenda.
+
+REGLA DE DIVERSIDAD VISUAL: cada dirección debe tener una estructura, jerarquía y mood radicalmente diferente a las otras. Si dos conceptos se parecen en composición, están mal.
+
+1. Minimalista limpio — fondo blanco o color muy sutil, persona centrada con mucho aire alrededor, texto MUY pequeño en la parte inferior. La limpieza y el silencio visual son el protagonista. Sin elementos gráficos decorativos.
+2. Tipográfico editorial — el texto (nombre de campaña o descuento del brief) ocupa el 50-60% del frame en tipografía ULTRA-BOLD. La persona es secundaria, encajada en un corner o detrás del texto. El copy ES el diseño.
+3. Lifestyle aspiracional — escena de ambiente real (dormitorio cálido, luz suave de noche, velas) con la persona relajada usando la prenda. Texto mínimo y elegante superpuesto. Mood íntimo y sensorial.
+4. Composición geométrica — fondo con bloques de color del brand kit, formas geométricas bold (rectángulos, diagonales). Persona integrada como elemento dentro de la grilla. Nombre de campaña + descuento como elementos tipográficos estructurales.
+5. Full promocional — toda la info del brief jerarquizada: descuento GRANDE arriba, nombre de campaña, fechas y mecánicas como bullets o iconos tipográficos abajo. Persona en el centro. Composición cargada de información pero ordenada.
 ${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
@@ -300,7 +303,7 @@ REGLAS:
 - PRENDA: si el brief es sobre un tipo de prenda específico (pijamas, remeras, pantalones, etc.), la persona SIEMPRE viste ESA prenda. NUNCA un blazer, traje, vestido de oficina u otra prenda distinta. Si el brief dice pijamas → todos los conceptos muestran pijamas.
 ${conceptDirections}
 - Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
-- Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
+- Si hay descripción de producto, TODOS los conceptos muestran ESA MISMA prenda reproducida con fidelidad. La variedad viene exclusivamente de la COMPOSICIÓN, layout, jerarquía tipográfica y mood — no del producto.
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 - TODA pieza de e-commerce DEBE tener como mínimo: headline o nombre del producto visible + logo. Una imagen sin copy no es un anuncio.
@@ -360,13 +363,11 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   // Logo images to pass as visual references — gpt-image-2 can replicate them faithfully
   const logoImages = [logos.dark, logos.light].filter(Boolean) as string[];
 
-  // In similar mode: style references lead; otherwise brand visual refs lead.
-  // Product images are NOT included in fashion/people mode — passing a product photo that
-  // contains a real person causes gpt-image-2 to clone that person across all 6 concepts.
-  // In people mode the product is described via text (productDescription) instead.
+  // Product images are passed as input_image so gpt-image-2 sees the actual print/design.
+  // Person cloning is prevented via prompt instruction, not by removing the image.
   const inputImages = [
     ...(isSimilarMode ? styleReferenceDataUrls : visualRefs),
-    ...(isProductEcommerce ? productDetailImages : []),
+    ...productDetailImages,
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
     ...logoImages,
   ];
@@ -377,18 +378,18 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     : isEvents
     ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. Portrait 4:5.'
     : hasPeople
-      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic. FULL BODY SHOT — the model must be fully visible from head to toe, the complete outfit shown without any cropping of legs or feet. Reserve the lower 25% of the frame for text/logo overlay on a dark or color-blocked band, keeping the model fully visible above it.'
+      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic. FULL BODY SHOT — the model must be fully visible from head to toe, no cropping of legs or feet. Text elements composited naturally into the composition — they can appear top, bottom, side, or overlaid, depending on the concept direction. Each concept should have a visually distinct layout.'
       : isProductEcommerce
-        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping. Text and logo in a dedicated color band at the bottom of the frame, NOT overlapping the body.'
+        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping.'
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
     : '';
 
-  // In fashion/people mode the product image is NOT passed as visual input, so we inject
-  // the text description so the model knows what garment to feature.
+  // Product description injected into every concept so gpt-image-2 replicates the exact
+  // garment consistently. Person cloning prevented via prompt, not by removing the image.
   const productDescHint = hasPeople && !isEvents && !isCorporate && productDescription
-    ? `Garment to feature: ${productDescription}`
+    ? `Garment to feature (reproduce EXACTLY — same print, color, silhouette): ${productDescription}`
     : '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
@@ -456,18 +457,37 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               isEvents ? `USE ONLY THESE EXACT HEX COLORS: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT add purple, violet, neon, or any color not in this brand kit.` : '',
               'ALL TEXT IN THE IMAGE MUST BE IN SPANISH. Zero English words in any headline, label, CTA, or body copy.',
               'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
-              `Campaign brief (use this content for any text in the image): ${brief.slice(0, 400)}`,
+              `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
+              'PROHIBIDO: botones CTA tipo pill/badge ("Comprar ahora", "Ver más", "Shop Now") como elementos visuales gráficos. El copy va integrado tipográficamente en la composición, no como botón redondeado de e-commerce.',
+              'ANTI-ALUCINACIÓN: no inventar detalles de prenda, colores, prints, bordados ni adornos que no estén en la foto de referencia o descripción. No agregar botones, logos, ni texto que no aparezca en el brief.',
             ].filter(Boolean).join(' ');
 
+            const generate = async (prompt: string): Promise<string> =>
+              isProductEcommerce && productDetailImages[0]
+                ? await editProductForConcept(openai, productDetailImages[0], prompt)
+                : await generateWithGptImage2(openai, prompt, inputImages);
+
             try {
-              const base64 = isProductEcommerce && productDetailImages[0]
-                ? await editProductForConcept(openai, productDetailImages[0], fullPrompt)
-                : await generateWithGptImage2(openai, fullPrompt, inputImages);
+              let base64 = await generate(fullPrompt);
+
+              // Retry with a simplified prompt if content filter blocks the full prompt
+              if (!base64) {
+                console.warn(`concept "${concept.concept_name}" empty on first attempt — retrying with simplified prompt`);
+                const simplifiedPrompt = [
+                  concept.image_prompt,
+                  `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}.`,
+                  styleSuffix,
+                  productDescHint,
+                  fashionModelHint,
+                  'ALL TEXT IN SPANISH.',
+                ].filter(Boolean).join(' ');
+                base64 = await generate(simplifiedPrompt);
+              }
 
               if (!base64) {
-                console.error(`concept "${concept.concept_name}" returned empty base64`);
+                console.error(`concept "${concept.concept_name}" returned empty base64 after retry`);
                 send(controller, { error: concept.concept_name });
                 return;
               }
