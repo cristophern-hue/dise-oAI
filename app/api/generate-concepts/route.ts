@@ -388,11 +388,10 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
     : '';
 
-  // In fashion/people mode the product image is NOT passed as visual input (avoids person
-  // cloning), so we inject the text description so gpt-image-2 knows what garment to show.
-  const productDescHint = hasPeople && !isEvents && !isCorporate && productDescription
-    ? `Garment worn by the model: ${productDescription}`
-    : '';
+  // In fashion/people mode, the specific product is NOT injected into concept generation.
+  // The brief drives garment variety (colors, styles, mood) across the 6 concepts.
+  // The actual product is applied later in the apply-product step (Afinar).
+  const productDescHint = '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
     : visualRefs.length > 0
