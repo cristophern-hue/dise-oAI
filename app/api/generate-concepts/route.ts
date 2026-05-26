@@ -221,13 +221,17 @@ export async function POST(req: NextRequest) {
 
   const conceptDirections = isProductEcommerce
     ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás.
-REGLA OBLIGATORIA PARA TODAS: cada pieza DEBE incluir como mínimo un headline o nombre de producto en tipografía visible + logo de marca. Ninguna pieza puede quedar sin copy — sin texto no hay anuncio.
+REGLAS OBLIGATORIAS PARA TODAS LAS DIRECCIONES:
+- Todo el copy, titulares, CTAs y texto visible en la imagen DEBEN estar en ESPAÑOL. Nunca inglés.
+- Usá el nombre de campaña del brief (si existe) como elemento tipográfico principal, no un tagline genérico inventado.
+- Si el brief tiene descuento (ej: "30% off"), ese porcentaje debe aparecer prominentemente en la pieza como elemento tipográfico fuerte.
+- Cada pieza DEBE incluir como mínimo headline o nombre de producto visible + logo de marca. Sin copy no hay anuncio.
 
-1. Producto hero con headline — el producto ocupa 70% del frame, fondo color sólido del brand kit. Headline corto del brief en tipografía bold arriba o abajo del producto. Nombre del producto/línea. Logo en esquina. Composición limpia y directa.
-2. Pieza full promocional — headline del brief grande arriba, producto(s) en el centro, TODAS las mecánicas del brief (fechas, descuento, cuotas, despacho, retiro) como iconos o bullets abajo. Composición completa lista para publicar.
-3. Producto en contexto ambiental — el producto integrado en su entorno real (motor, taller, cocina, exterior según el brief). Overlay semitransparente con headline corto y nombre de marca. El ambiente es el protagonista pero el copy está presente.
-4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame como elemento gráfico dominante. Producto flotando pequeño en un corner. Headline y claim del brief como elementos tipográficos estructurales.
-5. Showcase técnico con copy — macro/closeup del producto con iluminación de estudio dramática, fondo oscuro con gradiente lateral. Nombre del producto en tipografía elegante + tagline corto del brief. Logo en esquina inferior.
+1. Producto hero con headline — el producto ocupa 70% del frame, fondo color sólido del brand kit. Si el brief tiene nombre de campaña, usarlo en tipografía bold XL. Si hay descuento, incluirlo en tipografía contrastante y legible. Nombre del producto/línea como apoyo. Logo en esquina. Copy 100% en español.
+2. Pieza full promocional — layout en tres franjas verticales: (A) FRANJA SUPERIOR: nombre de campaña del brief en tipografía medium, fondo color sólido del brand kit; (B) FRANJA CENTRAL: el porcentaje de descuento del brief (ej: "30%") en tipografía heavy BLACK ultragrande es el elemento visual dominante, debajo texto secundario como "de descuento" o "off" en tipografía regular más pequeña; (C) FRANJA INFERIOR: zona de mecánicas — lista horizontal limpia de 3-4 ítems en tipografía SANS-SERIF del brand kit, separados por línea vertical fina o punto mediano "·", SIN iconos stock ni clipart genérico, solo texto tipográfico alineado. Producto integrado en la franja central detrás o al lado del número. Logo en esquina inferior derecha. TODO el copy en ESPAÑOL usando la tipografía del brand kit.
+3. Producto en contexto ambiental — el producto integrado en su entorno real según el brief. Overlay semitransparente con headline corto en ESPAÑOL y nombre de marca. El ambiente es el protagonista pero el copy está presente.
+4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame. El headline usa la terminología exacta del brief en ESPAÑOL. Producto flotando pequeño en un corner. Tipografía estructural como elemento gráfico dominante.
+5. Showcase técnico con copy — macro/closeup del producto con iluminación de estudio dramática, fondo oscuro con gradiente lateral. Nombre del producto en tipografía elegante + tagline corto del brief en ESPAÑOL. Logo en esquina inferior.
 ${refStyleDirection}`
     : isEvents
       ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital.
@@ -288,6 +292,9 @@ Dado un brief, brand kit y referencias visuales, generá exactamente 6 conceptos
 REGLAS:
 - Usá los hex exactos del brand kit como colores dominantes
 - Estilo PREMIUM, nunca genérico ni clipart
+- TODO el copy, titulares y texto visible en las imágenes DEBE estar en ESPAÑOL. Nunca inglés, nunca "Indulge in Luxury", nunca "Summer Dreams" ni frases genéricas anglosajones.
+- Usá el nombre de campaña del brief como el copy principal (no inventar taglines en inglés).
+- Si el brief tiene un porcentaje de descuento, ese número debe dominar visualmente en las piezas promocionales.
 ${conceptDirections}
 - Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
 - Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
@@ -351,9 +358,12 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const logoImages = [logos.dark, logos.light].filter(Boolean) as string[];
 
   // In similar mode: style references lead; otherwise brand visual refs lead.
+  // Product images are NOT included in fashion/people mode — passing a product photo that
+  // contains a real person causes gpt-image-2 to clone that person across all 6 concepts.
+  // In people mode the product is described via text (productDescription) instead.
   const inputImages = [
     ...(isSimilarMode ? styleReferenceDataUrls : visualRefs),
-    ...productDetailImages,
+    ...(isProductEcommerce ? productDetailImages : []),
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
     ...logoImages,
   ];
@@ -362,14 +372,20 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const styleSuffix = isCorporate
     ? 'Premium institutional design, B2B advertising quality, clean and trustworthy. NOT generic stock photo aesthetic. If people appear: professional business context, diverse team, confident expression. Portrait 4:5.'
     : isEvents
-    ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. If people appear: engaged audience, confident speaker, professional setting. Portrait 4:5.'
+    ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. Portrait 4:5.'
     : hasPeople
-      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic.'
+      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic. FULL BODY SHOT — the model must be fully visible from head to toe, the complete outfit shown without any cropping of legs or feet. Reserve the lower 25% of the frame for text/logo overlay on a dark or color-blocked band, keeping the model fully visible above it.'
       : isProductEcommerce
-        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic where applicable.'
+        ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping. Text and logo in a dedicated color band at the bottom of the frame, NOT overlapping the body.'
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
+    : '';
+
+  // In fashion/people mode the product image is NOT passed as visual input, so we inject
+  // the text description so the model knows what garment to feature.
+  const productDescHint = hasPeople && !isEvents && !isCorporate && productDescription
+    ? `Garment to feature: ${productDescription}`
     : '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
@@ -402,22 +418,42 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const send = (controller: ReadableStreamDefaultController, data: object) =>
     controller.enqueue(encoder.encode(`data: ${JSON.stringify(data)}\n\n`));
 
+  // Each fashion concept gets a distinct model character to avoid cloning across images
+  const FASHION_MODEL_POOL = [
+    'Unique model: light-skinned woman, straight blonde hair, slender, 25-28 yrs.',
+    'Unique model: medium-tan woman, curly dark hair, athletic build, 28-33 yrs.',
+    'Unique model: dark-skinned woman, natural textured hair, 24-30 yrs.',
+    'Unique model: warm-toned woman, straight black hair, petite, 26-31 yrs.',
+    'Unique model: light-medium woman, wavy auburn hair, tall, 27-33 yrs.',
+    'Unique model: olive-skinned woman, long dark waves, 25-30 yrs.',
+  ];
+
   const stream = new ReadableStream({
     async start(controller) {
       try {
         await Promise.allSettled(
-          concepts.map(async (concept: ConceptItem) => {
+          concepts.map(async (concept: ConceptItem, conceptIdx: number) => {
+            const fashionModelHint = hasPeople && !isCorporate && !isEvents
+              ? FASHION_MODEL_POOL[conceptIdx % FASHION_MODEL_POOL.length]
+              : '';
             const fullPrompt = [
               concept.image_prompt,
               `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}.`,
               `Typography: ${brandKit.typography || 'bold sans-serif'}.`,
               styleSuffix,
               productHint,
+              productDescHint,
+              fashionModelHint,
+              hasPeople && !isCorporate && !isEvents
+                ? 'Create a completely ORIGINAL AI-generated model — do NOT replicate the appearance or face of any person from uploaded reference images.'
+                : '',
               styleHint,
               logoHint,
               isEvents ? 'ABSOLUTELY NO HUMANS, NO PEOPLE, NO SILHOUETTES, NO AUDIENCE, NO SPEAKER FIGURES. Pure typographic and geometric graphic design only.' : '',
               isEvents ? `USE ONLY THESE EXACT HEX COLORS: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT add purple, violet, neon, or any color not in this brand kit.` : '',
+              'ALL TEXT IN THE IMAGE MUST BE IN SPANISH. Zero English words in any headline, label, CTA, or body copy. Use the exact campaign name and copy from the brief — do not invent English taglines.',
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
+              brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
             ].filter(Boolean).join(' ');
 
             try {
