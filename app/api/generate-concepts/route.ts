@@ -303,7 +303,7 @@ REGLAS:
 - PRENDA: si el brief es sobre un tipo de prenda específico (pijamas, remeras, pantalones, etc.), la persona SIEMPRE viste ESA prenda. NUNCA un blazer, traje, vestido de oficina u otra prenda distinta. Si el brief dice pijamas → todos los conceptos muestran pijamas.
 ${conceptDirections}
 - Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
-- Si hay descripción de producto, todos los conceptos muestran ESA prenda. La variedad NO está en el producto sino en la COMPOSICIÓN: estructura del layout, jerarquía tipográfica, mood, ambiente y tratamiento gráfico deben ser radicalmente distintos en cada concepto.
+- Si hay descripción de producto, TODOS los conceptos muestran ESA MISMA prenda reproducida con fidelidad. La variedad viene exclusivamente de la COMPOSICIÓN, layout, jerarquía tipográfica y mood — no del producto.
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 - TODA pieza de e-commerce DEBE tener como mínimo: headline o nombre del producto visible + logo. Una imagen sin copy no es un anuncio.
@@ -363,13 +363,11 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   // Logo images to pass as visual references — gpt-image-2 can replicate them faithfully
   const logoImages = [logos.dark, logos.light].filter(Boolean) as string[];
 
-  // In similar mode: style references lead; otherwise brand visual refs lead.
-  // Product images are NOT included in fashion/people mode — passing a product photo that
-  // contains a real person causes gpt-image-2 to clone that person across all 6 concepts.
-  // In people mode the product is described via text (productDescription) instead.
+  // Product images are passed as input_image so gpt-image-2 sees the actual print/design.
+  // Person cloning is prevented via prompt instruction, not by removing the image.
   const inputImages = [
     ...(isSimilarMode ? styleReferenceDataUrls : visualRefs),
-    ...(isProductEcommerce ? productDetailImages : []),
+    ...productDetailImages,
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
     ...logoImages,
   ];
@@ -388,10 +386,11 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
     : '';
 
-  // In fashion/people mode, the specific product is NOT injected into concept generation.
-  // The brief drives garment variety (colors, styles, mood) across the 6 concepts.
-  // The actual product is applied later in the apply-product step (Afinar).
-  const productDescHint = '';
+  // Product description injected into every concept so gpt-image-2 replicates the exact
+  // garment consistently. Person cloning prevented via prompt, not by removing the image.
+  const productDescHint = hasPeople && !isEvents && !isCorporate && productDescription
+    ? `Garment to feature (reproduce EXACTLY — same print, color, silhouette): ${productDescription}`
+    : '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
     : visualRefs.length > 0
