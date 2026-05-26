@@ -34,67 +34,34 @@ CRITICAL RULES — read before generating:
 - If a HEX color is mentioned in the garment description (format #XXXXXX), match that exact color. Do not interpret "beige" as your own generic beige.
 - Do NOT invent any detail not visible in the reference.`;
 
-  // ── PATH 1: images.edit with PRODUCT IMAGE as base (~15-25s, fastest) ──────
-  // The product IS the input — gpt-image-2 can't silently change its silhouette.
-  if (productDescription) {
-    try {
-      const raw = productDetailImages[0];
-      const b64 = raw.startsWith('data:') ? raw.split(',')[1] : raw;
-      const file = await toFile(Buffer.from(b64, 'base64'), 'product.png', { type: 'image/png' });
-
-      const promptA = [
-        'This is a product photo. Transform it into a premium fashion editorial image.',
-        'Place this exact garment on a fashion model in a studio setting.',
-        'The garment must remain 100% identical — same silhouette, same exact pockets and details (only what is shown here), same color.',
-        silhouetteRules,
-        garmentDesc,
-        personPart,
-        conceptContext,
-        'Fashion editorial premium, photorealistic, 4:5 portrait.',
-      ].filter(Boolean).join(' ');
-
-      const res = await openai.images.edit({
-        model: 'gpt-image-2',
-        image: file,
-        prompt: promptA,
-        size: '1024x1536',
-        quality: 'medium',
-      });
-      const base64 = res.data?.[0]?.b64_json || '';
-      if (base64) return NextResponse.json({ base64, applied: true, appliedVia: 'edit-product-base' });
-      console.error('apply-product path1 returned empty');
-    } catch (err) {
-      console.error('apply-product path1 failed:', err);
-    }
-  }
-
-  // ── PATH 2: images.edit with CONCEPT IMAGE as base (~15-25s) ─────────────
-  // Preserves the concept's composition, background and model pose.
+  // ── PATH 1: images.edit with CONCEPT IMAGE as base (~15-25s) ────────────
+  // Primary path: preserves the selected concept's composition, background, model, and pose.
+  // Only the clothing is replaced with the product — everything else stays pixel-perfect.
   try {
     const file = await toFile(Buffer.from(conceptImageBase64, 'base64'), 'concept.png', { type: 'image/png' });
 
-    const promptB = productDescription
+    const promptA = productDescription
       ? [
           'Replace ONLY the clothing/garment on the person in this fashion image with the following product.',
-          'Preserve everything else pixel-perfect: background, lighting, composition, text, logos, pose.',
+          'Preserve everything else pixel-perfect: background, lighting, composition, text, logos, pose, model appearance.',
           silhouetteRules,
           garmentDesc,
           personPart,
         ].filter(Boolean).join(' ')
-      : `Replace the main garment on the person with the reference product. Keep all composition, background, lighting, and text identical.${personPart}`;
+      : `Replace the main garment on the person with the reference product. Keep all composition, background, lighting, model, and text identical.${personPart}`;
 
     const res = await openai.images.edit({
       model: 'gpt-image-2',
       image: file,
-      prompt: promptB,
+      prompt: promptA,
       size: '1024x1536',
       quality: 'medium',
     });
     const base64 = res.data?.[0]?.b64_json || '';
     if (base64) return NextResponse.json({ base64, applied: true, appliedVia: 'edit-concept-base' });
-    console.error('apply-product path2 returned empty');
+    console.error('apply-product path1 returned empty');
   } catch (err) {
-    console.error('apply-product path2 failed:', err);
+    console.error('apply-product path1 failed:', err);
   }
 
   // ── PATH 3: Responses API gpt-4o + gpt-image-2 (slowest, ~90-180s, last resort) ──
