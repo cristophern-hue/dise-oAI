@@ -35,6 +35,8 @@ export async function POST(req: NextRequest) {
   const applyPrompt = [
     'QUÉ CAMBIAR: reemplazá ÚNICAMENTE las prendas que viste la persona en la imagen del concepto con la/s prenda/s de referencia del producto.',
     'QUÉ NO TOCAR: textos, tipografías, fondo, composición, iluminación, logos, pose de la persona, expresión, peinado. Todo lo demás queda pixel-perfect.',
+    'COLORES DEL FONDO Y ELEMENTOS GRÁFICOS — PROHIBICIÓN ABSOLUTA: no ajustar, no armonizar, no adaptar los colores del fondo, geometrías, texto, bloques de color ni ningún elemento que no sea la prenda. Si el fondo era azul → sigue azul exacto. Si el texto era blanco → sigue blanco. Si había geometrías grises → siguen grises. La "armonía de color" entre prenda y fondo NO es tu decisión — está PROHIBIDA.',
+    'PROHIBIDO AGREGAR TEXTO NUEVO: no agregar ningún elemento de texto que no existiera en la imagen del concepto original. Si la prenda tiene texto impreso en el estampado (ej: "DRINK COFFEE", "LOVE", cualquier slogan), ese texto pertenece a la prenda y debe quedarse SOLO en la prenda — no copiarlo, no reinterpretarlo ni agregarlo como elemento tipográfico de la composición.',
     multiProductRule,
     'REGLAS DE COLOR CRÍTICAS — ANTI-ALUCINACIÓN:',
     '- Si el color de la prenda tiene código HEX en la descripción (formato #XXXXXX), usá ESE color exacto. No interpretar, no ajustar.',
