@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
     '- Negro es negro profundo (#0A0A0A), NO gris oscuro. Marino es azul marino (#1A2B4A), NO negro.',
     '- Tonos cálidos (camel, terracota, ocre) conservan su temperatura — no los enfriar ni neutralizar.',
     '- Reproducí la silueta EXACTA: slim→slim, recto→recto, wide→wide. No ensanchar ni entallar.',
+    '- REMATES Y PUÑOS — CRÍTICO: revisá las fotos de referencia para el terminado exacto de cada pieza. Si el pantalón tiene puño/cuff elástico en el tobillo → reproducilo con ese puño. Si tiene ruedo recto → ruedo recto. Si la manga tiene puño de color diferente → ese puño. Nunca supongas un ruedo genérico abierto si la referencia muestra otra cosa.',
     '- Reproducí SOLO los bolsillos visibles en la referencia. Si NO hay bolsillos cargo → CERO bolsillos cargo.',
     '- No inventar ningún detalle que no esté en la foto de referencia.',
     '- ANTI-ALUCINACIÓN: no agregar botones, bordados, prints, logos ni adornos que no estén en la referencia.',

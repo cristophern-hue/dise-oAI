@@ -41,7 +41,7 @@ Describí en este orden exacto:
 4. MATERIALES Y TEXTURA: tipo de tela inferido (denim, punto, tela plana, etc.), acabado (mate, satinado, brillante), peso visual (liviano, pesado, estructurado), transparencia, textura superficial visible
 
 5. DETALLES DE CONFECCIÓN:
-   - Para pantalones: pretina (elástica, con presillas para cinturón, ancho), tiro (bajo, medio, alto), bolsillos (cantidad, tipo, posición), bota (angosta, recta, acampanada, ancho exacto estimado), cierre (visible/invisible, color), terminación del ruedo (doblado, overlock, costura plana)
+   - Para pantalones: pretina (elástica, con presillas para cinturón, ancho), tiro (bajo, medio, alto), bolsillos (cantidad, tipo, posición), bota (angosta, recta, acampanada, ancho exacto estimado), cierre (visible/invisible, color), terminación del ruedo — CRÍTICO: ¿tiene puño/cuff elástico o de punto en el tobillo (tipo jogger)? ¿De qué color es ese puño si difiere del pantalón? ¿O es ruedo simple recto sin puño? Este detalle define la silueta completa.
    - Para remeras/tops: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños, dobladillo
    - Para todas: costuras decorativas, piping, botones, cierres, terminaciones especiales
 
