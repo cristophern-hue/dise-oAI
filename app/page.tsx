@@ -321,33 +321,33 @@ export default function Home() {
       startLoading(`Aplicando producto...`);
       setError('');
       try {
-        const results = await Promise.all(
-          selectedConcepts.map(async concept => {
-            const res = await fetch('/api/apply-product', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                conceptImageBase64: concept.base64,
-                productDetailImages,
-                productDescription,
-                peopleMode,
-                personDescription,
-                conceptName: concept.conceptName,
-              }),
-            });
-            const result = res.ok
-              ? await res.json().then((data: { base64?: string; applied?: boolean; appliedVia?: string }) => {
-                  console.log(`apply-product [${concept.conceptName}]: applied=${data.applied} via=${data.appliedVia}`);
-                  return {
-                    concept: data.base64 ? { ...concept, base64: data.base64 } : concept,
-                    applied: data.applied === true,
-                  };
-                })
-              : { concept, applied: false };
-            setApplyProgress(p => p ? { ...p, done: p.done + 1 } : p);
-            return result;
-          })
-        );
+        // Sequential — Responses API can't handle many concurrent requests
+        const results: { concept: typeof selectedConcepts[0]; applied: boolean }[] = [];
+        for (const concept of selectedConcepts) {
+          const res = await fetch('/api/apply-product', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              conceptImageBase64: concept.base64,
+              productDetailImages,
+              productDescription,
+              peopleMode,
+              personDescription,
+              conceptName: concept.conceptName,
+            }),
+          });
+          const result = res.ok
+            ? await res.json().then((data: { base64?: string; applied?: boolean; appliedVia?: string }) => {
+                console.log(`apply-product [${concept.conceptName}]: applied=${data.applied} via=${data.appliedVia}`);
+                return {
+                  concept: data.base64 ? { ...concept, base64: data.base64 } : concept,
+                  applied: data.applied === true,
+                };
+              })
+            : { concept, applied: false };
+          setApplyProgress(p => p ? { ...p, done: p.done + 1 } : p);
+          results.push(result);
+        }
         const applied = results.map(r => r.concept);
         const anyFailed = results.some(r => !r.applied);
         if (anyFailed) {
