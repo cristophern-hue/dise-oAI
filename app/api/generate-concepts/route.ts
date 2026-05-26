@@ -26,7 +26,14 @@ const PRODUCT_DESCRIPTION_PROMPT = `Sos un técnico de producto de moda de alta 
 
 Describí en este orden exacto:
 
-1. TIPO DE PRENDA: categoría (remera, pantalón, vestido, campera, etc.), silueta y corte (slim, straight, wide-leg, oversize, entallado, etc.), largo exacto (hasta el tobillo, a la rodilla, etc.)
+1. TIPO DE PRENDA Y CALCE — CRÍTICO: categoría (remera, pantalón, vestido, campera, etc.), silueta y corte (slim, straight, wide-leg, oversize, entallado, etc.), largo exacto (hasta el tobillo, a la rodilla, etc.).
+   Luego describí el CALCE REAL sobre el cuerpo con precisión quirúrgica:
+   - ¿Cómo cae la tela? ¿Rígida y estructurada, o fluida y con drapeado?
+   - ¿Dónde hay ceñimiento y dónde holgura? (ej: "ceñido en cadera y suelto desde el muslo hacia abajo", "holgado en todo el torso sin marcar el cuerpo")
+   - ¿Qué grosor visual tiene la tela? ¿Parece liviana como jersey fino, media como punto grueso, o estructurada como denim?
+   - ¿Cómo se comporta en movimiento? ¿Cae pegada al cuerpo o tiene vuelo/movimiento propio?
+   - Describí el fit con una frase como "el pantalón cae relajado sin marcar las piernas, con ligera holgura en los muslos y piernas rectas hacia abajo" o "la remera queda levemente suelta sin ser oversize, cayendo sobre el cuerpo sin pegarse"
+   NUNCA escribas solo "slim fit" o "relajado" — explicá QUÉ PARTES del cuerpo están ajustadas o sueltas.
 
 2. COLOR BASE — CRÍTICO PARA PRENDAS LISAS: para colores sólidos (el caso más difícil) describí con máxima precisión:
    - CÓDIGO HEX ESTIMADO: analizá visualmente el color de la tela e indicá su código hexadecimal aproximado. Ejemplos: #C4B49A para beige arena cálido, #2B3A4A para azul marino oscuro, #1A1A1A para negro profundo. Sé específico — esto es lo más importante para que la IA reproduzca el color exacto. Formato: "Color hex aproximado: #XXXXXX"
@@ -36,12 +43,17 @@ Describí en este orden exacto:
    - Cómo se comporta con la luz: absorbe la luz (mate), la refleja levemente (satinado suave), brilla (lustrado)
    - Para prendas con una sola trama de color, el hex es TODO — sin él el generador produce su propio "beige genérico"
 
-3. ESTAMPADO / PRINT (cuando existe, es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, qué tamaño relativo al total de la prenda, cómo se distribuye (all-over, centrado, borde, repetición, etc.), orientación, y cómo contrasta con el fondo. Si hay texto, copialo exactamente. Nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición.
+3. ESTAMPADO / PRINT (cuando existe, es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, y además:
+   - TAMAÑO PROPORCIONAL: qué porcentaje del frente de la prenda ocupa el gráfico. Ej: "el gato ocupa aproximadamente el 55% del frente de la remera, desde unos 8 cm abajo del cuello hasta casi el ruedo"
+   - POSICIÓN EXACTA: dónde está ubicado. ¿Centrado horizontalmente? ¿Arriba, en el centro, o abajo del frente? ¿Empieza justo debajo del pecho o desde el centro del torso?
+   - JERARQUÍA DE ELEMENTOS: si hay texto + gráfico, describí cuál está arriba y a qué distancia. Ej: "texto 'DRINK COFFEE' centrado a unos 3 cm arriba del gato, en tipografía negra bold de aprox 2 cm de alto"
+   - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición, y si hay variación de escala o color entre motivos
+   Nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición relativa.
 
 4. MATERIALES Y TEXTURA: tipo de tela inferido (denim, punto, tela plana, etc.), acabado (mate, satinado, brillante), peso visual (liviano, pesado, estructurado), transparencia, textura superficial visible
 
 5. DETALLES DE CONFECCIÓN:
-   - Para pantalones: pretina (elástica, con presillas para cinturón, ancho), tiro (bajo, medio, alto), bolsillos (cantidad, tipo, posición), bota (angosta, recta, acampanada, ancho exacto estimado), cierre (visible/invisible, color), terminación del ruedo (doblado, overlock, costura plana)
+   - Para pantalones: pretina (elástica, con presillas para cinturón, ancho), tiro (bajo, medio, alto), bolsillos (cantidad, tipo, posición), bota (angosta, recta, acampanada, ancho exacto estimado), cierre (visible/invisible, color), terminación del ruedo — CRÍTICO: ¿tiene puño/cuff elástico o de punto en el tobillo (tipo jogger)? ¿De qué color es ese puño si difiere del pantalón? ¿O es ruedo simple recto sin puño? Este detalle define la silueta completa.
    - Para remeras/tops: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños, dobladillo
    - Para todas: costuras decorativas, piping, botones, cierres, terminaciones especiales
 
