@@ -26,7 +26,14 @@ const PRODUCT_DESCRIPTION_PROMPT = `Sos un técnico de producto de moda de alta 
 
 Describí en este orden exacto:
 
-1. TIPO DE PRENDA: categoría (remera, pantalón, vestido, campera, etc.), silueta y corte (slim, straight, wide-leg, oversize, entallado, etc.), largo exacto (hasta el tobillo, a la rodilla, etc.)
+1. TIPO DE PRENDA Y CALCE — CRÍTICO: categoría (remera, pantalón, vestido, campera, etc.), silueta y corte (slim, straight, wide-leg, oversize, entallado, etc.), largo exacto (hasta el tobillo, a la rodilla, etc.).
+   Luego describí el CALCE REAL sobre el cuerpo con precisión quirúrgica:
+   - ¿Cómo cae la tela? ¿Rígida y estructurada, o fluida y con drapeado?
+   - ¿Dónde hay ceñimiento y dónde holgura? (ej: "ceñido en cadera y suelto desde el muslo hacia abajo", "holgado en todo el torso sin marcar el cuerpo")
+   - ¿Qué grosor visual tiene la tela? ¿Parece liviana como jersey fino, media como punto grueso, o estructurada como denim?
+   - ¿Cómo se comporta en movimiento? ¿Cae pegada al cuerpo o tiene vuelo/movimiento propio?
+   - Describí el fit con una frase como "el pantalón cae relajado sin marcar las piernas, con ligera holgura en los muslos y piernas rectas hacia abajo" o "la remera queda levemente suelta sin ser oversize, cayendo sobre el cuerpo sin pegarse"
+   NUNCA escribas solo "slim fit" o "relajado" — explicá QUÉ PARTES del cuerpo están ajustadas o sueltas.
 
 2. COLOR BASE — CRÍTICO PARA PRENDAS LISAS: para colores sólidos (el caso más difícil) describí con máxima precisión:
    - CÓDIGO HEX ESTIMADO: analizá visualmente el color de la tela e indicá su código hexadecimal aproximado. Ejemplos: #C4B49A para beige arena cálido, #2B3A4A para azul marino oscuro, #1A1A1A para negro profundo. Sé específico — esto es lo más importante para que la IA reproduzca el color exacto. Formato: "Color hex aproximado: #XXXXXX"
