@@ -300,7 +300,7 @@ REGLAS:
 - PRENDA: si el brief es sobre un tipo de prenda específico (pijamas, remeras, pantalones, etc.), la persona SIEMPRE viste ESA prenda. NUNCA un blazer, traje, vestido de oficina u otra prenda distinta. Si el brief dice pijamas → todos los conceptos muestran pijamas.
 ${conceptDirections}
 - Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
-- Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
+- Si hay descripción de producto, usala como referencia del TIPO de prenda pero generá looks VARIADOS según el brief (colores, estampados y estilos distintos en cada concepto). El producto exacto se aplica en un paso posterior — aquí generás la composición creativa.
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 - TODA pieza de e-commerce DEBE tener como mínimo: headline o nombre del producto visible + logo. Una imagen sin copy no es un anuncio.
@@ -385,11 +385,11 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
     : '';
 
-  // In fashion/people mode the product image is NOT passed as visual input, so we inject
-  // the text description so the model knows what garment to feature.
-  const productDescHint = hasPeople && !isEvents && !isCorporate && productDescription
-    ? `Garment to feature: ${productDescription}`
-    : '';
+  // In fashion/people mode, productDescription is intentionally NOT injected into the
+  // fullPrompt for generation. The brief drives varied looks (colors, moods, compositions).
+  // The actual product is applied later via apply-product. Injecting the specific product
+  // description here causes all 6 concepts to replicate the same garment.
+  const productDescHint = '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
     : visualRefs.length > 0
