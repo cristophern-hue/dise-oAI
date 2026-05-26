@@ -255,15 +255,16 @@ ${refStyleDirection}`
 4. Abstracto geométrico — formas geométricas abstractas (círculos, líneas, grillas) en paleta del brand kit. Sugieren conexión, crecimiento o innovación. Tipografía institucional elegante como elemento gráfico central. Sin fotografía realista.
 5. Arquitectura y espacio aspiracional — edificio corporativo moderno, skyline o espacio interior premium como imagen dominante. Overlay semitransparente en color del brand kit. Headline y propuesta de valor sobre la imagen.
 ${refStyleDirection}`
-      : `Direcciones (fashion/editorial) — las 6 piezas muestran el MISMO producto pero con estructuras visuales COMPLETAMENTE DISTINTAS entre sí. La persona viste siempre la misma prenda.
+      : `Direcciones (fashion/editorial) — 6 conceptos de layout, cada uno con mood, composición y pose RADICALMENTE distintos entre sí. La prenda es la misma en todos; la diferencia es el universo creativo.
 
-REGLA DE DIVERSIDAD VISUAL: cada dirección debe tener una estructura, jerarquía y mood radicalmente diferente a las otras. Si dos conceptos se parecen en composición, están mal.
+DIVERSIDAD OBLIGATORIA: si dos conceptos se parecen en pose, composición o mood, están mal. Libertad creativa total dentro de cada dirección — estas son inspiraciones, no plantillas.
+POSES: cada concepto debe tener una pose distinta. PROHIBIDO repetir "modelo parada de frente" en más de un concepto.
 
-1. Minimalista limpio — fondo blanco o color muy sutil, persona centrada con mucho aire alrededor, texto MUY pequeño en la parte inferior. La limpieza y el silencio visual son el protagonista. Sin elementos gráficos decorativos.
-2. Tipográfico editorial — el texto (nombre de campaña o descuento del brief) ocupa el 50-60% del frame en tipografía ULTRA-BOLD. La persona es secundaria, encajada en un corner o detrás del texto. El copy ES el diseño.
-3. Lifestyle aspiracional — escena de ambiente real (dormitorio cálido, luz suave de noche, velas) con la persona relajada usando la prenda. Texto mínimo y elegante superpuesto. Mood íntimo y sensorial.
-4. Composición geométrica — fondo con bloques de color del brand kit, formas geométricas bold (rectángulos, diagonales). Persona integrada como elemento dentro de la grilla. Nombre de campaña + descuento como elementos tipográficos estructurales.
-5. Full promocional — toda la info del brief jerarquizada: descuento GRANDE arriba, nombre de campaña, fechas y mecánicas como bullets o iconos tipográficos abajo. Persona en el centro. Composición cargada de información pero ordenada.
+1. Minimalista editorial — espíritu: quietud de lujo, silencio visual intencional, elegancia contenida. Pose sugerida: 3/4 o perfil. La composición dice más por lo que omite que por lo que incluye.
+2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante, figura humana como elemento secundario o fragmentado. Pose sugerida: sentada, recostada o en plano recortado. Audaz y gráfico.
+3. Lifestyle aspiracional — espíritu: intimidad sensorial, calidez doméstica, momento privado. Pose sugerida: acostada, recostada o sentada cómoda en un entorno real — NUNCA parada. Ambiente que envuelve.
+4. Composición geométrica — espíritu: arquitectura gráfica, tensión visual, formas que ordenan el caos. Pose sugerida: cuerpo en diagonal o movimiento. La persona y la geometría se integran como un solo sistema visual.
+5. Full promocional — espíritu: energía de oferta, jerarquía de información clara, todo visible de un vistazo. Pose sugerida: activa, con actitud — no simplemente parada. Diseño que informa y atrae.
 ${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
