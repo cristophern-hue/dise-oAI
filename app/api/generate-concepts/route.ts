@@ -460,15 +460,34 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
+              'PROHIBIDO: botones CTA tipo pill/badge ("Comprar ahora", "Ver más", "Shop Now") como elementos visuales gráficos. El copy va integrado tipográficamente en la composición, no como botón redondeado de e-commerce.',
+              'ANTI-ALUCINACIÓN: no inventar detalles de prenda, colores, prints, bordados ni adornos que no estén en la foto de referencia o descripción. No agregar botones, logos, ni texto que no aparezca en el brief.',
             ].filter(Boolean).join(' ');
 
+            const generate = async (prompt: string): Promise<string> =>
+              isProductEcommerce && productDetailImages[0]
+                ? await editProductForConcept(openai, productDetailImages[0], prompt)
+                : await generateWithGptImage2(openai, prompt, inputImages);
+
             try {
-              const base64 = isProductEcommerce && productDetailImages[0]
-                ? await editProductForConcept(openai, productDetailImages[0], fullPrompt)
-                : await generateWithGptImage2(openai, fullPrompt, inputImages);
+              let base64 = await generate(fullPrompt);
+
+              // Retry with a simplified prompt if content filter blocks the full prompt
+              if (!base64) {
+                console.warn(`concept "${concept.concept_name}" empty on first attempt — retrying with simplified prompt`);
+                const simplifiedPrompt = [
+                  concept.image_prompt,
+                  `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}.`,
+                  styleSuffix,
+                  productDescHint,
+                  fashionModelHint,
+                  'ALL TEXT IN SPANISH.',
+                ].filter(Boolean).join(' ');
+                base64 = await generate(simplifiedPrompt);
+              }
 
               if (!base64) {
-                console.error(`concept "${concept.concept_name}" returned empty base64`);
+                console.error(`concept "${concept.concept_name}" returned empty base64 after retry`);
                 send(controller, { error: concept.concept_name });
                 return;
               }
