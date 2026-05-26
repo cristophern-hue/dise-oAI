@@ -57,50 +57,71 @@ export async function POST(req: NextRequest) {
     detail: 'high' as const,
   }));
 
-  // ── PATH 1: Responses API — GPT-4o sees concept + product photos, orchestrates gpt-image-2 ──
-  // Retry up to 3 times — content filter can intermittently refuse on first attempt.
-  for (let attempt = 1; attempt <= 3; attempt++) {
+  const responsesInput = (promptText: string) => [{
+    role: 'user' as const,
+    content: [
+      { type: 'input_image' as const, image_url: conceptDataUrl, detail: 'high' as const },
+      ...productImageContent,
+      { type: 'input_text' as const, text: promptText },
+    ],
+  }];
+
+  const responsesTool = [{ type: 'image_generation', model: 'gpt-image-2', quality: 'high', size: '1024x1536' }];
+
+  const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await (openai.responses.create as any)({
         model: 'gpt-4o',
-        input: [{
-          role: 'user',
-          content: [
-            { type: 'input_image', image_url: conceptDataUrl, detail: 'high' },
-            ...productImageContent,
-            { type: 'input_text', text: applyPrompt },
-          ],
-        }],
-        tools: [{ type: 'image_generation', model: 'gpt-image-2', quality: 'high', size: '1024x1536' }],
+        input: responsesInput(promptText),
+        tools: responsesTool,
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const block of (response.output || [])) {
-        if (block.type === 'image_generation_call' && block.result) {
-          return NextResponse.json({ base64: block.result, applied: true, appliedVia: 'responses' });
-        }
+        if (block.type === 'image_generation_call' && block.result) return block.result;
       }
-      console.error(`apply-product path1 attempt ${attempt}: no image block`);
+      console.error(`apply-product ${label}: no image block`);
     } catch (err) {
-      console.error(`apply-product path1 attempt ${attempt} failed:`, err);
+      console.error(`apply-product ${label} failed:`, err);
     }
+    return null;
+  };
+
+  // ── PATH 1: Responses API — full prompt, up to 2 attempts ───────────────
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const result = await tryResponses(applyPrompt, `path1 attempt ${attempt}`);
+    if (result) return NextResponse.json({ base64: result, applied: true, appliedVia: 'responses' });
   }
 
-  // ── PATH 2: images.edit with concept as base — fallback ─────────────────
+  // ── PATH 2: Responses API — simplified prompt (avoids content filter) ───
+  // Still passes concept + product photos so gpt-image-2 sees the actual garment.
+  const simplifiedPrompt = [
+    'Replace the clothing on the person in the concept image with the exact garment shown in the product reference photos.',
+    'Keep everything else completely unchanged: background, text, composition, pose, face, hair, lighting.',
+    garmentDesc,
+    multiProductRule,
+  ].filter(Boolean).join('\n');
+
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const result = await tryResponses(simplifiedPrompt, `path2 attempt ${attempt}`);
+    if (result) return NextResponse.json({ base64: result, applied: true, appliedVia: 'responses-simplified' });
+  }
+
+  // ── PATH 3: images.edit — last resort, no product photo reference ────────
   try {
     const file = await toFile(Buffer.from(conceptImageBase64, 'base64'), 'concept.png', { type: 'image/png' });
     const res = await openai.images.edit({
       model: 'gpt-image-2',
       image: file,
-      prompt: applyPrompt,
+      prompt: simplifiedPrompt,
       size: '1024x1536',
       quality: 'high',
     });
     const base64 = res.data?.[0]?.b64_json || '';
     if (base64) return NextResponse.json({ base64, applied: true, appliedVia: 'edit-concept-base' });
-    console.error('apply-product path2 (edit) returned empty');
+    console.error('apply-product path3 (edit) returned empty');
   } catch (err) {
-    console.error('apply-product path2 (edit) failed:', err);
+    console.error('apply-product path3 (edit) failed:', err);
   }
 
   return NextResponse.json({ base64: conceptImageBase64, applied: false, appliedVia: 'none' });
