@@ -211,7 +211,7 @@ export async function POST(req: NextRequest) {
     : isCorporate
       ? 'Personas opcionales: si aparecen deben ser profesionales en contexto corporativo (reunión, oficina, ciudad). No es obligatorio incluirlas — priorizá composición gráfica y tipografía.'
       : isEvents
-        ? 'NO incluir personas. Enfocarse exclusivamente en tipografía de impacto, iconografía digital, elementos gráficos del brand kit y copy del evento (título, fecha, CTA).'
+        ? 'PROHIBICIÓN ABSOLUTA: CERO personas, CERO siluetas, CERO audiencias, CERO figuras humanas en ningún prompt. Solo tipografía, iconografía digital y elementos gráficos.'
         : 'Incluir una persona usando una prenda de moda acorde al brief y brand kit. Actitud aspiracional, editorial.';
 
   const hasVisualRefs = visualRefs.length > 0;
@@ -230,12 +230,18 @@ REGLA OBLIGATORIA PARA TODAS: cada pieza DEBE incluir como mínimo un headline o
 5. Showcase técnico con copy — macro/closeup del producto con iluminación de estudio dramática, fondo oscuro con gradiente lateral. Nombre del producto en tipografía elegante + tagline corto del brief. Logo en esquina inferior.
 ${refStyleDirection}`
     : isEvents
-      ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital:
-1. CTA de registro urgente — headline del evento en tipografía bold XL, fecha y hora prominentes, botón o banner de registro. Fondo de color sólido del brand kit o gradiente de marca. Máxima claridad y urgencia. Sin personas.
-2. Tipográfico de impacto — nombre del evento ocupa 70% del frame en tipografía extra-bold, subtítulo y fecha como elementos secundarios. Fondo abstracto con formas geométricas o gradiente del brand kit. Sin personas.
-3. Agenda visual — programa del evento como elemento gráfico: sesiones, horarios o tracks dispuestos en layout limpio. Tipografía estructurada, íconos de temas, paleta del brand kit. Sin personas.
-4. Cuenta regresiva / urgencia — countdown visual con días/horas/minutos hasta el evento, elementos de expectativa y FOMO. Fondo oscuro del brand kit con tipografía de alto impacto. Sin personas.
-5. Online / livestreaming — iconografía de transmisión en vivo (play, ondas, pantalla), elementos digitales. Comunica accesibilidad y alcance global. Copy: "En vivo" / "Online" / "Gratis". Sin personas.
+      ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital.
+REGLAS ABSOLUTAS PARA TODAS LAS DIRECCIONES:
+- CERO personas, siluetas, audiencias, figuras humanas o sombras de personas en ningún prompt
+- CERO contenido inventado: no inventar nombres de sesiones, speakers, tiempos ni agenda que no estén en el brief
+- Si el brief no tiene agenda detallada, usar solo "Sesión 1", "Sesión 2" como placeholders genéricos
+- USAR SOLO los colores hex del brand kit — no inventar paletas púrpuras, neón ni gradientes que no estén en el brand kit
+
+1. CTA de registro urgente — título del evento en tipografía bold XL, fecha y hora del brief prominentes, elemento gráfico tipo botón/banner "Registrate". Fondo sólido del color primario del brand kit. Solo elementos tipográficos y gráficos.
+2. Tipográfico de impacto — nombre del evento ocupa 70% del frame en tipografía extra-bold, subtítulo y fecha del brief como secundarios. Fondo con formas geométricas abstractas en paleta del brand kit. Solo tipografía y formas.
+3. Agenda visual — layout de programa con íconos genéricos y horarios del brief. Si el brief no tiene sesiones, usar "Sesión 1 · Sesión 2 · Sesión 3" como estructura visual. Paleta del brand kit. Solo tipografía e íconos.
+4. Cuenta regresiva / urgencia — countdown tipográfico grande DÍAS / HORAS / MINUTOS, fondo oscuro del brand kit, elementos de líneas y formas geométricas para tensión visual. Solo tipografía y formas.
+5. Online / livestreaming — íconos de play, ondas o pantalla como elemento central, copy "En vivo" / "Online" / "Gratis", formas circulares o de señal. Solo iconografía y tipografía en paleta del brand kit.
 ${refStyleDirection}`
       : isCorporate
       ? `Direcciones (corporativo/servicios) — CADA UNA visualmente DISTINTA, estilo institucional premium:
@@ -288,6 +294,11 @@ ${conceptDirections}
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 - TODA pieza de e-commerce DEBE tener como mínimo: headline o nombre del producto visible + logo. Una imagen sin copy no es un anuncio.
+- NUNCA inventar logos gráficos — si no hay imagen de logo de referencia, solo colocar el nombre de la marca en texto tipográfico.
+${isEvents ? `MODO EVENTOS — PROHIBICIONES ABSOLUTAS EN CADA image_prompt:
+- CERO personas, siluetas de personas, audiencias, figuras humanas o sombras de personas — si el prompt incluye personas, es incorrecto.
+- CERO contenido inventado: no inventar nombres de sesiones, ponentes, horarios ni agenda no presente en el brief.
+- USAR EXCLUSIVAMENTE los hex del brand kit. Ningún color exterior a la paleta del brand kit.` : ''}
 ${isProductEcommerce ? `
 MODO E-COMMERCE CON PRODUCTO: cada image_prompt es una INSTRUCCIÓN DE EDICIÓN para images.edit.
 El modelo recibe la foto del producto y la transforma. Describí:
@@ -402,6 +413,8 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               productHint,
               styleHint,
               logoHint,
+              isEvents ? 'ABSOLUTELY NO HUMANS, NO PEOPLE, NO SILHOUETTES, NO AUDIENCE, NO SPEAKER FIGURES. Pure typographic and geometric graphic design only.' : '',
+              isEvents ? `USE ONLY THESE EXACT HEX COLORS: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT add purple, violet, neon, or any color not in this brand kit.` : '',
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
             ].filter(Boolean).join(' ');
 
