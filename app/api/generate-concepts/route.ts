@@ -255,12 +255,15 @@ ${refStyleDirection}`
 4. Abstracto geométrico — formas geométricas abstractas (círculos, líneas, grillas) en paleta del brand kit. Sugieren conexión, crecimiento o innovación. Tipografía institucional elegante como elemento gráfico central. Sin fotografía realista.
 5. Arquitectura y espacio aspiracional — edificio corporativo moderno, skyline o espacio interior premium como imagen dominante. Overlay semitransparente en color del brand kit. Headline y propuesta de valor sobre la imagen.
 ${refStyleDirection}`
-      : `Direcciones (fashion/editorial) — CADA UNA visualmente DISTINTA. La persona SIEMPRE viste la prenda del brief — nunca inventar ropa distinta.
-1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados. Incluir nombre de campaña del brief y nombre de marca en tipografía visible.
-2. Tipográfico editorial — tipografía grande como elemento visual dominante, imagen secundaria. El nombre de campaña y/o descuento del brief son el texto protagonista. En español.
-3. Producto hero — prenda protagonista con iluminación de estudio. Copy visible: nombre de campaña + descuento si aplica. Nombre de marca en esquina.
-4. Lifestyle aspiracional — ambiente y mood que refuerzan la identidad de marca. Nombre de campaña del brief en tipografía elegante visible.
-5. Composición geométrica — bloques de color, formas y tipografía del brand kit. Nombre de campaña y descuento del brief integrados como elementos tipográficos estructurales.
+      : `Direcciones (fashion/editorial) — las 6 piezas muestran el MISMO producto pero con estructuras visuales COMPLETAMENTE DISTINTAS entre sí. La persona viste siempre la misma prenda.
+
+REGLA DE DIVERSIDAD VISUAL: cada dirección debe tener una estructura, jerarquía y mood radicalmente diferente a las otras. Si dos conceptos se parecen en composición, están mal.
+
+1. Minimalista limpio — fondo blanco o color muy sutil, persona centrada con mucho aire alrededor, texto MUY pequeño en la parte inferior. La limpieza y el silencio visual son el protagonista. Sin elementos gráficos decorativos.
+2. Tipográfico editorial — el texto (nombre de campaña o descuento del brief) ocupa el 50-60% del frame en tipografía ULTRA-BOLD. La persona es secundaria, encajada en un corner o detrás del texto. El copy ES el diseño.
+3. Lifestyle aspiracional — escena de ambiente real (dormitorio cálido, luz suave de noche, velas) con la persona relajada usando la prenda. Texto mínimo y elegante superpuesto. Mood íntimo y sensorial.
+4. Composición geométrica — fondo con bloques de color del brand kit, formas geométricas bold (rectángulos, diagonales). Persona integrada como elemento dentro de la grilla. Nombre de campaña + descuento como elementos tipográficos estructurales.
+5. Full promocional — toda la info del brief jerarquizada: descuento GRANDE arriba, nombre de campaña, fechas y mecánicas como bullets o iconos tipográficos abajo. Persona en el centro. Composición cargada de información pero ordenada.
 ${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
@@ -300,7 +303,7 @@ REGLAS:
 - PRENDA: si el brief es sobre un tipo de prenda específico (pijamas, remeras, pantalones, etc.), la persona SIEMPRE viste ESA prenda. NUNCA un blazer, traje, vestido de oficina u otra prenda distinta. Si el brief dice pijamas → todos los conceptos muestran pijamas.
 ${conceptDirections}
 - Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
-- Si hay descripción de producto, usala como referencia del TIPO de prenda pero generá looks VARIADOS según el brief (colores, estampados y estilos distintos en cada concepto). El producto exacto se aplica en un paso posterior — aquí generás la composición creativa.
+- Si hay descripción de producto, todos los conceptos muestran ESA prenda. La variedad NO está en el producto sino en la COMPOSICIÓN: estructura del layout, jerarquía tipográfica, mood, ambiente y tratamiento gráfico deben ser radicalmente distintos en cada concepto.
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 - TODA pieza de e-commerce DEBE tener como mínimo: headline o nombre del producto visible + logo. Una imagen sin copy no es un anuncio.
@@ -385,11 +388,11 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
     : '';
 
-  // In fashion/people mode, productDescription is intentionally NOT injected into the
-  // fullPrompt for generation. The brief drives varied looks (colors, moods, compositions).
-  // The actual product is applied later via apply-product. Injecting the specific product
-  // description here causes all 6 concepts to replicate the same garment.
-  const productDescHint = '';
+  // In fashion/people mode the product image is NOT passed as visual input (avoids person
+  // cloning), so we inject the text description so gpt-image-2 knows what garment to show.
+  const productDescHint = hasPeople && !isEvents && !isCorporate && productDescription
+    ? `Garment worn by the model: ${productDescription}`
+    : '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
     : visualRefs.length > 0
