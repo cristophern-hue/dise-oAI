@@ -255,12 +255,12 @@ ${refStyleDirection}`
 4. Abstracto geométrico — formas geométricas abstractas (círculos, líneas, grillas) en paleta del brand kit. Sugieren conexión, crecimiento o innovación. Tipografía institucional elegante como elemento gráfico central. Sin fotografía realista.
 5. Arquitectura y espacio aspiracional — edificio corporativo moderno, skyline o espacio interior premium como imagen dominante. Overlay semitransparente en color del brand kit. Headline y propuesta de valor sobre la imagen.
 ${refStyleDirection}`
-      : `Direcciones (fashion/campaña) — CADA UNA visualmente DISTINTA. La persona SIEMPRE viste la prenda del brief — nunca inventar ropa distinta.
-1. Offer Focus — el descuento o beneficio del brief es el elemento tipográfico dominante (ej: "30% OFF" en tipografía heavy XL). La persona y la prenda son protagonistas. Fondo sólido del brand kit. Copy en español.
-2. Lifestyle Focus — la persona usa la prenda en un ambiente cotidiano cálido que refleja el tono del brief. Texto grande con mensaje de uso/beneficio. Tipografía editorial en español.
-3. Aspirational Focus — editorial premium aspiracional. La persona en actitud sofisticada con la prenda. Nombre de marca o tagline elegante en tipografía sutil. Iluminación y composición de campaña internacional.
-4. Tipográfico editorial — tipografía bold XL del brief como elemento visual dominante (nombre de campaña, claim o descuento). La persona y la prenda en segundo plano. Texto es protagonista. Todo en español.
-5. Daily Use Focus — momento cotidiano real y cercano (en casa, desayunando, leyendo). Tono casual y auténtico. Copy corto y relatable en español. Composición relajada.
+      : `Direcciones (fashion/editorial) — CADA UNA visualmente DISTINTA. La persona SIEMPRE viste la prenda del brief — nunca inventar ropa distinta.
+1. Minimalista limpio — fondo sólido del brand kit, producto o persona centrados. Incluir nombre de campaña del brief y nombre de marca en tipografía visible.
+2. Tipográfico editorial — tipografía grande como elemento visual dominante, imagen secundaria. El nombre de campaña y/o descuento del brief son el texto protagonista. En español.
+3. Producto hero — prenda protagonista con iluminación de estudio. Copy visible: nombre de campaña + descuento si aplica. Nombre de marca en esquina.
+4. Lifestyle aspiracional — ambiente y mood que refuerzan la identidad de marca. Nombre de campaña del brief en tipografía elegante visible.
+5. Composición geométrica — bloques de color, formas y tipografía del brand kit. Nombre de campaña y descuento del brief integrados como elementos tipográficos estructurales.
 ${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
@@ -294,8 +294,10 @@ REGLAS:
 - Estilo PREMIUM, nunca genérico ni clipart
 - TODO el copy, titulares y texto visible en las imágenes DEBE estar en ESPAÑOL. Nunca inglés, nunca "Indulge in Luxury", nunca "Summer Dreams" ni frases genéricas anglosajones.
 - NOMBRE DE CAMPAÑA/EVENTO: si el brief menciona un nombre (ej: "Pijamania", "Black Friday", "Cyber Monday"), usalo EXACTAMENTE como está escrito — sin traducirlo, modificarlo, reemplazarlo ni inventar uno alternativo. Ese nombre es el headline principal.
-- PROHIBICIÓN ABSOLUTA de inventar nombres de campaña, nombres de eventos, nombres de colecciones o cualquier copy que no esté textualmente en el brief.
+- REGLA CRÍTICA DE CONTENIDO: el nombre de campaña del brief DEBE aparecer en el image_prompt de AL MENOS 4 de los 6 conceptos como texto visible en la imagen. Si hay descuento (ej: "30% off"), debe aparecer en AL MENOS 3 conceptos. No inventar taglines alternativos — usar el contenido del brief.
+- PROHIBICIÓN ABSOLUTA de inventar nombres de campaña, taglines genéricos, nombres de colecciones o cualquier copy que no esté textualmente en el brief. "Suavidad que acompaña tus momentos" es inventado y está PROHIBIDO si no está en el brief.
 - Si el brief tiene un porcentaje de descuento, ese número debe dominar visualmente en las piezas promocionales.
+- PRENDA: si el brief es sobre un tipo de prenda específico (pijamas, remeras, pantalones, etc.), la persona SIEMPRE viste ESA prenda. NUNCA un blazer, traje, vestido de oficina u otra prenda distinta. Si el brief dice pijamas → todos los conceptos muestran pijamas.
 ${conceptDirections}
 - Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
 - Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
@@ -454,6 +456,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               isEvents ? `USE ONLY THESE EXACT HEX COLORS: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT add purple, violet, neon, or any color not in this brand kit.` : '',
               'ALL TEXT IN THE IMAGE MUST BE IN SPANISH. Zero English words in any headline, label, CTA, or body copy.',
               'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
+              `Campaign brief (use this content for any text in the image): ${brief.slice(0, 400)}`,
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
             ].filter(Boolean).join(' ');
