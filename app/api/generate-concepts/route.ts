@@ -324,7 +324,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ...(isSimilarMode
       ? styleReferenceDataUrls.map(url => ({
           type: 'image_url' as const,
-          image_url: { url, detail: 'low' as const },
+          image_url: { url, detail: 'high' as const },
         }))
       : []),
   ];
@@ -371,7 +371,9 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
     : '';
-  const styleHint = visualRefs.length > 0
+  const styleHint = isSimilarMode
+    ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
+    : visualRefs.length > 0
     ? 'Match the visual style, typography treatment and composition quality of the provided brand reference pieces.'
     : '';
 
