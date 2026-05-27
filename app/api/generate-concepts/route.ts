@@ -274,7 +274,7 @@ POSES: cada concepto debe tener una pose distinta. PROHIBIDO repetir "modelo par
 
 1. Minimalista editorial — espíritu: quietud de lujo, silencio visual intencional, elegancia contenida. Pose sugerida: 3/4 o perfil. OBLIGATORIO: el nombre de campaña del brief DEBE aparecer como elemento tipográfico fino y espaciado — pequeño pero presente. Nunca pieza muda sin copy. La diferencia con catálogo: composición intencional, espacio negativo trabajado, tipografía de diseño.
 2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante ocupa 50-60% del frame, figura humana secundaria o fragmentada. Pose sugerida: sentada, recostada o en plano recortado — nunca parada de frente. Audaz y gráfico.
-3. Lifestyle aspiracional — espíritu: intimidad sensorial, calidez doméstica, momento privado. Pose sugerida: acostada, recostada o sentada cómoda en un entorno real — NUNCA parada. Ambiente que envuelve. Texto mínimo: solo nombre de campaña + marca.
+3. Lifestyle aspiracional — espíritu: intimidad sensorial, calidez doméstica, momento privado. Pose OBLIGATORIA: sentada cómoda, recostada o acostada en entorno de hogar real (sillón, cama, sofá, alfombra) — NUNCA parada. COMPOSICIÓN: nombre de campaña + descuento en tipografía limpia en el tercio superior izquierdo; modelo en el centro-derecha ocupando 60-70% del frame; tercio inferior con espacio para una línea de copy de apoyo o descripción breve. Fondo: ambiente hogareño cálido, colores suaves.
 4. Composición geométrica — espíritu: arquitectura gráfica, tensión visual, formas que ordenan el caos. Pose sugerida: cuerpo en diagonal o movimiento. La persona y la geometría se integran como un solo sistema visual.
 5. Full promocional — espíritu: energía de oferta, jerarquía de información clara, todo visible de un vistazo. Pose sugerida: activa, con actitud — no simplemente parada. Diseño que informa y atrae.
 ${refStyleDirection}`;
@@ -392,7 +392,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     : isEvents
     ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. Portrait 4:5.'
     : hasPeople
-      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic. FULL BODY SHOT — the model must be fully visible from head to toe, no cropping of legs or feet. Text elements composited naturally into the composition — they can appear top, bottom, side, or overlaid, depending on the concept direction. Each concept should have a visually distinct layout.'
+      ? 'Fashion editorial photography, natural skin tones, high-end campaign quality, photorealistic. SHOW THE FULL GARMENT — the entire pyjama/outfit must be visible so the product reads clearly; choose whatever pose best suits the concept direction (standing, sitting, lying, reclined, crouched — all valid). Do NOT default to standing: match the pose to the concept mood. Text elements composited naturally into the composition. Each concept must have a visually distinct layout, mood, and background treatment.'
       : isProductEcommerce
         ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping.'
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
