@@ -72,20 +72,30 @@ export async function POST(req: NextRequest) {
   const responsesTool = [{ type: 'image_generation', model: 'gpt-image-2', quality: 'high', size: '1024x1536' }];
 
   const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (openai.responses.create as any)({
-        model: 'gpt-4o',
-        input: responsesInput(promptText),
-        tools: responsesTool,
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const block of (response.output || [])) {
-        if (block.type === 'image_generation_call' && block.result) return block.result;
+    for (let i = 0; i < 2; i++) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const response = await (openai.responses.create as any)({
+          model: 'gpt-4o',
+          input: responsesInput(promptText),
+          tools: responsesTool,
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const block of (response.output || [])) {
+          if (block.type === 'image_generation_call' && block.result) return block.result;
+        }
+        console.error(`apply-product ${label}: no image block`);
+        return null; // content filter — retrying same prompt won't help
+      } catch (err: unknown) {
+        const status = (err as { status?: number })?.status;
+        if (status === 429 && i === 0) {
+          console.warn(`apply-product ${label}: rate limited, waiting 10s`);
+          await new Promise(r => setTimeout(r, 10000));
+          continue; // one retry on 429 only
+        }
+        console.error(`apply-product ${label} failed:`, err);
+        return null; // any other error — exit immediately
       }
-      console.error(`apply-product ${label}: no image block`);
-    } catch (err) {
-      console.error(`apply-product ${label} failed:`, err);
     }
     return null;
   };
