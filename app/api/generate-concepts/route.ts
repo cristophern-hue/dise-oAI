@@ -274,7 +274,7 @@ DIVERSIDAD OBLIGATORIA: si dos conceptos se parecen en pose, composición o mood
 1. Minimalista editorial — espíritu: quietud de lujo, elegancia contenida. OBLIGATORIO: nombre de campaña como tipografía fina y espaciada, pequeña pero presente. Espacio negativo trabajado. No es una foto de catálogo — es composición intencional.
 2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante 50-60% del frame. Figura humana secundaria o fragmentada dentro del texto.
 3. Lifestyle aspiracional — espíritu: calidez doméstica, momento privado en entorno hogareño (sillón, sofá, cama, alfombra). Nombre de campaña + descuento en tercio superior; modelo centro-derecha; espacio inferior para copy de apoyo.
-4. Composición geométrica — espíritu: arquitectura gráfica, tensión visual. Cuerpo integrado en la geometría, dinamismo visual.
+4. KV retail full promocional — estructura de 3 zonas fijas: ZONA SUPERIOR (≈25% del frame): fondo blanco o color muy claro, nombre de campaña en tipografía fina arriba + nombre de la oferta/mecánica en tipografía bold XL que domina esta zona. ZONA CENTRAL (≈45%): foto de modelo o grupo familiar en contexto doméstico real, fondo integrado con las zonas. ZONA INFERIOR (≈30%): el porcentaje de descuento en tipografía heavy extrabold ultra-grande es el protagonista, debajo la condición en letra pequeña (ej: "en la de igual o menor valor"), fecha de vigencia, URL de la tienda. Todo en paleta del brand kit. Jerarquía retail clásica: campaña → producto → precio → condición.
 5. Full promocional — espíritu: energía de oferta, jerarquía clara. Actitud activa, presencia fuerte.
 ${refStyleDirection}`;
 
