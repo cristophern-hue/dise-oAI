@@ -22,11 +22,23 @@ interface ConceptItem {
   image_prompt: string;
 }
 
-const PRODUCT_DESCRIPTION_PROMPT = `Sos un técnico de producto de moda de alta gama. Analizá esta prenda y describila con precisión quirúrgica para que pueda ser reproducida EXACTAMENTE por un modelo de IA generativa. Imaginá que quien lee tu descripción no puede ver la foto — tu texto es el único recurso.
+const PRODUCT_DESCRIPTION_PROMPT = `Sos un técnico de producto experto. Analizá el objeto en la foto y describilo con precisión absoluta para que un modelo de IA generativa pueda reproducirlo EXACTAMENTE. Quien lea tu descripción no puede ver la foto — tu texto es el único recurso.
+
+PASO 0 — CLASIFICACIÓN OBLIGATORIA: ¿Este objeto es una PRENDA DE VESTIR (ropa, calzado, accesorio de moda) o un PRODUCTO NO-FASHION (envase, packaging, herramienta, repuesto, alimento, electrodoméstico, etc.)?
+
+Si es PRODUCTO NO-FASHION → ignorá completamente las secciones 1 y 5 (son exclusivas de prendas) y en su lugar describí:
+   TIPO DE OBJETO: qué es exactamente (botella de aceite motor 4L, balde de lubricante 20L, filtro de combustible cilíndrico, etc.), función y segmento de mercado.
+   FORMA Y GEOMETRÍA — CRÍTICO: silueta general (cilíndrico, rectangular, trapezoidal), si tiene asa/handle (posición, color, si es integrado), boca/tapón (forma, color exacto, posición), relieves o costillas, ratio alto:ancho ("3x más alto que ancho", "casi cuadrado").
+   MATERIAL DEL CUERPO: HDPE opaco, PET semitransparente, lata metálica, polipropileno — color del material del cuerpo INDEPENDIENTE de la etiqueta, acabado (mate, semi-brillante, brillante).
+   ETIQUETA / DECORACIÓN GRÁFICA — CRÍTICO (equivalente al estampado): cobertura (wrap-around, solo frontal, franja central), color base de la etiqueta con hex obligatorio, colores de todos los elementos gráficos con hex, posición y tamaño de cada elemento (logo, texto de marca, especificaciones técnicas como "5W-30"), tipografía visible y jerarquía, elementos adicionales (franjas, degradados, iconos de certificación, número de litros/volumen).
+   TAPÓN/CIERRE: forma, color exacto con hex, tamaño relativo respecto al cuerpo.
+   ELEMENTOS ÚNICOS Y AUSENCIAS: qué hace reconocible este producto vs uno genérico; qué NO tiene (ej: "SIN asa", "etiqueta solo frontal NO wrap-around").
+
+Si es PRENDA DE VESTIR → aplicá las secciones 1-7 abajo.
 
 Describí en este orden exacto:
 
-1. TIPO DE PRENDA Y CALCE — CRÍTICO: categoría (remera, pantalón, vestido, campera, etc.), silueta y corte (slim, straight, wide-leg, oversize, entallado, etc.), largo exacto (hasta el tobillo, a la rodilla, etc.).
+1. TIPO DE PRENDA Y CALCE — CRÍTICO (SOLO PARA PRENDAS): categoría (remera, pantalón, vestido, campera, etc.), silueta y corte (slim, straight, wide-leg, oversize, entallado, etc.), largo exacto (hasta el tobillo, a la rodilla, etc.).
    Luego describí el CALCE REAL sobre el cuerpo con precisión quirúrgica:
    - ¿Cómo cae la tela? ¿Rígida y estructurada, o fluida y con drapeado?
    - ¿Dónde hay ceñimiento y dónde holgura? (ej: "ceñido en cadera y suelto desde el muslo hacia abajo", "holgado en todo el torso sin marcar el cuerpo")
@@ -234,8 +246,8 @@ export async function POST(req: NextRequest) {
         if (productDetailImages.length === 1) {
           desc = await describeProductWithVision(openai, productDetailImages[0]);
         } else {
-          // Multiple products: describe each one so the generator knows what all of them are
-          const multiPrompt = `Hay ${productDetailImages.length} productos distintos en las imágenes. Describí CADA UNO por separado, numerándolos (PRODUCTO 1:, PRODUCTO 2:, etc.). Aplicá el mismo nivel de detalle para cada uno.\n\n${PRODUCT_DESCRIPTION_PROMPT}`;
+          // Multiple products: describe each one with the appropriate framework (fashion vs packaging)
+          const multiPrompt = `Hay ${productDetailImages.length} productos distintos en las imágenes (una imagen por producto). Describí CADA UNO por separado, numerándolos (PRODUCTO 1:, PRODUCTO 2:, etc.). Para cada uno, determiná primero si es prenda de vestir o producto no-fashion y aplicá el framework correspondiente.\n\n${PRODUCT_DESCRIPTION_PROMPT}`;
           const response = await openai.chat.completions.create({
             model: 'gpt-4o',
             messages: [{
@@ -352,18 +364,14 @@ REGLAS:
 - Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 ${isProductEcommerce ? `
-MODO E-COMMERCE CON PRODUCTO: cada image_prompt es una INSTRUCCIÓN DE EDICIÓN para images.edit.
-El modelo recibe la foto del producto y la transforma. Describí:
-- Qué fondo agregar (color sólido del brand kit, ambiente industrial, etc.)
-- Qué texto y elementos de marca superponer
-- Cómo componer el producto en el encuadre
-- NUNCA decir "generate" — siempre "transform this product photo into..."
-El producto DEBE quedar exactamente igual — solo se agregan elementos alrededor.` : ''}
+⚠ ANTI-CONTAMINACIÓN DE MARCA EN image_prompt — CRÍTICO: cuando describas los productos en los image_prompt, referite a ellos EXCLUSIVAMENTE como "the product from reference image" o "the reference product" — NUNCA uses el nombre de marca del brief para describir el objeto visual (no escribas "Valvoline bottle", "Cummins filter", "filtro Fleetguard", etc.). El nombre de marca va SOLO en el copy tipográfico de la pieza. El generador de imagen ve las fotos directamente y reproduce el producto real — si el image_prompt nombra una marca distinta, genera un producto genérico de esa marca ignorando la foto real.
+${productDetailImages.length === 1 ? `MODO E-COMMERCE 1 PRODUCTO (images.edit): cada image_prompt es una INSTRUCCIÓN DE EDICIÓN. Escribí "transform this product photo into...". Describí qué fondo agregar, qué texto y elementos de marca superponer, cómo componer. El producto DEBE quedar exactamente igual — solo agregar elementos alrededor.`
+: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como "product from reference image 2", "product from reference image 3"), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`
     : `Sos un director creativo senior de retail y publicidad digital.
-Dado un brief, brand kit y referencias visuales, generá exactamente 6 conceptos distintos para una pieza portrait 1024x1536.
+Dado un brief, brand kit y referencias visuales, generá exactamente ${targetCount} conceptos distintos para una pieza portrait 1024x1536.
 
 REGLAS:
 - Usá los hex exactos del brand kit como colores dominantes
@@ -389,13 +397,9 @@ ${isEvents ? `MODO EVENTOS — PROHIBICIONES ABSOLUTAS EN CADA image_prompt:
 - CERO contenido inventado: no inventar nombres de sesiones, ponentes, horarios ni agenda no presente en el brief.
 - USAR EXCLUSIVAMENTE los hex del brand kit. Ningún color exterior a la paleta del brand kit.` : ''}
 ${isProductEcommerce ? `
-MODO E-COMMERCE CON PRODUCTO: cada image_prompt es una INSTRUCCIÓN DE EDICIÓN para images.edit.
-El modelo recibe la foto del producto y la transforma. Describí:
-- Qué fondo agregar (color sólido del brand kit, ambiente industrial, etc.)
-- Qué texto y elementos de marca superponer (logo, nombre del evento, copy de la promo, fechas, mecánicas)
-- Cómo componer el producto en el encuadre
-- NUNCA decir "generate" — siempre "transform this product photo into..."
-El producto en la foto DEBE quedar exactamente igual — solo se agregan elementos alrededor.` : ''}
+⚠ ANTI-CONTAMINACIÓN DE MARCA EN image_prompt — CRÍTICO: cuando describas los productos en los image_prompt, referite a ellos EXCLUSIVAMENTE como "the product from reference image" o "the reference product" — NUNCA uses el nombre de marca del brief para describir el objeto visual (no escribas "Valvoline bottle", "Cummins filter", "filtro Fleetguard", etc.). El nombre de marca va SOLO en el copy tipográfico de la pieza. El generador de imagen ve las fotos directamente y reproduce el producto real — si el image_prompt nombra una marca distinta, genera un producto genérico de esa marca ignorando la foto real.
+${productDetailImages.length === 1 ? `MODO E-COMMERCE 1 PRODUCTO (images.edit): cada image_prompt es una INSTRUCCIÓN DE EDICIÓN. Escribí "transform this product photo into...". Describí qué fondo agregar, qué texto y elementos de marca superponer, cómo componer el producto en el encuadre. El producto DEBE quedar exactamente igual — solo agregar elementos alrededor.`
+: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como "product from reference image 2", "product from reference image 3"), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.

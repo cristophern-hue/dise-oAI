@@ -161,6 +161,7 @@ export default function Home() {
     startLoading(kvMode ? 'Reciclando KV...' : 'Generando conceptos...');
     setError('');
     try {
+      const compressedProductImages = await Promise.all(productDetailImages.map(compressBase64ForStorage));
       const res = await fetch('/api/generate-concepts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -168,7 +169,7 @@ export default function Home() {
           brief,
           brandKit: selectedClient,
           peopleMode,
-          productDetailImages,
+          productDetailImages: compressedProductImages,
           referenceImages,
           ...(kvMode && kvReferenceImage ? { styleReferenceImages: [kvReferenceImage], count: 5 } : { count: conceptCount }),
         }),
@@ -202,6 +203,7 @@ export default function Home() {
     setError('');
     try {
       const compressedRefs = await Promise.all(pinned.map(c => compressBase64ForStorage(c.base64)));
+      const compressedProductImages = await Promise.all(productDetailImages.map(compressBase64ForStorage));
       const res = await fetch('/api/generate-concepts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -209,7 +211,7 @@ export default function Home() {
           brief,
           brandKit: selectedClient,
           peopleMode,
-          productDetailImages,
+          productDetailImages: compressedProductImages,
           referenceImages,
           styleReferenceImages: compressedRefs,
           count: newCount,
