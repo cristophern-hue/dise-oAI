@@ -379,7 +379,8 @@ Ignorá nombres de marcas/tipos de producto del brief para decidir qué objetos 
 ${productDetailImages.length === 1
   ? `Empezá el image_prompt con "transform this product photo into...". Describí qué agregar alrededor. El producto no cambia.`
   : `Empezá con "Starting from the ${productDetailImages.length} product photos as anchors, build a composition where...". Describí posición y lo que rodea cada producto.`
-}` : ''}
+}
+PROHIBICIÓN ABSOLUTA en los image_prompts: NO escribir instrucciones que modifiquen el producto en sí — NO "cambiar el color del envase", NO "aplicar el logo sobre el producto", NO "recolorear la etiqueta", NO "agregar texto en el packaging". Los image_prompts SOLO describen: posición del producto en el frame, fondo/ambiente ALREDEDOR, iluminación, y elementos tipográficos de campaña SEPARADOS del producto.` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`
@@ -419,7 +420,8 @@ El brief puede mencionar nombres de marcas o tipos de productos como "Filtros Fl
 ${productDetailImages.length === 1
   ? `SINTAXIS (images.edit — 1 producto): empezá el image_prompt con "transform this product photo into a [tipo de composición]...". Describí qué agregar alrededor del producto. El producto NO cambia.`
   : `SINTAXIS (multi-producto): empezá con "Starting from the ${productDetailImages.length} product photos as anchors, build a composition where...". Describí cómo se posicionan y qué los rodea. Referite a cada producto como "product ${productDetailImages.map((_, i) => i + 1).join(' / product ')} from the reference photos".`
-}` : ''}
+}
+PROHIBICIÓN ABSOLUTA en los image_prompts: NO escribir instrucciones que modifiquen el producto en sí — NO "cambiar el color del envase/etiqueta a los colores del brand kit", NO "aplicar el logo de la marca sobre el producto", NO "recolorear", NO "agregar texto en el packaging". El producto es INMUTABLE. Los image_prompts SOLO describen qué poner ALREDEDOR del producto.` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.
@@ -489,8 +491,14 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? productDetailImages.length > 1
-      ? `⚠ PRODUCTO FÍSICO OBLIGATORIO — COPIA VISUAL EXACTA DESDE LAS FOTOS DE REFERENCIA: Los ${productDetailImages.length} productos en las imágenes de referencia son los ÚNICOS objetos físicos permitidos en esta composición. PROHIBIDO ABSOLUTO: NO generar productos nuevos desde datos de entrenamiento, NO sustituir, NO alucinar productos distintos aunque el nombre de campaña del brief mencione marcas como Cummins, Valvoline, Shell u otras. Los únicos productos válidos son exactamente los objetos fotografiados en las imágenes de referencia — copiá su forma, packaging, colores, etiquetas y proporciones con fidelidad pixel a pixel. TODOS deben aparecer visiblemente en la composición.`
-      : `⚠ PRODUCTO FÍSICO OBLIGATORIO — COPIA VISUAL EXACTA DESDE LA FOTO DE REFERENCIA: El único objeto físico permitido es exactamente el producto fotografiado en la imagen de referencia. PROHIBIDO ABSOLUTO: NO generar un producto nuevo desde datos de entrenamiento, NO sustituir por uno similar aunque el brief mencione un nombre de marca. Copiá el producto de la foto con fidelidad exacta: forma, packaging, color, etiqueta, proporciones.`
+      ? `⚠ PRODUCTO FÍSICO — INMUTABLE Y EXACTO (${productDetailImages.length} productos): Los productos de las fotos de referencia son los ÚNICOS objetos físicos. PROHIBIDO ABSOLUTO: NO generar productos desde datos de entrenamiento, NO sustituir, NO alucinar. PROHIBIDO MODIFICAR el producto: NO cambiar colores del envase/etiqueta, NO alterar ni reimaginar el texto impreso en el packaging, NO deformar la forma ni proporciones, NO aplicar logos adicionales SOBRE el producto. Los productos se reproducen EXACTAMENTE como están en las fotos. TODOS deben aparecer visiblemente.`
+      : `⚠ PRODUCTO FÍSICO — INMUTABLE: El producto de la foto de referencia es FIJO. PROHIBIDO ABSOLUTO: NO generar un producto nuevo desde datos de entrenamiento, NO sustituir. PROHIBIDO MODIFICAR el producto: NO cambiar sus colores, NO alterar el texto o logos en el envase/etiqueta, NO aplicar marcas adicionales SOBRE el producto, NO deformar su forma ni proporciones. El producto permanece exactamente como está en la foto. SOLO cambia el fondo, la iluminación y los elementos tipográficos de campaña a su alrededor.`
+    : '';
+
+  const productImmutabilityHint = isProductEcommerce
+    ? productDetailImages.length === 1
+      ? 'PRODUCT FROZEN — DO NOT TOUCH: The product is the input image itself — its appearance is locked. NEVER alter: product colors, label text, packaging text, product shape, product proportions. NEVER apply brand logos or extra marks ON the product surface. ONLY permitted additions: background/environment around the product, lighting effects around it, typographic campaign elements (headlines, copy) placed OUTSIDE the product area.'
+      : `PRODUCTS FROZEN — DO NOT TOUCH any of the ${productDetailImages.length} products: NEVER alter colors, label text, packaging text, product shape, proportions. NEVER apply logos or extra marks ON any product surface. Reproduce each product pixel-perfect from its reference photo.`
     : '';
 
   // Product description injected into every concept so gpt-image-2 replicates the exact
@@ -554,6 +562,7 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
             const fullPrompt = [
               imageMapHint,
               productHint,
+              productImmutabilityHint,
               productTypeContext,
               concept.image_prompt,
               `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}.`,
