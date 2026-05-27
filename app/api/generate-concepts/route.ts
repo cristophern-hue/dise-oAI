@@ -413,23 +413,21 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
 
   const logoHint = logoImages.length > 0
     ? (() => {
-        const base = 'Include the brand logo in the bottom-right corner (≈8% of frame width, clear space around it). ';
+        const logoPosition = `The LAST ${logoImages.length} image(s) in the provided set are the brand logo — not product photos, not style references. `;
+        const base = 'Place the logo in the bottom-right corner (≈8% of frame width, clear space around it). ';
+        const replication = 'REPLICATION RULE: copy the logo pixel-faithfully — exact same shape, proportions, internal elements and colors as the reference image. Never distort, simplify, recolor, or reinvent it. If it does not contrast well with the background, place a small solid neutral rectangle behind it rather than changing the logo. ';
         if (logos.dark && logos.light) {
-          return base +
-            'Two logo versions are provided as reference images: a dark/colored version and a white/reversed version. ' +
-            'RULE: use the WHITE logo on dark or saturated color backgrounds; use the DARK logo on light or white backgrounds. ' +
-            'Replicate the logo faithfully — same shape, proportions, colors, and elements. Never distort or recolor it.';
+          return logoPosition + base + replication +
+            'VERSION SELECTION: the second-to-last image is the dark/colored logo (use on light or white backgrounds); the last image is the white/reversed logo (use on dark or saturated color backgrounds). Choose the version with the highest contrast against the local background area.';
         }
         if (logos.dark) {
-          return base +
-            'The dark logo version is provided as a reference image. Replicate it faithfully on a background area with sufficient contrast. ' +
-            'Never distort or recolor it.';
+          return logoPosition + base + replication +
+            'This is the dark logo version — use it on light backgrounds. On dark backgrounds, place a small light-colored rectangle behind it for contrast.';
         }
-        return base +
-          'The white/light logo version is provided as a reference image. Replicate it faithfully on dark or colored backgrounds. ' +
-          'Never distort or recolor it.';
+        return logoPosition + base + replication +
+          'This is the white/light logo version — use it on dark or saturated backgrounds. On light backgrounds, place a small dark rectangle behind it for contrast.';
       })()
-    : `BRAND MARK — NO LOGO IMAGE PROVIDED: do NOT invent any graphic symbol, icon, monogram, lettermark, or decorative mark. Place ONLY the brand name "${brandKit.name}" as plain typographic text in the bottom-right corner (small, ≈8% of frame width, with clear space around it). Zero invented graphic elements — text only.`;
+    : `BRAND MARK — NO LOGO IMAGE PROVIDED: do NOT invent any graphic symbol, icon, monogram, lettermark, or decorative mark of any kind. Place ONLY the brand name "${brandKit.name}" as plain typographic text in the bottom-right corner (small, ≈8% of frame width, clear space around it). Zero invented graphic elements — text only.`;
 
   // Step 2: Stream each concept image as it completes
   const encoder = new TextEncoder();
