@@ -173,40 +173,55 @@ async function generateWithGptImage2(
   openai: OpenAI,
   prompt: string,
   inputImages: string[] = [],
-  instructions?: string,
+  orchestratorInstruction?: string,
 ): Promise<string> {
   const content = [
     ...inputImages.map(img => ({ type: 'input_image', image_url: img, detail: 'high' })),
     { type: 'input_text', text: prompt },
   ];
 
-  try {
-    // gpt-4o as orchestrator: analyzes reference images and text, then calls
-    // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
-    // reference images and hallucinates products from text associations.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (openai.responses.create as any)({
-      model: 'gpt-4o',
-      ...(instructions ? { instructions } : {}),
-      input: [{ role: 'user', content }],
-      tools: [{
-        type: 'image_generation',
-        model: 'gpt-image-2',
-        quality: 'medium',
-        size: '1024x1536',
-      }],
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const block of (response.output || [])) {
-      if (block.type === 'image_generation_call' && block.result) return block.result;
+  // gpt-4o as orchestrator: analyzes reference images and text, then calls
+  // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
+  // reference images and hallucinates products from text associations.
+  // orchestratorInstruction goes as a developer-role message (highest priority,
+  // controls how gpt-4o writes the internal image_generation prompt).
+  const input = orchestratorInstruction
+    ? [{ role: 'developer', content: orchestratorInstruction }, { role: 'user', content }]
+    : [{ role: 'user', content }];
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (openai.responses.create as any)({
+        model: 'gpt-4o',
+        input,
+        tools: [{
+          type: 'image_generation',
+          model: 'gpt-image-2',
+          quality: 'medium',
+          size: '1024x1536',
+        }],
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const block of (response.output || [])) {
+        if (block.type === 'image_generation_call' && block.result) return block.result;
+      }
+      console.error('Responses API returned no image block');
+      return '';
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      if (status === 429 && attempt === 0) {
+        console.warn('generateWithGptImage2: rate limited, waiting 12s before retry');
+        await new Promise(r => setTimeout(r, 12000));
+        continue;
+      }
+      console.error('Responses API failed:', err);
+      break;
     }
-    console.error('Responses API returned no image block');
-  } catch (err) {
-    console.error('Responses API failed:', err);
   }
 
-  // Fallback: for e-commerce the visual reference matters — skip fallback and return empty
-  // so the caller can retry or report error rather than generate a brand-hallucinated image.
+  // Fallback: for e-commerce the visual reference matters — skip text-only fallback
+  // to avoid generating brand-hallucinated images from training data.
   if (inputImages.length > 0) return '';
 
   const fallback = await openai.images.generate({
@@ -324,19 +339,21 @@ export async function POST(req: NextRequest) {
     : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Impacto y presencia digital — composición tipográfica bold, elementos gráficos de transmisión en vivo, paleta del brand kit con máximo contraste' : 'Superposición gráfica — MITAD fotografía MITAD diseño gráfico. La persona está físicamente integrada dentro de los elementos gráficos: franjas de color sólido que atraviesan el frame y cruzan el cuerpo, formas geométricas que envuelven o encuadran la figura, overlays de color semitransparente sobre partes del cuerpo. POSE OBLIGATORIA: cuerpo en diagonal pronunciada, en movimiento o girado — PROHIBIDO pose estática parada de frente. El nombre de campaña y descuento son parte de la arquitectura gráfica (no flotando encima), integrados en las franjas o bloques de color.'}`;
 
   const conceptDirections = isProductEcommerce
-    ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás.
+    ? `Direcciones (e-commerce de producto) — FOCO PROMOCIONAL. CADA UNA visualmente DISTINTA.
 REGLAS OBLIGATORIAS PARA TODAS LAS DIRECCIONES:
-- Todo el copy, titulares, CTAs y texto visible en la imagen DEBEN estar en ESPAÑOL. Nunca inglés.
-- Usá el nombre de campaña del brief (si existe) como elemento tipográfico principal, no un tagline genérico inventado.
-- Si el brief tiene descuento (ej: "30% off"), ese porcentaje debe aparecer prominentemente en la pieza como elemento tipográfico fuerte.
-- Cada pieza DEBE incluir como mínimo headline o nombre de producto visible + logo de marca. Sin copy no hay anuncio.
-${productDetailImages.length > 1 ? `- HAY ${productDetailImages.length} PRODUCTOS DISTINTOS EN LAS REFERENCIAS: TODOS deben aparecer en cada composición. Disponelos de forma que ambos sean claramente visibles y reconocibles — no ocultar ni recortar ninguno.` : ''}
+- TODO el copy DEBE venir EXCLUSIVAMENTE del brief: nombre de campaña, descuento, mecánicas, claim. PROHIBIDO inventar taglines, slogans o copy que no esté en el brief.
+- Si el brief NO tiene campaña → no hay headline inventado, solo nombre de la marca como texto mínimo.
+- Si el brief TIENE nombre de campaña → ese nombre aparece en TODAS las piezas como headline principal.
+- Si el brief TIENE descuento (ej: "20% off") → el número aparece en AL MENOS 4 de los 6 conceptos como elemento tipográfico dominante.
+- Copy 100% en ESPAÑOL. CERO inglés en la composición.
+- Cada pieza DEBE tener mínimo: headline del brief (o nombre de marca si no hay campaña) + logo de marca.
+${productDetailImages.length > 1 ? `- AMBOS PRODUCTOS SIEMPRE VISIBLES: los ${productDetailImages.length} productos de las fotos deben aparecer en cada pieza, claramente reconocibles, sin recortar ni ocultar ninguno.` : ''}
 
-1. ${productDetailImages.length > 1 ? 'Showcase multi-producto' : 'Producto hero'} con headline — ${productDetailImages.length > 1 ? `los ${productDetailImages.length} productos dispuestos en composición equilibrada (lado a lado, en diagonal, o apilados), cada uno ocupando espacio prominente` : 'el producto ocupa 70% del frame'}, fondo color sólido del brand kit. Si el brief tiene nombre de campaña, usarlo en tipografía bold XL. Si hay descuento, incluirlo en tipografía contrastante y legible. Logo en esquina. Copy 100% en español.
-2. Pieza full promocional — layout en tres franjas verticales: (A) FRANJA SUPERIOR: nombre de campaña del brief en tipografía medium, fondo color sólido del brand kit; (B) FRANJA CENTRAL: el porcentaje de descuento del brief (ej: "30%") en tipografía heavy BLACK ultragrande es el elemento visual dominante, debajo texto secundario como "de descuento" o "off" en tipografía regular más pequeña; (C) FRANJA INFERIOR: zona de mecánicas — lista horizontal limpia de 3-4 ítems en tipografía SANS-SERIF del brand kit, separados por línea vertical fina o punto mediano "·", SIN iconos stock ni clipart genérico, solo texto tipográfico alineado. ${productDetailImages.length > 1 ? 'Ambos productos integrados en la franja central junto al número.' : 'Producto integrado en la franja central detrás o al lado del número.'} Logo en esquina inferior derecha. TODO el copy en ESPAÑOL.
-3. Producto${productDetailImages.length > 1 ? 's' : ''} en contexto ambiental — ${productDetailImages.length > 1 ? 'los productos juntos' : 'el producto'} integrado${productDetailImages.length > 1 ? 's' : ''} en su entorno real según el brief. Overlay semitransparente con headline corto en ESPAÑOL y nombre de marca. El ambiente es el protagonista pero el copy está presente.
-4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame. El headline usa la terminología exacta del brief en ESPAÑOL. ${productDetailImages.length > 1 ? 'Ambos productos flotando pequeños en composición equilibrada.' : 'Producto flotando pequeño en un corner.'} Tipografía estructural como elemento gráfico dominante.
-5. Showcase técnico con copy — macro/closeup de ${productDetailImages.length > 1 ? 'los productos con iluminación de estudio dramática, ambos visibles' : 'el producto con iluminación de estudio dramática'}, fondo oscuro con gradiente lateral. Nombre del producto en tipografía elegante + tagline corto del brief en ESPAÑOL. Logo en esquina inferior.
+1. HERO PROMOCIONAL — el/los producto(s) ocupa(n) 65-70% del frame, posicionado(s) en tercio inferior-central, iluminación de estudio sobre fondo sólido del color primario del brand kit. ZONA SUPERIOR (35%): nombre de campaña del brief en tipografía bold extralarge como bloque de texto dominante. Si hay descuento: incluirlo en tipografía heavy en contraste. Logo esquina inferior. Copy del brief, en español.
+2. OFERTA CON NÚMERO GRANDE — layout de 3 franjas horizontales: (A) FRANJA SUPERIOR (20%): nombre de campaña del brief en tipografía medium sobre fondo del brand kit; (B) FRANJA CENTRAL (50%): si hay descuento → el porcentaje en tipografía heavy BLACK ultragrande (ocupa toda la franja) con el/los producto(s) integrado(s) al costado o detrás; si NO hay descuento → nombre de campaña en extralarge + producto(s) al lado; (C) FRANJA INFERIOR (30%): mecánicas del brief en tipografía sans-serif, separadas por "·", más logo. TODO en español.
+3. SHOWCASE TÉCNICO — producto(s) con iluminación dramática lateral, fondo oscuro con gradiente sutil. ZONA SUPERIOR: nombre de campaña del brief en tipografía serif o display elegante. ZONA INFERIOR: 2-3 atributos técnicos o beneficios del brief en tipografía sans-serif pequeña + logo. Si hay descuento: badge pequeño en corner superior derecho. Estética premium, oscura, técnica.
+4. LIFESTYLE DEL SEGMENTO — producto(s) integrado(s) en el ambiente especificado en el brief (taller, ruta, garage, motor). Overlay semitransparente oscuro en zona superior o inferior. Sobre el overlay: nombre de campaña del brief en tipografía bold + descuento si existe. El ambiente ambienta pero el copy y producto son protagonistas. Logo en corner.
+5. TIPOGRÁFICO PROMOCIONAL — bloques de color contrastantes del brand kit (mitad izquierda / mitad derecha, o diagonal). El nombre de campaña del brief en tipografía heavy XL ocupa 50-60% del frame como elemento gráfico estructural. Producto(s) flotando en la mitad contraria, tamaño prominente (mínimo 40% de la mitad del frame). Si hay descuento: aparece en el bloque de color opuesto al headline, en tipografía bold. Copy del brief.
 ${refStyleDirection}`
     : isEvents
       ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital.
@@ -638,11 +655,15 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
             const ecommerceOrchestatorInstruction = isProductEcommerce
               ? `You are an image composition orchestrator. Your sole job: translate the composition description into an image_generation prompt.
 
-ABSOLUTE RULES for the image_generation prompt you write:
-1. NEVER use brand names, product names, or model numbers (no "Cummins", no "Valvoline", no "Fleetguard", no "Shell", no model codes). These words are FORBIDDEN.
-2. Refer to products ONLY by their visual appearance from the input reference images: "the dark bucket with blue lid from the reference photo", "the silver bottle from the reference photo", "product 1 from the reference image", etc.
-3. The ONLY things you describe: product positioning in the frame, background/environment around the products, lighting, and typographic campaign elements.
-4. If the composition description mentions any brand or product name, silently replace it with "the product from the reference photo" — never copy brand names into the image_generation prompt.`
+CRITICAL DISTINCTION:
+- PRODUCT NAMES as physical objects to generate → FORBIDDEN. Never write "Cummins filter", "Valvoline bottle", "Fleetguard FS1000", or any brand+product combination when describing what object to visually render. Use "the product from reference image 1", "the dark bucket shown in the input photo", etc.
+- CAMPAIGN COPY as text elements in the composition → REQUIRED. The headline text, campaign name, discount percentage, and other copy from the brief MUST appear as typographic elements. Example: a headline saying "CUMMINS SALE" is correct — it's text on the image, not a product to generate.
+
+RULES for the image_generation prompt:
+1. Products (physical objects): describe ONLY by visual appearance from the input reference photos. Never name the brand or model of the product you're rendering.
+2. Typography/copy: use the exact campaign name, discount, and claims from the composition description — these are TEXT elements, not products.
+3. Describe: product positioning, background/environment, lighting, and typographic elements.
+4. If you see a product brand name used as a PHYSICAL OBJECT description, replace it with "the product from reference photo N".`
               : undefined;
 
             const generate = async (prompt: string): Promise<string> =>
