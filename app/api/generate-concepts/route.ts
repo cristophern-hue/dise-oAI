@@ -375,16 +375,12 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const parsed = JSON.parse(rawContent);
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Logo images to pass as visual references — gpt-image-2 can replicate them faithfully
-  const logoImages = [logos.dark, logos.light].filter(Boolean) as string[];
-
-  // Product images are passed as input_image so gpt-image-2 sees the actual print/design.
-  // Person cloning is prevented via prompt instruction, not by removing the image.
+  // Logo is composited client-side after generation — do NOT pass logo images to
+  // gpt-image-2 or it will attempt to replicate them despite prompt instructions.
   const inputImages = [
     ...(isSimilarMode ? styleReferenceDataUrls : visualRefs),
     ...productDetailImages,
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
-    ...logoImages,
   ];
 
   const hasPeople = peopleMode !== 'none';
@@ -413,9 +409,11 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     : '';
 
   // When logos are available: instruct gpt-image-2 to leave the corner clean.
+  const hasLogos = !!(logos.dark || logos.light || brandKit.logoBase64);
+
   // The actual logo is composited onto the image client-side after generation,
   // which is the only reliable way to guarantee logo fidelity.
-  const logoHint = logoImages.length > 0
+  const logoHint = hasLogos
     ? 'BRAND LOGO: do NOT attempt to draw or replicate the logo — leave the bottom-right corner area (≈12% wide × 8% tall) completely clean with no text, symbols, or graphic elements. The real logo will be placed there after generation.'
     : `BRAND MARK — NO LOGO IMAGE PROVIDED: do NOT invent any graphic symbol, icon, monogram, lettermark, or decorative mark of any kind. Place ONLY the brand name "${brandKit.name}" as plain typographic text in the bottom-right corner (small, ≈8% of frame width, clear space around it). Zero invented graphic elements — text only.`;
 
