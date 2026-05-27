@@ -209,6 +209,48 @@ async function generateWithGptImage2(
   return fallback.data?.[0]?.b64_json || '';
 }
 
+// Two-step product insertion — mirrors apply-product/route.ts PATH 1.
+// Step 1: layout was generated without product images.
+// Step 2: gpt-4o sees the layout + real product photos and instructs gpt-image-2
+//         to insert the exact products into the reserved zone.
+async function applyProductToLayout(
+  openai: OpenAI,
+  layoutBase64: string,
+  productDataUrls: string[],
+): Promise<string> {
+  const applyPrompt = [
+    'TASK: Insert the real physical product(s) from the reference photo(s) into the designated product area of the layout.',
+    'WHAT IS SACRED AND MUST NOT CHANGE: the background, colors, typography, text elements, brand elements, overall composition — pixel-perfect preservation.',
+    'WHAT CHANGES: the product placeholder area gets filled with the exact product(s) photographed in the reference images.',
+    'Reproduce each product with absolute fidelity: exact shape, exact colors, exact label design, exact proportions — copy what you see in the reference photos.',
+    'Scale the product(s) to fill the designated area naturally. If multiple products: arrange them as naturally as they fit in the reserved space.',
+    'Do NOT alter any background elements, text, logo placement, or composition outside the product area.',
+  ].join(' ');
+
+  const content = [
+    { type: 'input_image' as const, image_url: `data:image/png;base64,${layoutBase64}`, detail: 'high' as const },
+    ...productDataUrls.map(url => ({ type: 'input_image' as const, image_url: url, detail: 'high' as const })),
+    { type: 'input_text' as const, text: applyPrompt },
+  ];
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (openai.responses.create as any)({
+      model: 'gpt-4o',
+      input: [{ role: 'user', content }],
+      tools: [{ type: 'image_generation', model: 'gpt-image-2', quality: 'medium', size: '1024x1536' }],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const block of (response.output || [])) {
+      if (block.type === 'image_generation_call' && block.result) return block.result;
+    }
+    console.error('applyProductToLayout: no image block');
+  } catch (err) {
+    console.error('applyProductToLayout failed:', err);
+  }
+  return layoutBase64; // fallback: return the layout without product rather than empty
+}
+
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => reject(new Error(`concept timeout after ${ms}ms: ${label}`)), ms);
@@ -374,10 +416,8 @@ REGLAS:
 - Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 ${isProductEcommerce ? `
-⚠ PRODUCTOS DEL BRIEF IGNORADOS — CRÍTICO: el brief puede mencionar nombres de marcas, tipos de productos o categorías (ej: "Filtros Fleetguard", "aceite 15W-40", "lubricantes"). IGNORÁ completamente esas menciones para decidir qué objetos físicos aparecen en la composición. Los ÚNICOS productos que existen son los descriptos en la sección "PRODUCTOS" del mensaje. El número de productos es EXACTAMENTE ${productDetailImages.length}.
-⚠ ANTI-CONTAMINACIÓN VISUAL — CRÍTICO: referite a los productos EXCLUSIVAMENTE como "the product from reference image N" — NUNCA uses nombres de marcas para describir el objeto visual.
-${productDetailImages.length === 1 ? `MODO E-COMMERCE 1 PRODUCTO (images.edit): cada image_prompt es una INSTRUCCIÓN DE EDICIÓN. Escribí "transform this product photo into...". Describí qué fondo agregar, qué texto y elementos de marca superponer, cómo componer. El producto DEBE quedar exactamente igual — solo agregar elementos alrededor.`
-: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como ${productDetailImages.map((_, i) => `"product from reference image ${styleReferenceDataUrls.length + i + 1}"`).join(', ')}), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
+⚠ MODO E-COMMERCE — GENERACIÓN EN DOS PASOS: el image_prompt describe SOLO el LAYOUT. El producto real se insertará después desde las fotos de referencia.
+REGLAS: describí fondo, paleta, tipografía, copy. Reservá una "product zone" con posición y tamaño definidos. NUNCA describas el aspecto visual del producto. El copy sí puede mencionar el nombre de la campaña. Hay exactamente ${productDetailImages.length} producto(s).` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`
@@ -408,10 +448,13 @@ ${isEvents ? `MODO EVENTOS — PROHIBICIONES ABSOLUTAS EN CADA image_prompt:
 - CERO contenido inventado: no inventar nombres de sesiones, ponentes, horarios ni agenda no presente en el brief.
 - USAR EXCLUSIVAMENTE los hex del brand kit. Ningún color exterior a la paleta del brand kit.` : ''}
 ${isProductEcommerce ? `
-⚠ PRODUCTOS DEL BRIEF IGNORADOS — CRÍTICO: el brief puede mencionar nombres de marcas, tipos de productos o categorías (ej: "Filtros Fleetguard", "aceite 15W-40", "lubricantes", "filtro de combustible"). IGNORÁ completamente esas menciones para decidir qué objetos físicos aparecen en la composición. Los ÚNICOS productos que existen en esta campaña son exactamente los descriptos en la sección "PRODUCTOS" del mensaje. Si el brief menciona un producto que NO está descrito en esa sección, ese producto NO aparece — no existe, no se genera, no se alude. El número de productos en la composición es EXACTAMENTE ${productDetailImages.length} — ni más ni menos.
-⚠ ANTI-CONTAMINACIÓN VISUAL — CRÍTICO: en los image_prompt, referite a los productos EXCLUSIVAMENTE como "the product from reference image N" — NUNCA uses nombres de marcas para describir el objeto visual (no escribas "Valvoline bottle", "Cummins filter", "filtro Fleetguard", etc.). Los nombres de marca van SOLO en el copy tipográfico de la pieza.
-${productDetailImages.length === 1 ? `MODO E-COMMERCE 1 PRODUCTO (images.edit): cada image_prompt es una INSTRUCCIÓN DE EDICIÓN. Escribí "transform this product photo into...". Describí qué fondo agregar, qué texto y elementos de marca superponer, cómo componer el producto en el encuadre. El producto DEBE quedar exactamente igual — solo agregar elementos alrededor.`
-: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como ${productDetailImages.map((_, i) => `"product from reference image ${visualRefs.length + i + 1}"`).join(', ')}), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
+⚠ MODO E-COMMERCE — GENERACIÓN EN DOS PASOS: el image_prompt que generás describe SOLO el LAYOUT (fondo, colores, texto de campaña, tipografía, elementos gráficos). El producto real se insertará en un paso separado desde las fotos de referencia.
+REGLAS PARA EL image_prompt:
+1. Describí el fondo, paleta de colores, composición tipográfica, copy de campaña (nombre + descuento), elementos gráficos decorativos.
+2. Reservá una zona específica y claramente definida para el/los producto(s). Describí esa zona como "product zone": su posición (center, left-third, right-third, bottom-center, etc.), tamaño relativo (ej: "product zone occupying 55% of the frame height, centered horizontally"), y color de fondo de esa zona (blanco, color sólido del brand kit, transparente sobre el fondo general).
+3. NUNCA describas las características visuales del producto (forma, colores, etiqueta, material). Solo definí DÓNDE y QUÉ TAN GRANDE va el espacio.
+4. El copy tipográfico SÍ puede mencionar el nombre de la campaña ("Cummins Sale") o el nombre de la marca del cliente — eso es texto en la imagen, no un objeto físico.
+5. Hay exactamente ${productDetailImages.length} producto(s) — la product zone debe acomodarlos a todos.` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.
@@ -574,12 +617,23 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
               'CRITERIOS DE CALIDAD VISUAL — no son reglas de layout, son principios de intención: (1) Jerarquía de peso: no todo puede competir al mismo nivel visual — hay un elemento dominante, uno secundario, y el resto es apoyo. (2) Tensión y dinamismo: las diagonales, el contraste de tamaños y el peso visual crean movimiento — evitar composiciones donde todo tiene el mismo tamaño y reposo. (3) Regla de 3 segundos: el mensaje principal debe leerse en 3 segundos; si hay duda, el diseño falló. (4) Espacio vacío como recurso: el aire intencional señala premium — no llenar por llenar. (5) Emoción antes que información: la pieza debe generar una reacción emocional inmediata antes de que se lea el copy.',
             ].filter(Boolean).join(' ');
 
-            // With multiple products, use Responses API (all images as input).
-            // With single product in e-commerce mode, images.edit anchors output to that product.
-            const generate = async (prompt: string): Promise<string> =>
-              isProductEcommerce && productDetailImages.length === 1
-                ? await editProductForConcept(openai, productDetailImages[0], prompt)
-                : await generateWithGptImage2(openai, prompt, inputImages);
+            // E-COMMERCE: two-step approach matching fashion's apply-product technique.
+            // Step 1: generate the layout (background, text, composition) WITHOUT product images.
+            // Step 2: insert the real product photos into the reserved zone via gpt-4o + gpt-image-2.
+            // This prevents brand-association hallucination: gpt-image-2 never sees "Cummins" +
+            // product-type text simultaneously during layout generation.
+            const generate = async (prompt: string): Promise<string> => {
+              if (isProductEcommerce) {
+                const layoutImages = isSimilarMode ? styleReferenceDataUrls : visualRefs;
+                const layoutBase64 = await generateWithGptImage2(openai, prompt, layoutImages);
+                if (!layoutBase64) return '';
+                const productDataUrls = productDetailImages.map(img =>
+                  img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`
+                );
+                return applyProductToLayout(openai, layoutBase64, productDataUrls);
+              }
+              return generateWithGptImage2(openai, prompt, inputImages);
+            };
 
             try {
               let base64 = await generate(fullPrompt);
@@ -615,7 +669,7 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
               console.error(`concept "${concept.concept_name}" failed:`, err);
               send(controller, { error: concept.concept_name });
             }
-          })(), 55000, concept.concept_name)
+          })(), 90000, concept.concept_name)
           )
         );
       } finally {
