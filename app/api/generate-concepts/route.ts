@@ -374,10 +374,12 @@ REGLAS:
 - Si hay descripción de productos, los image_prompts deben referenciar esos productos específicos
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
 ${isProductEcommerce ? `
-⚠ PRODUCTOS DEL BRIEF IGNORADOS — CRÍTICO: el brief puede mencionar nombres de marcas, tipos de productos o categorías (ej: "Filtros Fleetguard", "aceite 15W-40", "lubricantes"). IGNORÁ completamente esas menciones para decidir qué objetos físicos aparecen en la composición. Los ÚNICOS productos que existen son los descriptos en la sección "PRODUCTOS" del mensaje. El número de productos es EXACTAMENTE ${productDetailImages.length}.
-⚠ ANTI-CONTAMINACIÓN VISUAL — CRÍTICO: referite a los productos EXCLUSIVAMENTE como "the product from reference image N" — NUNCA uses nombres de marcas para describir el objeto visual.
-${productDetailImages.length === 1 ? `MODO E-COMMERCE 1 PRODUCTO (images.edit): cada image_prompt es una INSTRUCCIÓN DE EDICIÓN. Escribí "transform this product photo into...". Describí qué fondo agregar, qué texto y elementos de marca superponer, cómo componer. El producto DEBE quedar exactamente igual — solo agregar elementos alrededor.`
-: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como ${productDetailImages.map((_, i) => `"product from reference image ${styleReferenceDataUrls.length + i + 1}"`).join(', ')}), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
+⚠ MODO E-COMMERCE — EL PRODUCTO ES EL PUNTO DE PARTIDA: el generador recibirá SOLO las fotos del producto. La composición se construye desde el producto hacia afuera.
+Ignorá nombres de marcas/tipos de producto del brief para decidir qué objetos físicos aparecen — solo los ${productDetailImages.length} producto(s) de las fotos.
+${productDetailImages.length === 1
+  ? `Empezá el image_prompt con "transform this product photo into...". Describí qué agregar alrededor. El producto no cambia.`
+  : `Empezá con "Starting from the ${productDetailImages.length} product photos as anchors, build a composition where...". Describí posición y lo que rodea cada producto.`
+}` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`
@@ -408,10 +410,16 @@ ${isEvents ? `MODO EVENTOS — PROHIBICIONES ABSOLUTAS EN CADA image_prompt:
 - CERO contenido inventado: no inventar nombres de sesiones, ponentes, horarios ni agenda no presente en el brief.
 - USAR EXCLUSIVAMENTE los hex del brand kit. Ningún color exterior a la paleta del brand kit.` : ''}
 ${isProductEcommerce ? `
-⚠ PRODUCTOS DEL BRIEF IGNORADOS — CRÍTICO: el brief puede mencionar nombres de marcas, tipos de productos o categorías (ej: "Filtros Fleetguard", "aceite 15W-40", "lubricantes", "filtro de combustible"). IGNORÁ completamente esas menciones para decidir qué objetos físicos aparecen en la composición. Los ÚNICOS productos que existen en esta campaña son exactamente los descriptos en la sección "PRODUCTOS" del mensaje. Si el brief menciona un producto que NO está descrito en esa sección, ese producto NO aparece — no existe, no se genera, no se alude. El número de productos en la composición es EXACTAMENTE ${productDetailImages.length} — ni más ni menos.
-⚠ ANTI-CONTAMINACIÓN VISUAL — CRÍTICO: en los image_prompt, referite a los productos EXCLUSIVAMENTE como "the product from reference image N" — NUNCA uses nombres de marcas para describir el objeto visual (no escribas "Valvoline bottle", "Cummins filter", "filtro Fleetguard", etc.). Los nombres de marca van SOLO en el copy tipográfico de la pieza.
-${productDetailImages.length === 1 ? `MODO E-COMMERCE 1 PRODUCTO (images.edit): cada image_prompt es una INSTRUCCIÓN DE EDICIÓN. Escribí "transform this product photo into...". Describí qué fondo agregar, qué texto y elementos de marca superponer, cómo componer el producto en el encuadre. El producto DEBE quedar exactamente igual — solo agregar elementos alrededor.`
-: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como ${productDetailImages.map((_, i) => `"product from reference image ${visualRefs.length + i + 1}"`).join(', ')}), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
+⚠ MODO E-COMMERCE — EL PRODUCTO ES EL PUNTO DE PARTIDA: el generador de imagen recibirá ÚNICAMENTE las fotos del producto como input visual. La composición se construye desde el producto hacia afuera — el producto es el protagonista absoluto y la composición lo rodea.
+ESTRUCTURA OBLIGATORIA de cada image_prompt:
+1. PRIMERO describí cómo aparece el producto: posición en el frame (centro, tercio izquierdo, etc.), tamaño relativo (ocupa X% del frame), ángulo (frontal, 3/4, etc.), iluminación sobre el producto. NO describas cómo es el producto — el generador lo ve directamente en la foto.
+2. SEGUNDO describí el fondo/ambiente que se construye ALREDEDOR del producto: color sólido del brand kit, gradiente, ambiente (taller, ruta, fondo neutro), iluminación ambiental.
+3. TERCERO describí los elementos tipográficos que se agregan: posición del headline, copy de campaña (nombre + descuento del brief), tamaño y estilo tipográfico.
+El brief puede mencionar nombres de marcas o tipos de productos como "Filtros Fleetguard" — IGNORAR para decidir qué objetos físicos aparecen. Los ÚNICOS objetos físicos son los de las fotos subidas (${productDetailImages.length} producto(s)).
+${productDetailImages.length === 1
+  ? `SINTAXIS (images.edit — 1 producto): empezá el image_prompt con "transform this product photo into a [tipo de composición]...". Describí qué agregar alrededor del producto. El producto NO cambia.`
+  : `SINTAXIS (multi-producto): empezá con "Starting from the ${productDetailImages.length} product photos as anchors, build a composition where...". Describí cómo se posicionan y qué los rodea. Referite a cada producto como "product ${productDetailImages.map((_, i) => i + 1).join(' / product ')} from the reference photos".`
+}` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.
@@ -574,12 +582,20 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
               'CRITERIOS DE CALIDAD VISUAL — no son reglas de layout, son principios de intención: (1) Jerarquía de peso: no todo puede competir al mismo nivel visual — hay un elemento dominante, uno secundario, y el resto es apoyo. (2) Tensión y dinamismo: las diagonales, el contraste de tamaños y el peso visual crean movimiento — evitar composiciones donde todo tiene el mismo tamaño y reposo. (3) Regla de 3 segundos: el mensaje principal debe leerse en 3 segundos; si hay duda, el diseño falló. (4) Espacio vacío como recurso: el aire intencional señala premium — no llenar por llenar. (5) Emoción antes que información: la pieza debe generar una reacción emocional inmediata antes de que se lea el copy.',
             ].filter(Boolean).join(' ');
 
-            // With multiple products, use Responses API (all images as input).
-            // With single product in e-commerce mode, images.edit anchors output to that product.
+            // E-COMMERCE: product is the starting point — the composition is built around it.
+            // Pass ONLY product photos as input images so gpt-4o anchors on the real products,
+            // not on brand visual refs that can trigger training-data hallucination.
+            // Single product: images.edit transforms the product photo into a composition (most faithful).
+            // Multi-product: Responses API with product-only inputs, composition built outward from products.
+            const productDataUrls = productDetailImages.map(img =>
+              img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`
+            );
             const generate = async (prompt: string): Promise<string> =>
               isProductEcommerce && productDetailImages.length === 1
                 ? await editProductForConcept(openai, productDetailImages[0], prompt)
-                : await generateWithGptImage2(openai, prompt, inputImages);
+                : isProductEcommerce
+                  ? await generateWithGptImage2(openai, prompt, productDataUrls)
+                  : await generateWithGptImage2(openai, prompt, inputImages);
 
             try {
               let base64 = await generate(fullPrompt);
