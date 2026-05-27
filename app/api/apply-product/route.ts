@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     '- Color: usá el hex exacto de la descripción si existe. Beige ≠ blanco (#C4B49A). Negro ≠ gris (#0A0A0A).',
     '- Calce: holgado→holgado, slim→slim. No ajustar ni entalllar respecto a cómo cae en la referencia.',
     '- Remates: puño elástico en tobillo si lo tiene la referencia — nunca asumir ruedo abierto genérico.',
-    '- Estampado: misma escala y posición del gráfico que en la foto de referencia. Si llega al ruedo → llega al ruedo.',
+    '- Estampado: misma escala y posición del gráfico que en la foto de referencia. LÍMITE INFERIOR CRÍTICO: si el gráfico llega al ruedo de la prenda en la referencia → debe llegar al ruedo en la imagen generada, SIN dejar margen de tela en blanco abajo. Si hay espacio en blanco en la referencia → respetarlo exactamente. No contraer ni achicar el gráfico para "centrarlo".',
     '- ANTI-ALUCINACIÓN: no inventar bolsillos, botones, bordados ni adornos ausentes en la referencia.',
     '- Texto del estampado (ej: "DRINK COFFEE"): queda SOLO en la prenda, no se extrae como copy de la composición.',
     garmentDesc,

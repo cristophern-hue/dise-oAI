@@ -44,7 +44,8 @@ Describí en este orden exacto:
    - Para prendas con una sola trama de color, el hex es TODO — sin él el generador produce su propio "beige genérico"
 
 3. ESTAMPADO / PRINT (cuando existe, es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, y además:
-   - TAMAÑO PROPORCIONAL: qué porcentaje del frente de la prenda ocupa el gráfico. Ej: "el gato ocupa aproximadamente el 55% del frente de la remera, desde unos 8 cm abajo del cuello hasta casi el ruedo"
+   - TAMAÑO PROPORCIONAL: qué porcentaje del frente de la prenda ocupa el gráfico. Ej: "el gato ocupa aproximadamente el 65% del frente de la remera, desde unos 6 cm abajo del cuello hasta el ruedo exacto sin margen de tela en blanco"
+   - LÍMITE INFERIOR CRÍTICO: ¿el gráfico llega exactamente al ruedo de la prenda, o hay margen de tela en blanco entre el gráfico y el ruedo? Indicalo explícitamente. Si llega al ruedo → "el gráfico llega hasta el ruedo exacto, sin margen de tela en blanco debajo". Si hay margen → "quedan aprox Xcm de tela en blanco entre el gráfico y el ruedo". Este dato es OBLIGATORIO y define si la prenda es cropped-look o full-coverage.
    - POSICIÓN EXACTA: dónde está ubicado. ¿Centrado horizontalmente? ¿Arriba, en el centro, o abajo del frente? ¿Empieza justo debajo del pecho o desde el centro del torso?
    - JERARQUÍA DE ELEMENTOS: si hay texto + gráfico, describí cuál está arriba y a qué distancia. Ej: "texto 'DRINK COFFEE' centrado a unos 3 cm arriba del gato, en tipografía negra bold de aprox 2 cm de alto"
    - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición, y si hay variación de escala o color entre motivos
