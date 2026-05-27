@@ -176,9 +176,12 @@ async function generateWithGptImage2(
   ];
 
   try {
+    // gpt-4o as orchestrator: analyzes reference images and text, then calls
+    // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
+    // reference images and hallucinates products from text associations.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.responses.create as any)({
-      model: 'gpt-image-2',
+      model: 'gpt-4o',
       input: [{ role: 'user', content }],
       tools: [{
         type: 'image_generation',
