@@ -44,6 +44,7 @@ export default function Home() {
 
   const [concepts, setConcepts] = useState<GeneratedImage[]>([]);
   const [generatingCount, setGeneratingCount] = useState(0);
+  const [conceptCount, setConceptCount] = useState(6);
   const [selectedConcepts, setSelectedConcepts] = useState<GeneratedImage[]>([]);
   const [refineIndex, setRefineIndex] = useState(0);
   const [productDescription, setProductDescription] = useState('');
@@ -150,7 +151,7 @@ export default function Home() {
   const generateConcepts = async () => {
     if (!selectedClient || !brief.trim()) return;
     if (kvMode && !kvReferenceImage) return;
-    const count = kvMode ? 5 : 6;
+    const count = kvMode ? 5 : conceptCount;
     setGeneratingCount(count);
     setConcepts([]);
     setSelectedConcepts([]);
@@ -169,7 +170,7 @@ export default function Home() {
           peopleMode,
           productDetailImages,
           referenceImages,
-          ...(kvMode && kvReferenceImage ? { styleReferenceImages: [kvReferenceImage], count: 5 } : {}),
+          ...(kvMode && kvReferenceImage ? { styleReferenceImages: [kvReferenceImage], count: 5 } : { count: conceptCount }),
         }),
       });
       if (!res.ok) throw new Error(await res.text());
@@ -192,10 +193,10 @@ export default function Home() {
 
   const generateSimilar = async () => {
     if (selectedConcepts.length === 0 || !selectedClient || !brief.trim()) return;
-    const newCount = 6 - selectedConcepts.length;
+    const newCount = conceptCount - selectedConcepts.length;
     if (newCount <= 0) return;
     const pinned = [...selectedConcepts];
-    setGeneratingCount(6);
+    setGeneratingCount(conceptCount);
     setConcepts([...pinned]);
     startLoading(`Generando ${newCount} similar${newCount > 1 ? 'es' : ''}...`);
     setError('');
@@ -986,32 +987,47 @@ export default function Home() {
               </div>
             )}
 
-            <button
-              onClick={generateConcepts}
-              disabled={!selectedClient || !brief.trim() || loading || (kvMode && !kvReferenceImage)}
-              className="bg-[#FA5A1E] hover:bg-[#FF912D] disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors flex items-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                  {loadingMsg}{elapsedSec > 5 ? ` · ${elapsedSec}s` : ''}
-                </>
-              ) : kvMode ? (
-                <>
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                  </svg>
-                  Reciclar KV → 5 conceptos
-                </>
-              ) : (
-                <>
-                  Generar 6 conceptos
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                  </svg>
-                </>
+            <div className="flex items-center gap-2">
+              {!kvMode && (
+                <div className="flex items-center gap-1 bg-[#111111]/60 border border-white/10 rounded-xl px-1 py-1">
+                  {[2, 3, 4, 6].map(n => (
+                    <button
+                      key={n}
+                      onClick={() => setConceptCount(n)}
+                      className={`w-8 h-8 rounded-lg text-sm font-medium transition-colors ${conceptCount === n ? 'bg-[#FA5A1E] text-white' : 'text-white/40 hover:text-white/70'}`}
+                    >
+                      {n}
+                    </button>
+                  ))}
+                </div>
               )}
-            </button>
+              <button
+                onClick={generateConcepts}
+                disabled={!selectedClient || !brief.trim() || loading || (kvMode && !kvReferenceImage)}
+                className="bg-[#FA5A1E] hover:bg-[#FF912D] disabled:opacity-40 disabled:cursor-not-allowed text-white font-medium px-6 py-3 rounded-xl transition-colors flex items-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                    {loadingMsg}{elapsedSec > 5 ? ` · ${elapsedSec}s` : ''}
+                  </>
+                ) : kvMode ? (
+                  <>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                    </svg>
+                    Reciclar KV → 5 conceptos
+                  </>
+                ) : (
+                  <>
+                    Generar {conceptCount} concepto{conceptCount !== 1 ? 's' : ''}
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </>
+                )}
+              </button>
+            </div>
           </div>
         )}
 
@@ -1160,7 +1176,7 @@ export default function Home() {
                         Descargar todos
                       </button>
                     )}
-                    {selectedConcepts.length > 0 && selectedConcepts.length < 6 && (
+                    {selectedConcepts.length > 0 && selectedConcepts.length < conceptCount && (
                       <button
                         onClick={generateSimilar}
                         disabled={loading}
@@ -1170,7 +1186,7 @@ export default function Home() {
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                         </svg>
-                        Generar {6 - selectedConcepts.length} similares
+                        Generar {conceptCount - selectedConcepts.length} similares
                       </button>
                     )}
                   </div>
