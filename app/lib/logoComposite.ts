@@ -4,24 +4,22 @@
  * always hallucinate logo variants, so we apply the real logo after generation.
  */
 
-function detectBottomRightBrightness(
+function sampleColor(
   ctx: CanvasRenderingContext2D,
-  imgWidth: number,
-  imgHeight: number,
-): number {
-  const regionW = Math.floor(imgWidth * 0.25);
-  const regionH = Math.floor(imgHeight * 0.15);
-  const x = imgWidth - regionW;
-  const y = imgHeight - regionH;
+  x: number, y: number, w: number, h: number,
+): { r: number; g: number; b: number; brightness: number } {
   try {
-    const data = ctx.getImageData(x, y, regionW, regionH).data;
-    let total = 0;
+    const data = ctx.getImageData(x, y, w, h).data;
+    let r = 0, g = 0, b = 0;
+    const px = data.length / 4;
     for (let i = 0; i < data.length; i += 4) {
-      total += 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      r += data[i]; g += data[i + 1]; b += data[i + 2];
     }
-    return total / (data.length / 4);
+    r = r / px; g = g / px; b = b / px;
+    const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+    return { r, g, b, brightness };
   } catch {
-    return 200;
+    return { r: 255, g: 255, b: 255, brightness: 255 };
   }
 }
 
@@ -41,35 +39,52 @@ export async function compositeLogoOntoBase64(
   const darkLogo = brandKit.logoDark || brandKit.logoBase64 || null;
   const lightLogo = brandKit.logoLight || null;
 
-  if (!darkLogo && !lightLogo) return imageBase64;
+  if (!darkLogo && !lightLogo) {
+    console.log('[logoComposite] no logo available for', brandKit.name);
+    return imageBase64;
+  }
 
   try {
     const canvas = document.createElement('canvas');
     const ctx = canvas.getContext('2d')!;
-    const base = await loadImage(`data:image/png;base64,${imageBase64}`);
+    // Detect format from base64 header (JPEG starts with /9j/, PNG with iVBOR)
+    const mime = imageBase64.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
+    const base = await loadImage(`data:${mime};base64,${imageBase64}`);
     canvas.width = base.naturalWidth;
     canvas.height = base.naturalHeight;
     ctx.drawImage(base, 0, 0);
 
-    const brightness = detectBottomRightBrightness(ctx, canvas.width, canvas.height);
-    // Default to dark logo. Only use light logo when background is clearly dark (< 80).
-    // This keeps the logo visually consistent across all concepts.
+    const logoW = Math.floor(canvas.width * 0.13);
+    const pad = Math.floor(canvas.width * 0.035);
+    const sampleW = logoW + pad * 2;
+    const sampleH = Math.floor(canvas.height * 0.12);
+    const sampleX = canvas.width - sampleW;
+    const sampleY = canvas.height - sampleH;
+
+    // Sample background color in the logo area to choose version and clear correctly
+    const { r, g, b, brightness } = sampleColor(ctx, sampleX, sampleY, sampleW, sampleH);
+
+    // Choose logo version: dark logo by default, light only on very dark backgrounds
     const logoSrc = (brightness < 80 && lightLogo) ? lightLogo : (darkLogo || lightLogo);
     if (!logoSrc) return imageBase64;
 
     const logo = await loadImage(logoSrc);
-    const logoW = Math.floor(canvas.width * 0.11);
     const scale = logoW / logo.naturalWidth;
     const logoH = Math.floor(logo.naturalHeight * scale);
-    const pad = Math.floor(canvas.width * 0.035);
     const x = canvas.width - logoW - pad;
     const y = canvas.height - logoH - pad;
 
+    // Clear the logo area with the background color to erase any hallucinated logo underneath
+    ctx.fillStyle = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
+    ctx.fillRect(x - pad * 0.5, y - pad * 0.5, logoW + pad, logoH + pad);
+
     ctx.drawImage(logo, x, y, logoW, logoH);
 
+    console.log(`[logoComposite] ✓ composited logo for ${brandKit.name} (brightness=${Math.round(brightness)}, version=${logoSrc === lightLogo ? 'light' : 'dark'})`);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.93);
     return dataUrl.split(',')[1] || imageBase64;
-  } catch {
+  } catch (err) {
+    console.error('[logoComposite] failed:', err);
     return imageBase64;
   }
 }
