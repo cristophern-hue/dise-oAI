@@ -388,7 +388,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     : isEvents
     ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. Portrait 4:5.'
     : hasPeople
-      ? 'Fotografía editorial de moda, tonos de piel naturales, calidad de campaña premium, fotorrealista. MOSTRAR LA PRENDA COMPLETA — todo el conjunto (top + pantalón completo, pies incluidos) debe verse. La pose, expresión y actitud emergen del espíritu del concepto. Elementos de texto integrados naturalmente en la composición. Cada concepto debe tener un layout, mood y tratamiento de fondo visualmente distinto.'
+      ? 'Fotografía editorial de moda, tonos de piel naturales, calidad de campaña premium, fotorrealista. MOSTRAR LA PRENDA COMPLETA — todo el conjunto (top + pantalón completo, pies incluidos) debe verse. La pose, expresión y actitud emergen del espíritu del concepto. Elementos de texto integrados naturalmente en la composición. Cada concepto debe tener un layout, mood y tratamiento de fondo visualmente distinto. PROHIBIDO formato webinar/evento/corporativo: CERO badges "WEBINAR", CERO ícono de calendario/reloj/agenda, CERO bullet points con íconos de registro, CERO CTAs "Inscríbete/Registrate". Esto es campaña de moda — la tipografía es decorativa y editorial, no funcional de evento.'
       : isProductEcommerce
         ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping.'
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
