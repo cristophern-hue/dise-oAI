@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
   const hasVisualRefs = visualRefs.length > 0;
   const refStyleDirection = hasVisualRefs
     ? `6. Réplica de estilo de marca — seguí EXACTAMENTE el estilo visual, composición tipográfica y tratamiento gráfico de las piezas de referencia de la marca que se incluyen como imágenes`
-    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Impacto y presencia digital — composición tipográfica bold, elementos gráficos de transmisión en vivo, paleta del brand kit con máximo contraste' : 'Superposición gráfica — fotografía de la persona integrada con elementos gráficos bold del brand kit: franjas de color sólido que cortan el frame, formas geométricas que envuelven la figura, overlays de color semitransparente. La pieza es MITAD fotografía MITAD diseño gráfico. Nombre de campaña y descuento integrados como parte de la arquitectura gráfica, no como texto superpuesto. Pose sugerida: dinámica, cuerpo en diagonal integrado en la composición gráfica.'}`;
+    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Impacto y presencia digital — composición tipográfica bold, elementos gráficos de transmisión en vivo, paleta del brand kit con máximo contraste' : 'Superposición gráfica — MITAD fotografía MITAD diseño gráfico. La persona está físicamente integrada dentro de los elementos gráficos: franjas de color sólido que atraviesan el frame y cruzan el cuerpo, formas geométricas que envuelven o encuadran la figura, overlays de color semitransparente sobre partes del cuerpo. POSE OBLIGATORIA: cuerpo en diagonal pronunciada, en movimiento o girado — PROHIBIDO pose estática parada de frente. El nombre de campaña y descuento son parte de la arquitectura gráfica (no flotando encima), integrados en las franjas o bloques de color.'}`;
 
   const conceptDirections = isProductEcommerce
     ? `Direcciones (e-commerce de producto) — CADA UNA debe ser visualmente DISTINTA a las demás.
@@ -272,9 +272,9 @@ ${refStyleDirection}`
 DIVERSIDAD OBLIGATORIA: si dos conceptos se parecen en pose, composición o mood, están mal. Libertad creativa total dentro de cada dirección — estas son inspiraciones, no plantillas.
 POSES: cada concepto debe tener una pose distinta. PROHIBIDO repetir "modelo parada de frente" en más de un concepto.
 
-1. Minimalista editorial — espíritu: quietud de lujo, silencio visual intencional, elegancia contenida. Pose sugerida: 3/4 o perfil. La composición dice más por lo que omite que por lo que incluye.
-2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante, figura humana como elemento secundario o fragmentado. Pose sugerida: sentada, recostada o en plano recortado. Audaz y gráfico.
-3. Lifestyle aspiracional — espíritu: intimidad sensorial, calidez doméstica, momento privado. Pose sugerida: acostada, recostada o sentada cómoda en un entorno real — NUNCA parada. Ambiente que envuelve.
+1. Minimalista editorial — espíritu: quietud de lujo, silencio visual intencional, elegancia contenida. Pose sugerida: 3/4 o perfil. OBLIGATORIO: el nombre de campaña del brief DEBE aparecer como elemento tipográfico fino y espaciado — pequeño pero presente. Nunca pieza muda sin copy. La diferencia con catálogo: composición intencional, espacio negativo trabajado, tipografía de diseño.
+2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante ocupa 50-60% del frame, figura humana secundaria o fragmentada. Pose sugerida: sentada, recostada o en plano recortado — nunca parada de frente. Audaz y gráfico.
+3. Lifestyle aspiracional — espíritu: intimidad sensorial, calidez doméstica, momento privado. Pose OBLIGATORIA: sentada cómoda, recostada o acostada en entorno de hogar real (sillón, cama, sofá, alfombra) — NUNCA parada. COMPOSICIÓN: nombre de campaña + descuento en tipografía limpia en el tercio superior izquierdo; modelo en el centro-derecha ocupando 60-70% del frame; tercio inferior con espacio para una línea de copy de apoyo o descripción breve. Fondo: ambiente hogareño cálido, colores suaves.
 4. Composición geométrica — espíritu: arquitectura gráfica, tensión visual, formas que ordenan el caos. Pose sugerida: cuerpo en diagonal o movimiento. La persona y la geometría se integran como un solo sistema visual.
 5. Full promocional — espíritu: energía de oferta, jerarquía de información clara, todo visible de un vistazo. Pose sugerida: activa, con actitud — no simplemente parada. Diseño que informa y atrae.
 ${refStyleDirection}`;
@@ -314,6 +314,7 @@ REGLAS:
 - PROHIBICIÓN ABSOLUTA de inventar nombres de campaña, taglines genéricos, nombres de colecciones o cualquier copy que no esté textualmente en el brief. "Suavidad que acompaña tus momentos" es inventado y está PROHIBIDO si no está en el brief.
 - Si el brief tiene un porcentaje de descuento, ese número debe dominar visualmente en las piezas promocionales.
 - PRENDA: si el brief es sobre un tipo de prenda específico (pijamas, remeras, pantalones, etc.), la persona SIEMPRE viste ESA prenda. NUNCA un blazer, traje, vestido de oficina u otra prenda distinta. Si el brief dice pijamas → todos los conceptos muestran pijamas.
+- AMBIENTE COHERENTE CON EL PRODUCTO: inferí el tipo de producto del brief y de la descripción del producto, y especificá explícitamente en cada image_prompt el ambiente coherente con ese tipo. Pijamas/ropa de descanso → dormitorio, cama, sofá, sala cálida, entorno de hogar. Ropa deportiva → gimnasio, parque, exterior activo. Ropa formal → ciudad, oficina, arquitectura urbana. NUNCA pongas una persona con pijamas en cocina de lujo, restaurante, exterior urbano ni oficina. EXCEPCIÓN: conceptos editoriales, tipográficos o de composición gráfica abstracta (estudio, fondo geométrico, overlay de color) no requieren ambiente literal — el fondo es diseño, no locación. Para cada image_prompt que use un ambiente real, escribí explícitamente el tipo de setting coherente con el producto.
 ${conceptDirections}
 - Fondos en colores del brand kit, tipografía precisa, máx 2-3 elementos por pieza
 - Si hay descripción de producto, TODOS los conceptos muestran ESA MISMA prenda reproducida con fidelidad. La variedad viene exclusivamente de la COMPOSICIÓN, layout, jerarquía tipográfica y mood — no del producto.
@@ -391,7 +392,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     : isEvents
     ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. Portrait 4:5.'
     : hasPeople
-      ? 'Fashion editorial photography, natural skin tones, soft studio lighting, 85mm lens, high-end fashion campaign, photorealistic. FULL BODY SHOT — the model must be fully visible from head to toe, no cropping of legs or feet. Text elements composited naturally into the composition — they can appear top, bottom, side, or overlaid, depending on the concept direction. Each concept should have a visually distinct layout.'
+      ? 'Fashion editorial photography, natural skin tones, high-end campaign quality, photorealistic. SHOW THE FULL GARMENT — the entire pyjama/outfit must be visible so the product reads clearly; choose whatever pose best suits the concept direction (standing, sitting, lying, reclined, crouched — all valid). Do NOT default to standing: match the pose to the concept mood. Text elements composited naturally into the composition. Each concept must have a visually distinct layout, mood, and background treatment.'
       : isProductEcommerce
         ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping.'
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
@@ -412,23 +413,21 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
 
   const logoHint = logoImages.length > 0
     ? (() => {
-        const base = 'Include the brand logo in the bottom-right corner (≈8% of frame width, clear space around it). ';
+        const logoPosition = `The LAST ${logoImages.length} image(s) in the provided set are the brand logo — not product photos, not style references. `;
+        const base = 'Place the logo in the bottom-right corner (≈8% of frame width, clear space around it). ';
+        const replication = 'REPLICATION RULE: copy the logo pixel-faithfully — exact same shape, proportions, internal elements and colors as the reference image. Never distort, simplify, recolor, or reinvent it. If it does not contrast well with the background, place a small solid neutral rectangle behind it rather than changing the logo. ';
         if (logos.dark && logos.light) {
-          return base +
-            'Two logo versions are provided as reference images: a dark/colored version and a white/reversed version. ' +
-            'RULE: use the WHITE logo on dark or saturated color backgrounds; use the DARK logo on light or white backgrounds. ' +
-            'Replicate the logo faithfully — same shape, proportions, colors, and elements. Never distort or recolor it.';
+          return logoPosition + base + replication +
+            'VERSION SELECTION: the second-to-last image is the dark/colored logo (use on light or white backgrounds); the last image is the white/reversed logo (use on dark or saturated color backgrounds). Choose the version with the highest contrast against the local background area.';
         }
         if (logos.dark) {
-          return base +
-            'The dark logo version is provided as a reference image. Replicate it faithfully on a background area with sufficient contrast. ' +
-            'Never distort or recolor it.';
+          return logoPosition + base + replication +
+            'This is the dark logo version — use it on light backgrounds. On dark backgrounds, place a small light-colored rectangle behind it for contrast.';
         }
-        return base +
-          'The white/light logo version is provided as a reference image. Replicate it faithfully on dark or colored backgrounds. ' +
-          'Never distort or recolor it.';
+        return logoPosition + base + replication +
+          'This is the white/light logo version — use it on dark or saturated backgrounds. On light backgrounds, place a small dark rectangle behind it for contrast.';
       })()
-    : '';
+    : `BRAND MARK — NO LOGO IMAGE PROVIDED: do NOT invent any graphic symbol, icon, monogram, lettermark, or decorative mark of any kind. Place ONLY the brand name "${brandKit.name}" as plain typographic text in the bottom-right corner (small, ≈8% of frame width, clear space around it). Zero invented graphic elements — text only.`;
 
   // Step 2: Stream each concept image as it completes
   const encoder = new TextEncoder();
@@ -453,7 +452,12 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
             const fashionModelHint = hasPeople && !isCorporate && !isEvents
               ? FASHION_MODEL_POOL[conceptIdx % FASHION_MODEL_POOL.length]
               : '';
+            const productTypeContext = hasPeople && !isEvents && !isCorporate && productDescription
+              ? `PRODUCT TYPE: ${productDescription.split('\n').filter(Boolean)[0]?.slice(0, 180) || productDescription.slice(0, 180)}`
+              : '';
+
             const fullPrompt = [
+              productTypeContext,
               concept.image_prompt,
               `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}.`,
               `Typography: ${brandKit.typography || 'bold sans-serif'}.`,
@@ -468,7 +472,8 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               logoHint,
               isEvents ? 'ABSOLUTELY NO HUMANS, NO PEOPLE, NO SILHOUETTES, NO AUDIENCE, NO SPEAKER FIGURES. Pure typographic and geometric graphic design only.' : '',
               isEvents ? `USE ONLY THESE EXACT HEX COLORS: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT add purple, violet, neon, or any color not in this brand kit.` : '',
-              'ALL TEXT IN THE IMAGE MUST BE IN SPANISH. Zero English words in any headline, label, CTA, or body copy.',
+              'LEGIBILIDAD — CRÍTICO: todo texto visible debe tener alto contraste con el fondo inmediato. Si el fondo es claro (beige, crema, blanco, gris claro) → texto oscuro (negro, gris oscuro, marino). Si el fondo es oscuro → texto blanco o muy claro. NUNCA texto claro sobre fondo claro ni texto oscuro sobre fondo oscuro. El número del descuento especialmente debe ser legible de un vistazo. Si hay riesgo de baja legibilidad, agregar un bloque de color sólido, sombra o área de contraste detrás del texto.',
+              'ALL COMPOSITION TEXT MUST BE IN SPANISH: headlines, labels, CTAs, body copy — zero English in the composition. EXCEPTION: text printed ON the garment (estampados/prints) must be reproduced EXACTLY as it appears in the reference photo — do NOT translate garment print text.',
               'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
               `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
