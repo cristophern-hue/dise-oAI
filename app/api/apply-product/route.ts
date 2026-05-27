@@ -71,8 +71,10 @@ export async function POST(req: NextRequest) {
 
   const responsesTool = [{ type: 'image_generation', model: 'gpt-image-2', quality: 'high', size: '1024x1536' }];
 
+  // Retry once on 429; return null immediately on any other failure or empty response.
+  // Never retry on content-filter rejections (no image block) — same prompt will fail again.
   const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
-    for (let attempt = 1; attempt <= 3; attempt++) {
+    for (let attempt = 1; attempt <= 2; attempt++) {
       try {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response = await (openai.responses.create as any)({
@@ -84,16 +86,18 @@ export async function POST(req: NextRequest) {
         for (const block of (response.output || [])) {
           if (block.type === 'image_generation_call' && block.result) return block.result;
         }
-        console.error(`apply-product ${label} attempt ${attempt}: no image block`);
+        // No image block = content filter; don't retry with same prompt
+        console.error(`apply-product ${label} attempt ${attempt}: no image block (content filter?)`);
+        return null;
       } catch (err: unknown) {
         const status = (err as { status?: number })?.status;
-        if (status === 429 && attempt < 3) {
-          const wait = attempt * 8000; // 8s, 16s
-          console.warn(`apply-product ${label} attempt ${attempt}: rate limited, waiting ${wait}ms`);
-          await new Promise(r => setTimeout(r, wait));
-          continue;
+        if (status === 429 && attempt === 1) {
+          console.warn(`apply-product ${label}: rate limited, waiting 10s`);
+          await new Promise(r => setTimeout(r, 10000));
+          continue; // retry once
         }
         console.error(`apply-product ${label} attempt ${attempt} failed:`, err);
+        return null;
       }
     }
     return null;
@@ -112,10 +116,8 @@ export async function POST(req: NextRequest) {
     multiProductRule,
   ].filter(Boolean).join('\n');
 
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const result = await tryResponses(simplifiedPrompt, `path2 attempt ${attempt}`);
-    if (result) return NextResponse.json({ base64: result, applied: true, appliedVia: 'responses-simplified' });
-  }
+  const result2 = await tryResponses(simplifiedPrompt, 'path2');
+  if (result2) return NextResponse.json({ base64: result2, applied: true, appliedVia: 'responses-simplified' });
 
   // ── PATH 3: images.edit — last resort, no product photo reference ────────
   try {
