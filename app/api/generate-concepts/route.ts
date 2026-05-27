@@ -173,40 +173,55 @@ async function generateWithGptImage2(
   openai: OpenAI,
   prompt: string,
   inputImages: string[] = [],
-  instructions?: string,
+  orchestratorInstruction?: string,
 ): Promise<string> {
   const content = [
     ...inputImages.map(img => ({ type: 'input_image', image_url: img, detail: 'high' })),
     { type: 'input_text', text: prompt },
   ];
 
-  try {
-    // gpt-4o as orchestrator: analyzes reference images and text, then calls
-    // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
-    // reference images and hallucinates products from text associations.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const response = await (openai.responses.create as any)({
-      model: 'gpt-4o',
-      ...(instructions ? { instructions } : {}),
-      input: [{ role: 'user', content }],
-      tools: [{
-        type: 'image_generation',
-        model: 'gpt-image-2',
-        quality: 'medium',
-        size: '1024x1536',
-      }],
-    });
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    for (const block of (response.output || [])) {
-      if (block.type === 'image_generation_call' && block.result) return block.result;
+  // gpt-4o as orchestrator: analyzes reference images and text, then calls
+  // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
+  // reference images and hallucinates products from text associations.
+  // orchestratorInstruction goes as a developer-role message (highest priority,
+  // controls how gpt-4o writes the internal image_generation prompt).
+  const input = orchestratorInstruction
+    ? [{ role: 'developer', content: orchestratorInstruction }, { role: 'user', content }]
+    : [{ role: 'user', content }];
+
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (openai.responses.create as any)({
+        model: 'gpt-4o',
+        input,
+        tools: [{
+          type: 'image_generation',
+          model: 'gpt-image-2',
+          quality: 'medium',
+          size: '1024x1536',
+        }],
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const block of (response.output || [])) {
+        if (block.type === 'image_generation_call' && block.result) return block.result;
+      }
+      console.error('Responses API returned no image block');
+      return '';
+    } catch (err: unknown) {
+      const status = (err as { status?: number })?.status;
+      if (status === 429 && attempt === 0) {
+        console.warn('generateWithGptImage2: rate limited, waiting 12s before retry');
+        await new Promise(r => setTimeout(r, 12000));
+        continue;
+      }
+      console.error('Responses API failed:', err);
+      break;
     }
-    console.error('Responses API returned no image block');
-  } catch (err) {
-    console.error('Responses API failed:', err);
   }
 
-  // Fallback: for e-commerce the visual reference matters — skip fallback and return empty
-  // so the caller can retry or report error rather than generate a brand-hallucinated image.
+  // Fallback: for e-commerce the visual reference matters — skip text-only fallback
+  // to avoid generating brand-hallucinated images from training data.
   if (inputImages.length > 0) return '';
 
   const fallback = await openai.images.generate({
