@@ -458,8 +458,8 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? productDetailImages.length > 1
-      ? `CRÍTICO — HAY ${productDetailImages.length} PRODUCTOS DISTINTOS: TODOS deben aparecer visiblemente en la composición. No omitir ninguno. Las imágenes de referencia muestran cada producto exacto — reproducí su apariencia fielmente. Cada producto debe ser claramente reconocible en la imagen final.`
-      : 'IMPORTANT: The provided reference image shows the exact product — feature it in the composition, replicating its appearance faithfully.'
+      ? `⚠ PRODUCTO FÍSICO OBLIGATORIO — ANCLA VISUAL ABSOLUTA: Los ${productDetailImages.length} productos en las imágenes de referencia son los ÚNICOS productos permitidos en esta composición. PROHIBIDO generar, sustituir o alucicar productos distintos aunque el nombre de campaña del brief mencione otra marca. Los productos reales son los de las fotos: reproducí su forma exacta, packaging, colores, etiquetas y proporciones. TODOS deben aparecer visiblemente.`
+      : `⚠ PRODUCTO FÍSICO OBLIGATORIO — ANCLA VISUAL ABSOLUTA: El producto en la imagen de referencia es el ÚNICO producto permitido. PROHIBIDO generar productos similares, sustituirlos ni alucicar otros aunque el brief mencione una marca distinta. Reproducí el producto exacto de la foto: su forma, packaging, color, etiqueta y proporciones.`
     : '';
 
   // Product description injected into every concept so gpt-image-2 replicates the exact
@@ -503,17 +503,21 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
             const fashionModelHint = hasPeople && !isCorporate && !isEvents
               ? FASHION_MODEL_POOL[conceptIdx % FASHION_MODEL_POOL.length]
               : '';
-            const productTypeContext = hasPeople && !isEvents && !isCorporate && productDescription
-              ? `PRODUCT TYPE: ${productDescription.split('\n').filter(Boolean)[0]?.slice(0, 180) || productDescription.slice(0, 180)}`
+            const productTypeContext = productDescription && !isEvents
+              ? isProductEcommerce
+                ? `DESCRIPCIÓN EXACTA DEL PRODUCTO REAL (ignorar cualquier marca/producto mencionado en el brief que no coincida con esto): ${productDescription.slice(0, 600)}`
+                : hasPeople && !isCorporate
+                  ? `PRODUCT TYPE: ${productDescription.split('\n').filter(Boolean)[0]?.slice(0, 180) || productDescription.slice(0, 180)}`
+                  : ''
               : '';
 
             const fullPrompt = [
+              productHint,
               productTypeContext,
               concept.image_prompt,
               `Brand colors: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}.`,
               `Typography: ${brandKit.typography || 'bold sans-serif'}.`,
               styleSuffix,
-              productHint,
               productDescHint,
               fashionModelHint,
               hasPeople && !isCorporate && !isEvents
