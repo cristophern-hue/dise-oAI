@@ -336,7 +336,9 @@ El modelo recibe la foto del producto y la transforma. Describí:
 El producto en la foto DEBE quedar exactamente igual — solo se agregan elementos alrededor.` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
-El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`;
+El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.
+OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con esta frase exacta (reemplazando [NOMBRE] con el nombre real de la marca): "Bottom-right corner: the text [NOMBRE] rendered as clean typographic text only — absolutely no invented logo icons, marks, symbols, monograms, hearts, or graphic elements of any kind. Text only."`;
+
 
   const userTextContent = [
     `BRAND KIT:\n${brandKitContext}`,
@@ -412,7 +414,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   // The actual logo is composited onto the image client-side after generation,
   // which is the only reliable way to guarantee logo fidelity.
   // Always write the brand name as plain typography — no invented graphic marks anywhere.
-  const logoHint = `MARCA: en el corner inferior derecho colocá SOLO el nombre "${brandKit.name}" como texto tipográfico limpio (pequeño, ≈8% del ancho del frame, usando la tipografía del brand kit). PROHIBIDO en toda la composición: inventar íconos de marca, monogramas, símbolos, lettermarks o cualquier elemento gráfico que represente un logo. Solo texto tipográfico — ni dentro ni fuera del producto.`;
+  const logoHint = `BRAND MARK — CRÍTICO: en el corner inferior derecho renderizá ÚNICAMENTE las letras "${brandKit.name}" como texto tipográfico limpio. PROHIBICIÓN ABSOLUTA en TODA la imagen: NO renderizar ningún ícono, símbolo gráfico, monograma, escudo, corazón, marca gráfica, lettermark, ni ningún elemento que no sea texto puro. El único elemento de identidad de marca permitido es la palabra "${brandKit.name}" escrita en tipografía sans-serif limpia. Cualquier gráfico inventado en el corner es incorrecto.`;
 
   // Step 2: Stream each concept image as it completes
   const encoder = new TextEncoder();
