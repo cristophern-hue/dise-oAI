@@ -272,11 +272,11 @@ ${refStyleDirection}`
 DIVERSIDAD OBLIGATORIA: si dos conceptos se parecen en pose, composición o mood, están mal. Libertad creativa total dentro de cada dirección — estas son inspiraciones, no plantillas.
 POSES: cada concepto debe tener una pose distinta. PROHIBIDO repetir "modelo parada de frente" en más de un concepto.
 
-1. Minimalista editorial — espíritu: quietud de lujo, silencio visual intencional, elegancia contenida. Pose sugerida: 3/4 o perfil. OBLIGATORIO: el nombre de campaña del brief DEBE aparecer como elemento tipográfico fino y espaciado — pequeño pero presente. Nunca pieza muda sin copy. La diferencia con catálogo: composición intencional, espacio negativo trabajado, tipografía de diseño.
-2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante ocupa 50-60% del frame, figura humana secundaria o fragmentada. Pose sugerida: sentada, recostada o en plano recortado — nunca parada de frente. Audaz y gráfico.
-3. Lifestyle aspiracional — espíritu: intimidad sensorial, calidez doméstica, momento privado. Pose OBLIGATORIA: sentada cómoda, recostada o acostada en entorno de hogar real (sillón, cama, sofá, alfombra) — NUNCA parada. COMPOSICIÓN: nombre de campaña + descuento en tipografía limpia en el tercio superior izquierdo; modelo en el centro-derecha ocupando 60-70% del frame; tercio inferior con espacio para una línea de copy de apoyo o descripción breve. Fondo: ambiente hogareño cálido, colores suaves.
-4. Composición geométrica — espíritu: arquitectura gráfica, tensión visual, formas que ordenan el caos. Pose sugerida: cuerpo en diagonal o movimiento. La persona y la geometría se integran como un solo sistema visual.
-5. Full promocional — espíritu: energía de oferta, jerarquía de información clara, todo visible de un vistazo. Pose sugerida: activa, con actitud — no simplemente parada. Diseño que informa y atrae.
+1. Minimalista editorial — espíritu: quietud de lujo, elegancia contenida. Pose: parada en 3/4 o perfil, actitud serena. OBLIGATORIO: nombre de campaña como tipografía fina y espaciada, pequeña pero presente. Espacio negativo trabajado. No es una foto de catálogo — es composición intencional.
+2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante 50-60% del frame. Pose: sentada, recostada o plano recortado — nunca parada de frente. Figura humana secundaria o fragmentada.
+3. Lifestyle aspiracional — espíritu: calidez doméstica, momento privado. Pose OBLIGATORIA: sentada cómoda o recostada en entorno hogareño (sillón, sofá, cama, alfombra) — NUNCA parada. Nombre de campaña + descuento en tercio superior; modelo centro-derecha; espacio inferior para copy de apoyo.
+4. Composición geométrica — espíritu: arquitectura gráfica, tensión visual. Pose: parada en diagonal, cuerpo integrado en la geometría o en movimiento dinámico.
+5. Full promocional — espíritu: energía de oferta, jerarquía clara. Pose: parada con actitud y energía — activa, no estática.
 ${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).

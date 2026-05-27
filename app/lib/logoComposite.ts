@@ -21,7 +21,7 @@ function detectBottomRightBrightness(
     }
     return total / (data.length / 4);
   } catch {
-    return 128;
+    return 200;
   }
 }
 
@@ -52,13 +52,9 @@ export async function compositeLogoOntoBase64(
     ctx.drawImage(base, 0, 0);
 
     const brightness = detectBottomRightBrightness(ctx, canvas.width, canvas.height);
-    // On dark bg (brightness < 140) use light logo; on light bg use dark logo
-    let logoSrc: string | null = null;
-    if (brightness < 140) {
-      logoSrc = lightLogo || darkLogo;
-    } else {
-      logoSrc = darkLogo || lightLogo;
-    }
+    // Default to dark logo. Only use light logo when background is clearly dark (< 80).
+    // This keeps the logo visually consistent across all concepts.
+    const logoSrc = (brightness < 80 && lightLogo) ? lightLogo : (darkLogo || lightLogo);
     if (!logoSrc) return imageBase64;
 
     const logo = await loadImage(logoSrc);
