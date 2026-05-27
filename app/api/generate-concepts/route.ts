@@ -148,9 +148,13 @@ async function editProductForConcept(
   editPrompt: string,
 ): Promise<string> {
   try {
-    const base64Data = productDataUrl.split(',')[1];
+    // productDataUrl may arrive as a full data URL ("data:image/...;base64,...") or as
+    // raw base64 (compressBase64ForStorage strips the prefix). Handle both.
+    const isDataUrl = productDataUrl.startsWith('data:');
+    const base64Data = isDataUrl ? productDataUrl.split(',')[1] : productDataUrl;
+    const mimeType = isDataUrl ? (productDataUrl.split(';')[0].split(':')[1] || 'image/jpeg') : 'image/jpeg';
     const buffer = Buffer.from(base64Data, 'base64');
-    const imageFile = await toFile(buffer, 'product.jpg', { type: 'image/jpeg' });
+    const imageFile = await toFile(buffer, 'product.jpg', { type: mimeType });
     const response = await openai.images.edit({
       model: 'gpt-image-2',
       image: imageFile,
