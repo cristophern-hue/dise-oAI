@@ -72,29 +72,36 @@ export async function POST(req: NextRequest) {
   const responsesTool = [{ type: 'image_generation', model: 'gpt-image-2', quality: 'high', size: '1024x1536' }];
 
   const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (openai.responses.create as any)({
-        model: 'gpt-4o',
-        input: responsesInput(promptText),
-        tools: responsesTool,
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const block of (response.output || [])) {
-        if (block.type === 'image_generation_call' && block.result) return block.result;
+    for (let attempt = 1; attempt <= 3; attempt++) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const response = await (openai.responses.create as any)({
+          model: 'gpt-4o',
+          input: responsesInput(promptText),
+          tools: responsesTool,
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const block of (response.output || [])) {
+          if (block.type === 'image_generation_call' && block.result) return block.result;
+        }
+        console.error(`apply-product ${label} attempt ${attempt}: no image block`);
+      } catch (err: unknown) {
+        const status = (err as { status?: number })?.status;
+        if (status === 429 && attempt < 3) {
+          const wait = attempt * 8000; // 8s, 16s
+          console.warn(`apply-product ${label} attempt ${attempt}: rate limited, waiting ${wait}ms`);
+          await new Promise(r => setTimeout(r, wait));
+          continue;
+        }
+        console.error(`apply-product ${label} attempt ${attempt} failed:`, err);
       }
-      console.error(`apply-product ${label}: no image block`);
-    } catch (err) {
-      console.error(`apply-product ${label} failed:`, err);
     }
     return null;
   };
 
-  // ── PATH 1: Responses API — full prompt, up to 2 attempts ───────────────
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    const result = await tryResponses(applyPrompt, `path1 attempt ${attempt}`);
-    if (result) return NextResponse.json({ base64: result, applied: true, appliedVia: 'responses' });
-  }
+  // ── PATH 1: Responses API — full prompt ─────────────────────────────────
+  const result1 = await tryResponses(applyPrompt, 'path1');
+  if (result1) return NextResponse.json({ base64: result1, applied: true, appliedVia: 'responses' });
 
   // ── PATH 2: Responses API — simplified prompt (avoids content filter) ───
   // Still passes concept + product photos so gpt-image-2 sees the actual garment.
