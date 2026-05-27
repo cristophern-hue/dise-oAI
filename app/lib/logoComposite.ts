@@ -26,10 +26,17 @@ function sampleColor(
 function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
+    img.crossOrigin = 'anonymous';
     img.onload = () => resolve(img);
-    img.onerror = reject;
+    img.onerror = (e) => reject(new Error(`Image load failed: ${String(e)}`));
     img.src = src;
   });
+}
+
+function dataUrlToSrc(value: string): string {
+  // Accept both raw base64 and full data URLs
+  if (value.startsWith('data:')) return value;
+  return `data:image/png;base64,${value}`;
 }
 
 export async function compositeLogoOntoBase64(
@@ -40,13 +47,17 @@ export async function compositeLogoOntoBase64(
   const lightLogo = brandKit.logoLight || null;
 
   if (!darkLogo && !lightLogo) {
-    console.log('[logoComposite] no logo available for', brandKit.name);
+    console.log('[logoComposite] no logos in brand kit for', brandKit.name);
     return imageBase64;
   }
 
+  console.log(`[logoComposite] starting for ${brandKit.name} — darkLogo: ${darkLogo ? `${darkLogo.slice(0, 30)}... (${Math.round(darkLogo.length / 1024)}KB)` : 'none'}, lightLogo: ${lightLogo ? 'yes' : 'none'}`);
+
   try {
     const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('canvas 2d context unavailable');
+
     // Detect format from base64 header (JPEG starts with /9j/, PNG with iVBOR)
     const mime = imageBase64.startsWith('/9j/') ? 'image/jpeg' : 'image/png';
     const base = await loadImage(`data:${mime};base64,${imageBase64}`);
@@ -68,7 +79,10 @@ export async function compositeLogoOntoBase64(
     const logoSrc = (brightness < 80 && lightLogo) ? lightLogo : (darkLogo || lightLogo);
     if (!logoSrc) return imageBase64;
 
-    const logo = await loadImage(logoSrc);
+    const logo = await loadImage(dataUrlToSrc(logoSrc));
+    if (logo.naturalWidth === 0 || logo.naturalHeight === 0) {
+      throw new Error('Logo loaded but has zero dimensions');
+    }
     const scale = logoW / logo.naturalWidth;
     const logoH = Math.floor(logo.naturalHeight * scale);
     const x = canvas.width - logoW - pad;
@@ -80,11 +94,11 @@ export async function compositeLogoOntoBase64(
 
     ctx.drawImage(logo, x, y, logoW, logoH);
 
-    console.log(`[logoComposite] ✓ composited logo for ${brandKit.name} (brightness=${Math.round(brightness)}, version=${logoSrc === lightLogo ? 'light' : 'dark'})`);
+    console.log(`[logoComposite] ✓ composited logo for ${brandKit.name} (brightness=${Math.round(brightness)}, version=${logoSrc === lightLogo ? 'light' : 'dark'}, logoSize=${logoW}×${logoH}px)`);
     const dataUrl = canvas.toDataURL('image/jpeg', 0.93);
     return dataUrl.split(',')[1] || imageBase64;
   } catch (err) {
-    console.error('[logoComposite] failed:', err);
+    console.error('[logoComposite] FAILED for', brandKit.name, ':', err);
     return imageBase64;
   }
 }

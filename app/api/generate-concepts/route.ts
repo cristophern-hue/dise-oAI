@@ -269,14 +269,13 @@ ${refStyleDirection}`
 ${refStyleDirection}`
       : `Direcciones (fashion/editorial) — 6 conceptos de layout, cada uno con mood, composición y pose RADICALMENTE distintos entre sí. La prenda es la misma en todos; la diferencia es el universo creativo.
 
-DIVERSIDAD OBLIGATORIA: si dos conceptos se parecen en pose, composición o mood, están mal. Libertad creativa total dentro de cada dirección — estas son inspiraciones, no plantillas.
-POSES: cada concepto debe tener una pose distinta. PROHIBIDO repetir "modelo parada de frente" en más de un concepto.
+DIVERSIDAD OBLIGATORIA: si dos conceptos se parecen en pose, composición o mood, están mal. La pose no es un requisito a cumplir — emerge naturalmente del espíritu de cada concepto. El modelo elige la pose que mejor exprese ese espíritu; no hay una pose "correcta" o "incorrecta" por dirección.
 
-1. Minimalista editorial — espíritu: quietud de lujo, elegancia contenida. Pose: parada en 3/4 o perfil, actitud serena. OBLIGATORIO: nombre de campaña como tipografía fina y espaciada, pequeña pero presente. Espacio negativo trabajado. No es una foto de catálogo — es composición intencional.
-2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante 50-60% del frame. Pose: sentada, recostada o plano recortado — nunca parada de frente. Figura humana secundaria o fragmentada.
-3. Lifestyle aspiracional — espíritu: calidez doméstica, momento privado. Pose OBLIGATORIA: sentada cómoda o recostada en entorno hogareño (sillón, sofá, cama, alfombra) — NUNCA parada. Nombre de campaña + descuento en tercio superior; modelo centro-derecha; espacio inferior para copy de apoyo.
-4. Composición geométrica — espíritu: arquitectura gráfica, tensión visual. Pose: parada en diagonal, cuerpo integrado en la geometría o en movimiento dinámico.
-5. Full promocional — espíritu: energía de oferta, jerarquía clara. Pose: parada con actitud y energía — activa, no estática.
+1. Minimalista editorial — espíritu: quietud de lujo, elegancia contenida. OBLIGATORIO: nombre de campaña como tipografía fina y espaciada, pequeña pero presente. Espacio negativo trabajado. No es una foto de catálogo — es composición intencional.
+2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante 50-60% del frame. Figura humana secundaria o fragmentada dentro del texto.
+3. Lifestyle aspiracional — espíritu: calidez doméstica, momento privado en entorno hogareño (sillón, sofá, cama, alfombra). Nombre de campaña + descuento en tercio superior; modelo centro-derecha; espacio inferior para copy de apoyo.
+4. Composición geométrica — espíritu: arquitectura gráfica, tensión visual. Cuerpo integrado en la geometría, dinamismo visual.
+5. Full promocional — espíritu: energía de oferta, jerarquía clara. Actitud activa, presencia fuerte.
 ${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
@@ -389,7 +388,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     : isEvents
     ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. Portrait 4:5.'
     : hasPeople
-      ? 'Fashion editorial photography, natural skin tones, high-end campaign quality, photorealistic. SHOW THE FULL GARMENT — the entire pyjama/outfit must be visible so the product reads clearly; choose whatever pose best suits the concept direction (standing, sitting, lying, reclined, crouched — all valid). Do NOT default to standing: match the pose to the concept mood. Text elements composited naturally into the composition. Each concept must have a visually distinct layout, mood, and background treatment.'
+      ? 'Fotografía editorial de moda, tonos de piel naturales, calidad de campaña premium, fotorrealista. MOSTRAR LA PRENDA COMPLETA — todo el conjunto debe verse claramente. Ojos abiertos, mirada viva y expresión despierta — PROHIBIDO ojos cerrados o expresión somnolienta. La pose emerge del espíritu del concepto: cada dirección la interpreta libremente. Elementos de texto integrados naturalmente en la composición. Cada concepto debe tener un layout, mood y tratamiento de fondo visualmente distinto.'
       : isProductEcommerce
         ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping.'
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
