@@ -9,6 +9,7 @@ import LoadingGrid from './components/LoadingGrid';
 import SessionDrawer from './components/SessionDrawer';
 import { dbSaveSession, dbGetAllSessions, dbDeleteSession, type SavedSession } from './lib/db';
 import { compositeLogoOntoBase64 } from './lib/logoComposite';
+import { compressImagesForStorage, compressBase64ForStorage } from './lib/compressForStorage';
 
 const LAST_SESSION_KEY = 'disenoai_last_session_id';
 
@@ -534,16 +535,24 @@ export default function Home() {
       }
 
       const now = new Date().toISOString();
-      // Exclude full `concepts` array from save — base64 images make payload too large
-      // (exceeds Vercel 4MB body limit). Only selectedConcepts are needed to restore work.
+      // Compress all base64 images before saving to stay under Vercel's 4MB body limit.
+      const [compSelectedConcepts, compProductImages, compRefineHistory, compAdaptedImages] = await Promise.all([
+        compressImagesForStorage(selectedConcepts),
+        Promise.all(productDetailImages.map(compressBase64ForStorage)),
+        Promise.all(refineImageHistory.map(compressBase64ForStorage)),
+        compressImagesForStorage(adaptedImages),
+      ]);
+      const compRefineImage = refineImage
+        ? { ...refineImage, base64: await compressBase64ForStorage(refineImage.base64) }
+        : null;
       const data = {
         step, brief, clientRequest,
         selectedClientId: selectedClient?.id || null,
-        peopleMode, selectedConcepts,
+        peopleMode, selectedConcepts: compSelectedConcepts,
         productDescription, personDescription,
-        refineImage, refineHistory, refineImageHistory,
-        refineIndex, productDetailImages, referenceImages,
-        adaptFormats, adaptedImages,
+        refineImage: compRefineImage, refineHistory, refineImageHistory: compRefineHistory,
+        refineIndex, productDetailImages: compProductImages, referenceImages: [],
+        adaptFormats, adaptedImages: compAdaptedImages,
       };
 
       setSavedSessions(prev => {
