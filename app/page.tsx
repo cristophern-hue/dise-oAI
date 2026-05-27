@@ -110,7 +110,7 @@ export default function Home() {
     const files = Array.from(e.target.files || []);
     files.forEach(async file => {
       const png = await readAsPng(file);
-      setProductDetailImages(prev => prev.length < 2 ? [...prev, png] : prev);
+      setProductDetailImages(prev => prev.length < 4 ? [...prev, png] : prev);
     });
     e.target.value = '';
   };
@@ -904,7 +904,7 @@ export default function Home() {
                       >×</button>
                     </div>
                   ))}
-                  {productDetailImages.length < 2 && (
+                  {productDetailImages.length < 4 && (
                     <label className="w-20 h-20 rounded-xl border border-dashed border-white/20 hover:border-white/40 flex flex-col items-center justify-center cursor-pointer transition-colors gap-1">
                       <svg className="w-5 h-5 text-white/30" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />

@@ -65,7 +65,39 @@ Describí en este orden exacto:
         - ¿O es ruedo simple recto sin ningún cuff? → escribí explícitamente "ruedo simple recto, SIN cuff ni dobladillo elástico"
      f) FIT SOBRE EL CUERPO: cómo cae el pantalón sobre la cadera, muslos y piernas. ¿Holgado en todo? ¿Ajustado en cadera y suelto abajo? ¿Cómo se comporta la tela al caminar? Describí con frase completa.
      g) ESTAMPADO EN PANTALÓN: si tiene print all-over, ¿el cuff/pretina/bolsillos son del mismo estampado o son lisos? Este contraste define la silueta.
-   - Para remeras/tops: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños (color y textura aunque sean iguales a la manga), dobladillo
+   - Para remeras/tops: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños (color y textura aunque sean iguales a la manga), dobladillo. LARGO OBLIGATORIO: "queda X cm arriba/abajo del ombligo" o "cubre la cadera" o "toca el muslo".
+   - Para vestidos/faldas — describí en este orden:
+     a) LARGO: distancia exacta desde cintura al ruedo — "mini: 15 cm por encima de la rodilla" / "midi: llega a la pantorrilla, 10 cm bajo la rodilla" / "maxi: roza el piso" / indicá cm exactos si podés.
+     b) ESCOTE: tipo exacto (redondo, V profundo, cuadrado, asimétrico, off-shoulder, halter) y profundidad estimada en cm desde el hombro.
+     c) SILUETA: ajustado al cuerpo (body-con), recto/columna, evasé (se abre en cadera), línea A, fluido con drapeado.
+     d) MANGA: sin mangas/sisa, manga corta, manga 3/4, manga larga — largo exacto en cm si es especial.
+     e) CINTURA: ¿hay cintura marcada? ¿elástico, cinto, corte en la cintura? ¿La cintura está en la cintura natural, bajo el busto (empire), o en la cadera?
+     f) TERMINACIÓN: ¿ruedo recto, asimétrico, con volado, deshilachado, aberturas laterales? Describí cada elemento.
+     g) CONSTRUCCIÓN: ¿tiene forro? ¿hay estructura/ballenas? ¿escote con boning o totalmente sin estructura?
+   - Para camperas/buzos/abrigos — describí en este orden:
+     a) TIPO: campera (corta, llega a cadera), buzo (sin cierre), hoodie (con capucha), abrigo (largo), chaleco, blazer.
+     b) LARGO: ¿hasta la cintura, cadera, muslo, rodilla? Indicá en cm si podés.
+     c) CIERRE: ¿tiene cierre (zipper)? ¿Completo o hasta la cintura? ¿Color del zipper: igual, contraste? ¿Con o sin botonera superpuesta? ¿Sin cierre (pullover)?
+     d) CAPUCHA: ¿tiene capucha? Si sí: ¿con cordón, ajustable, rígida, de punto? ¿Color igual o contraste?
+     e) MANGAS: largo exacto, ¿cuff elástico o ribeteado en el puño? Describí textura/color del cuff aunque sea igual a la manga.
+     f) BOLSILLOS: ¿canguro frontal único, bolsillos laterales con cierre, bolsillos de parche? Posición, tamaño, color.
+     g) ACABADOS: ¿con parche/bordado/estampado en el pecho o espalda? ¿Detalle de cuello (cuello alto, crew, V)?
+   - Para conjuntos y pijamas (2+ piezas) — CRÍTICO:
+     a) Describí CADA PIEZA por separado con todos los detalles de los apartados anteriores.
+     b) COORDINACIÓN DE ESTAMPADO: si ambas piezas tienen estampado all-over, ¿es el MISMO estampado exacto? ¿Misma escala? ¿O la parte de arriba tiene estampado y la de abajo es lisa? ¿Mismos colores?
+     c) COORDINACIÓN DE COLOR BASE: aunque el estampado sea igual, ¿el color de fondo es idéntico entre ambas piezas, o hay variación tonal?
+     d) CORTE DE CADA PIEZA: describí qué termina donde (ej: "top sin mangas recorte a 5 cm del ombligo + pantalón de tiro medio que tapa la cadera").
+   - Para lencería / ropa interior:
+     a) TIPO: bombacha (bikini, colaless, culotte, hilo dental, hipster), corpiño/corset (triángulo, push-up, bralette, bustier), body.
+     b) COBERTURA: qué partes cubre y qué deja al descubierto — describí exactamente.
+     c) MATERIALES: encaje (y patrón del encaje si es distintivo), microfibra (liso, satinado), algodón, punto.
+     d) TIRAS Y BRETELES: ancho en mm, ¿regulables? ¿de qué material? ¿Color igual o contraste al cuerpo principal?
+     e) DETALLES: aritos, lazos, bordados, entredós, elástico decorativo — posición exacta y color.
+   - Para ropa deportiva (calzas, tops deportivos, hoodies deportivos):
+     a) COMPRESIÓN: ¿segunda piel sin holgura (compresión alta)? ¿Ajustada con algo de elasticidad (media compresión)? ¿Solo ajustada sin compresión real?
+     b) WAISTBAND/PRETINA DEPORTIVA: ancho en cm, ¿liso o con folded-over design (tira plegada)? ¿Con logotipo de marca o sin texto?
+     c) PANELES DE CONTRASTE: si hay insertos de malla o tela distinta, describí: posición exacta (costado, espalda completa, axila, rodilla), color exacto del panel, y cómo se diferencia en textura o brillo de la tela principal.
+     d) LARGO EXACTO: para calza: "tobillos", "3/4 pantorrilla", "rodilla", "muslo alto (short)". Para top: "cubre busto completo" / "cropped 5 cm sobre cintura".
    - Para todas: costuras decorativas, piping, botones, cierres, terminaciones especiales
 
 6. ELEMENTOS ÚNICOS: cualquier detalle que diferencie esta prenda de una genérica del mismo color — una costura decorativa, un detalle en la pretina, una textura inusual, un corte asimétrico
@@ -93,7 +125,7 @@ async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): 
         { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
       ],
     }],
-    max_tokens: 800,
+    max_tokens: 1200,
   });
   return response.choices[0].message.content || '';
 }
@@ -189,17 +221,34 @@ export async function POST(req: NextRequest) {
 
   // Visual refs from brand kit (style guide for generation)
   const visualRefs: string[] = (brandKit.referencePiecesThumbnails || []).slice(0, 2);
-  const productRef: string | null = productDetailImages[0] || null;
   const logos = extractLogoImages(brandKit);
 
   // Generate product + person descriptions — returned to frontend for the apply-product step
   let productDescription = '';
   let personDescription = '';
 
-  if (productRef) {
+  if (productDetailImages.length > 0) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
-        const desc = await describeProductWithVision(openai, productRef);
+        let desc: string;
+        if (productDetailImages.length === 1) {
+          desc = await describeProductWithVision(openai, productDetailImages[0]);
+        } else {
+          // Multiple products: describe each one so the generator knows what all of them are
+          const multiPrompt = `Hay ${productDetailImages.length} productos distintos en las imágenes. Describí CADA UNO por separado, numerándolos (PRODUCTO 1:, PRODUCTO 2:, etc.). Aplicá el mismo nivel de detalle para cada uno.\n\n${PRODUCT_DESCRIPTION_PROMPT}`;
+          const response = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'text', text: multiPrompt },
+                ...productDetailImages.map(img => ({ type: 'image_url' as const, image_url: { url: img, detail: 'high' as const } })),
+              ],
+            }],
+            max_tokens: 1200 * productDetailImages.length,
+          });
+          desc = response.choices[0].message.content || '';
+        }
         productDescription = isRefusal(desc) ? '' : desc;
         if (productDescription) break;
         console.warn(`describe-product: attempt ${attempt + 1} returned refusal/empty`);
@@ -249,12 +298,13 @@ REGLAS OBLIGATORIAS PARA TODAS LAS DIRECCIONES:
 - Usá el nombre de campaña del brief (si existe) como elemento tipográfico principal, no un tagline genérico inventado.
 - Si el brief tiene descuento (ej: "30% off"), ese porcentaje debe aparecer prominentemente en la pieza como elemento tipográfico fuerte.
 - Cada pieza DEBE incluir como mínimo headline o nombre de producto visible + logo de marca. Sin copy no hay anuncio.
+${productDetailImages.length > 1 ? `- HAY ${productDetailImages.length} PRODUCTOS DISTINTOS EN LAS REFERENCIAS: TODOS deben aparecer en cada composición. Disponelos de forma que ambos sean claramente visibles y reconocibles — no ocultar ni recortar ninguno.` : ''}
 
-1. Producto hero con headline — el producto ocupa 70% del frame, fondo color sólido del brand kit. Si el brief tiene nombre de campaña, usarlo en tipografía bold XL. Si hay descuento, incluirlo en tipografía contrastante y legible. Nombre del producto/línea como apoyo. Logo en esquina. Copy 100% en español.
-2. Pieza full promocional — layout en tres franjas verticales: (A) FRANJA SUPERIOR: nombre de campaña del brief en tipografía medium, fondo color sólido del brand kit; (B) FRANJA CENTRAL: el porcentaje de descuento del brief (ej: "30%") en tipografía heavy BLACK ultragrande es el elemento visual dominante, debajo texto secundario como "de descuento" o "off" en tipografía regular más pequeña; (C) FRANJA INFERIOR: zona de mecánicas — lista horizontal limpia de 3-4 ítems en tipografía SANS-SERIF del brand kit, separados por línea vertical fina o punto mediano "·", SIN iconos stock ni clipart genérico, solo texto tipográfico alineado. Producto integrado en la franja central detrás o al lado del número. Logo en esquina inferior derecha. TODO el copy en ESPAÑOL usando la tipografía del brand kit.
-3. Producto en contexto ambiental — el producto integrado en su entorno real según el brief. Overlay semitransparente con headline corto en ESPAÑOL y nombre de marca. El ambiente es el protagonista pero el copy está presente.
-4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame. El headline usa la terminología exacta del brief en ESPAÑOL. Producto flotando pequeño en un corner. Tipografía estructural como elemento gráfico dominante.
-5. Showcase técnico con copy — macro/closeup del producto con iluminación de estudio dramática, fondo oscuro con gradiente lateral. Nombre del producto en tipografía elegante + tagline corto del brief en ESPAÑOL. Logo en esquina inferior.
+1. ${productDetailImages.length > 1 ? 'Showcase multi-producto' : 'Producto hero'} con headline — ${productDetailImages.length > 1 ? `los ${productDetailImages.length} productos dispuestos en composición equilibrada (lado a lado, en diagonal, o apilados), cada uno ocupando espacio prominente` : 'el producto ocupa 70% del frame'}, fondo color sólido del brand kit. Si el brief tiene nombre de campaña, usarlo en tipografía bold XL. Si hay descuento, incluirlo en tipografía contrastante y legible. Logo en esquina. Copy 100% en español.
+2. Pieza full promocional — layout en tres franjas verticales: (A) FRANJA SUPERIOR: nombre de campaña del brief en tipografía medium, fondo color sólido del brand kit; (B) FRANJA CENTRAL: el porcentaje de descuento del brief (ej: "30%") en tipografía heavy BLACK ultragrande es el elemento visual dominante, debajo texto secundario como "de descuento" o "off" en tipografía regular más pequeña; (C) FRANJA INFERIOR: zona de mecánicas — lista horizontal limpia de 3-4 ítems en tipografía SANS-SERIF del brand kit, separados por línea vertical fina o punto mediano "·", SIN iconos stock ni clipart genérico, solo texto tipográfico alineado. ${productDetailImages.length > 1 ? 'Ambos productos integrados en la franja central junto al número.' : 'Producto integrado en la franja central detrás o al lado del número.'} Logo en esquina inferior derecha. TODO el copy en ESPAÑOL.
+3. Producto${productDetailImages.length > 1 ? 's' : ''} en contexto ambiental — ${productDetailImages.length > 1 ? 'los productos juntos' : 'el producto'} integrado${productDetailImages.length > 1 ? 's' : ''} en su entorno real según el brief. Overlay semitransparente con headline corto en ESPAÑOL y nombre de marca. El ambiente es el protagonista pero el copy está presente.
+4. Diseño gráfico tipográfico puro — bloques de color del brand kit, tipografía bold XL ocupa 60% del frame. El headline usa la terminología exacta del brief en ESPAÑOL. ${productDetailImages.length > 1 ? 'Ambos productos flotando pequeños en composición equilibrada.' : 'Producto flotando pequeño en un corner.'} Tipografía estructural como elemento gráfico dominante.
+5. Showcase técnico con copy — macro/closeup de ${productDetailImages.length > 1 ? 'los productos con iluminación de estudio dramática, ambos visibles' : 'el producto con iluminación de estudio dramática'}, fondo oscuro con gradiente lateral. Nombre del producto en tipografía elegante + tagline corto del brief en ESPAÑOL. Logo en esquina inferior.
 ${refStyleDirection}`
     : isEvents
       ? `Direcciones (eventos/webinars) — CADA UNA visualmente DISTINTA, estilo marketing de evento digital.
@@ -407,7 +457,9 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
         ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping.'
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
-    ? 'IMPORTANT: The provided reference images show the exact products — feature those specific products in the composition, replicating their appearance faithfully.'
+    ? productDetailImages.length > 1
+      ? `CRÍTICO — HAY ${productDetailImages.length} PRODUCTOS DISTINTOS: TODOS deben aparecer visiblemente en la composición. No omitir ninguno. Las imágenes de referencia muestran cada producto exacto — reproducí su apariencia fielmente. Cada producto debe ser claramente reconocible en la imagen final.`
+      : 'IMPORTANT: The provided reference image shows the exact product — feature it in the composition, replicating its appearance faithfully.'
     : '';
 
   // Product description injected into every concept so gpt-image-2 replicates the exact
@@ -483,8 +535,10 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
               'CRITERIOS DE CALIDAD VISUAL — no son reglas de layout, son principios de intención: (1) Jerarquía de peso: no todo puede competir al mismo nivel visual — hay un elemento dominante, uno secundario, y el resto es apoyo. (2) Tensión y dinamismo: las diagonales, el contraste de tamaños y el peso visual crean movimiento — evitar composiciones donde todo tiene el mismo tamaño y reposo. (3) Regla de 3 segundos: el mensaje principal debe leerse en 3 segundos; si hay duda, el diseño falló. (4) Espacio vacío como recurso: el aire intencional señala premium — no llenar por llenar. (5) Emoción antes que información: la pieza debe generar una reacción emocional inmediata antes de que se lea el copy.',
             ].filter(Boolean).join(' ');
 
+            // With multiple products, use Responses API (all images as input).
+            // With single product in e-commerce mode, images.edit anchors output to that product.
             const generate = async (prompt: string): Promise<string> =>
-              isProductEcommerce && productDetailImages[0]
+              isProductEcommerce && productDetailImages.length === 1
                 ? await editProductForConcept(openai, productDetailImages[0], prompt)
                 : await generateWithGptImage2(openai, prompt, inputImages);
 
