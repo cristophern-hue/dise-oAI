@@ -10,7 +10,7 @@ export async function compressBase64ForStorage(base64: string): Promise<string> 
       const el = new Image();
       el.onload = () => resolve(el);
       el.onerror = reject;
-      el.src = `data:image/jpeg;base64,${base64}`;
+      el.src = base64.startsWith('data:') ? base64 : `data:image/jpeg;base64,${base64}`;
     });
     const MAX = 512;
     let w = img.naturalWidth;
