@@ -380,7 +380,10 @@ ${productDetailImages.length === 1
   ? `Empezá el image_prompt con "transform this product photo into...". Describí qué agregar alrededor. El producto no cambia.`
   : `Empezá con "Starting from the ${productDetailImages.length} product photos as anchors, build a composition where...". Describí posición y lo que rodea cada producto.`
 }
-PROHIBICIÓN ABSOLUTA en los image_prompts: NO escribir instrucciones que modifiquen el producto en sí — NO "cambiar el color del envase", NO "aplicar el logo sobre el producto", NO "recolorear la etiqueta", NO "agregar texto en el packaging". Los image_prompts SOLO describen: posición del producto en el frame, fondo/ambiente ALREDEDOR, iluminación, y elementos tipográficos de campaña SEPARADOS del producto.` : ''}
+PROHIBICIÓN ABSOLUTA en los image_prompts:
+- NO nombrar el producto con nombres de marca, modelo o referencia comercial (NO "filtro Cummins LF16015", NO "aceite Valvoline", NO "CC2600 WF", NO ningún nombre de producto). Referite al producto SOLO como "the product from the reference photo" o "product 1 / product 2 from the reference photos".
+- NO escribir instrucciones que modifiquen el producto: NO cambiar su color, NO aplicar logos sobre él, NO recolorear etiqueta, NO agregar texto en packaging.
+Los image_prompts SOLO describen: posición del producto en el frame, fondo/ambiente ALREDEDOR, iluminación, y elementos tipográficos de campaña SEPARADOS del producto.` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`
@@ -421,7 +424,9 @@ ${productDetailImages.length === 1
   ? `SINTAXIS (images.edit — 1 producto): empezá el image_prompt con "transform this product photo into a [tipo de composición]...". Describí qué agregar alrededor del producto. El producto NO cambia.`
   : `SINTAXIS (multi-producto): empezá con "Starting from the ${productDetailImages.length} product photos as anchors, build a composition where...". Describí cómo se posicionan y qué los rodea. Referite a cada producto como "product ${productDetailImages.map((_, i) => i + 1).join(' / product ')} from the reference photos".`
 }
-PROHIBICIÓN ABSOLUTA en los image_prompts: NO escribir instrucciones que modifiquen el producto en sí — NO "cambiar el color del envase/etiqueta a los colores del brand kit", NO "aplicar el logo de la marca sobre el producto", NO "recolorear", NO "agregar texto en el packaging". El producto es INMUTABLE. Los image_prompts SOLO describen qué poner ALREDEDOR del producto.` : ''}
+PROHIBICIÓN ABSOLUTA en los image_prompts:
+- NO nombrar el producto con nombres de marca, modelo o referencia comercial (NO "filtro Cummins", NO "aceite Valvoline", NO "CC2600 WF", etc.). Referite al producto SOLO como "the product from the reference photo" o "product 1 / product 2 from the reference photos".
+- NO modificar el producto: NO cambiar colores del envase/etiqueta, NO aplicar logos sobre él, NO recolorear, NO agregar texto en packaging. El producto es INMUTABLE. Los image_prompts SOLO describen qué poner ALREDEDOR.` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.
@@ -432,9 +437,21 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
     `BRAND KIT:\n${brandKitContext}`,
     `BRIEF:\n${brief}`,
     `PERSONAS:\n${peopleInstruction}`,
-    productDescription ? `PRODUCTOS (describí exactamente estos en los conceptos que los incluyan):\n${productDescription}` : '',
+    // E-commerce: products arrive as photos below — naming them textually causes Stage 1 to
+    // hallucinate brand products from training data instead of referencing the uploaded photos.
+    isProductEcommerce && productDetailImages.length > 0
+      ? `PRODUCTOS: ${productDetailImages.length} producto(s) adjuntos como imágenes de referencia. Podés ver los productos directamente en las fotos. NO los nombres ni los describas en los image_prompts — referite a ellos ÚNICAMENTE como "the product from the reference photo" o "product 1 / product 2 from the reference photos".`
+      : productDescription
+        ? `PRODUCTOS (describí exactamente estos en los conceptos que los incluyan):\n${productDescription}`
+        : '',
     isSimilarMode ? `CONCEPTOS DE REFERENCIA (generá variaciones de esta línea visual):` : '',
   ].filter(Boolean).join('\n\n');
+
+  // For e-commerce mode, send product photos to Stage 1 so GPT-4o writes image_prompts
+  // based on what it actually sees — not from training-data brand associations.
+  const productDataUrlsForStage1 = isProductEcommerce
+    ? productDetailImages.map(img => img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`)
+    : [];
 
   const userMessageContent: ChatCompletionContentPart[] = [
     { type: 'text', text: userTextContent },
@@ -444,6 +461,10 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
           image_url: { url, detail: 'high' as const },
         }))
       : []),
+    ...productDataUrlsForStage1.map(url => ({
+      type: 'image_url' as const,
+      image_url: { url, detail: 'high' as const },
+    })),
   ];
 
   const conceptsResponse = await openai.chat.completions.create({
@@ -551,12 +572,13 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
             const fashionModelHint = hasPeople && !isCorporate && !isEvents
               ? FASHION_MODEL_POOL[conceptIdx % FASHION_MODEL_POOL.length]
               : '';
-            const productTypeContext = productDescription && !isEvents
-              ? isProductEcommerce
-                ? `DESCRIPCIÓN EXACTA DEL PRODUCTO REAL — ESTOS SON LOS ÚNICOS PRODUCTOS QUE EXISTEN EN ESTA COMPOSICIÓN (ignorar cualquier marca/producto mencionado en el brief que no coincida con esto): ${productDescription.slice(0, 1500)}`
-                : hasPeople && !isCorporate
-                  ? `PRODUCT TYPE: ${productDescription.split('\n').filter(Boolean)[0]?.slice(0, 180) || productDescription.slice(0, 180)}`
-                  : ''
+            // E-commerce: do NOT inject product description into Stage 2 fullPrompt.
+            // Text with brand names / model numbers anchors gpt-image-2 to training-data products
+            // instead of the visual input photos. The photos ARE the reference — no text needed.
+            const productTypeContext = productDescription && !isEvents && !isProductEcommerce
+              ? hasPeople && !isCorporate
+                ? `PRODUCT TYPE: ${productDescription.split('\n').filter(Boolean)[0]?.slice(0, 180) || productDescription.slice(0, 180)}`
+                : ''
               : '';
 
             const fullPrompt = [
@@ -582,7 +604,7 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
               'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
               // In e-commerce mode skip the raw brief snippet — it contaminates gpt-image-2 with brand names
               // that cause it to hallucinate products from training data instead of copying the reference photos.
-              isProductEcommerce ? '' : `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
+              isProductEcommerce ? 'VISUAL INPUT IS THE ONLY PRODUCT REFERENCE: Generate the product(s) exclusively from the input photo(s). IGNORE any product names, brand names, or model numbers that appear anywhere in this prompt — treat them as non-existent for the purpose of what the product looks like. The photo overrides all text.' : `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
               'CAMPOS VACÍOS — CRÍTICO: si el brief dice "No Aplicable" o no tiene campaña/descuento/producto, esos campos están VACÍOS. CERO texto inventado: cero taglines aspiracionales, cero porcentajes de descuento, cero nombres de colección, cero mecánicas. En ese caso: solo nombre de la marca como texto opcional y composición visual pura.',
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
