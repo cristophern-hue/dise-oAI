@@ -71,41 +71,30 @@ export async function POST(req: NextRequest) {
 
   const responsesTool = [{ type: 'image_generation', model: 'gpt-image-2', quality: 'high', size: '1024x1536' }];
 
-  // Retry once on 429; return null immediately on any other failure or empty response.
-  // Never retry on content-filter rejections (no image block) — same prompt will fail again.
   const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
-    for (let attempt = 1; attempt <= 2; attempt++) {
-      try {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const response = await (openai.responses.create as any)({
-          model: 'gpt-4o',
-          input: responsesInput(promptText),
-          tools: responsesTool,
-        });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        for (const block of (response.output || [])) {
-          if (block.type === 'image_generation_call' && block.result) return block.result;
-        }
-        // No image block = content filter; don't retry with same prompt
-        console.error(`apply-product ${label} attempt ${attempt}: no image block (content filter?)`);
-        return null;
-      } catch (err: unknown) {
-        const status = (err as { status?: number })?.status;
-        if (status === 429 && attempt === 1) {
-          console.warn(`apply-product ${label}: rate limited, waiting 10s`);
-          await new Promise(r => setTimeout(r, 10000));
-          continue; // retry once
-        }
-        console.error(`apply-product ${label} attempt ${attempt} failed:`, err);
-        return null;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await (openai.responses.create as any)({
+        model: 'gpt-4o',
+        input: responsesInput(promptText),
+        tools: responsesTool,
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      for (const block of (response.output || [])) {
+        if (block.type === 'image_generation_call' && block.result) return block.result;
       }
+      console.error(`apply-product ${label}: no image block`);
+    } catch (err) {
+      console.error(`apply-product ${label} failed:`, err);
     }
     return null;
   };
 
-  // ── PATH 1: Responses API — full prompt ─────────────────────────────────
-  const result1 = await tryResponses(applyPrompt, 'path1');
-  if (result1) return NextResponse.json({ base64: result1, applied: true, appliedVia: 'responses' });
+  // ── PATH 1: Responses API — full prompt, up to 2 attempts ───────────────
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const result = await tryResponses(applyPrompt, `path1 attempt ${attempt}`);
+    if (result) return NextResponse.json({ base64: result, applied: true, appliedVia: 'responses' });
+  }
 
   // ── PATH 2: Responses API — simplified prompt (avoids content filter) ───
   // Still passes concept + product photos so gpt-image-2 sees the actual garment.
@@ -116,8 +105,10 @@ export async function POST(req: NextRequest) {
     multiProductRule,
   ].filter(Boolean).join('\n');
 
-  const result2 = await tryResponses(simplifiedPrompt, 'path2');
-  if (result2) return NextResponse.json({ base64: result2, applied: true, appliedVia: 'responses-simplified' });
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    const result = await tryResponses(simplifiedPrompt, `path2 attempt ${attempt}`);
+    if (result) return NextResponse.json({ base64: result, applied: true, appliedVia: 'responses-simplified' });
+  }
 
   // ── PATH 3: images.edit — last resort, no product photo reference ────────
   try {
