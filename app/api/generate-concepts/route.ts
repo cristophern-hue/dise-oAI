@@ -44,10 +44,11 @@ Describí en este orden exacto:
    - Para prendas con una sola trama de color, el hex es TODO — sin él el generador produce su propio "beige genérico"
 
 3. ESTAMPADO / PRINT (cuando existe, es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, y además:
-   - TAMAÑO PROPORCIONAL: qué porcentaje del frente de la prenda ocupa el gráfico. Ej: "el gato ocupa aproximadamente el 65% del frente de la remera, desde unos 6 cm abajo del cuello hasta el ruedo exacto sin margen de tela en blanco"
-   - LÍMITE INFERIOR CRÍTICO: ¿el gráfico llega exactamente al ruedo de la prenda, o hay margen de tela en blanco entre el gráfico y el ruedo? Indicalo explícitamente. Si llega al ruedo → "el gráfico llega hasta el ruedo exacto, sin margen de tela en blanco debajo". Si hay margen → "quedan aprox Xcm de tela en blanco entre el gráfico y el ruedo". Este dato es OBLIGATORIO y define si la prenda es cropped-look o full-coverage.
-   - POSICIÓN EXACTA: dónde está ubicado. ¿Centrado horizontalmente? ¿Arriba, en el centro, o abajo del frente? ¿Empieza justo debajo del pecho o desde el centro del torso?
-   - JERARQUÍA DE ELEMENTOS: si hay texto + gráfico, describí cuál está arriba y a qué distancia. Ej: "texto 'DRINK COFFEE' centrado a unos 3 cm arriba del gato, en tipografía negra bold de aprox 2 cm de alto"
+   - TAMAÑO PROPORCIONAL — NÚMERO EXACTO OBLIGATORIO: qué porcentaje del frente de la prenda ocupa el gráfico. Ej: "el gato ocupa el 65% del frente de la remera, desde 6 cm abajo del cuello hasta el ruedo exacto sin margen de tela en blanco". NUNCA escribir "aproximadamente" ni "unos" — usar números concretos porque el generador los replicará literalmente.
+   - DISTANCIA DESDE EL CUELLO — CRÍTICO: a cuántos cm del cuello empieza el gráfico. Ej: "empieza a 5 cm del cuello" o "empieza justo debajo del pecho, a 18 cm del cuello". Este dato evita que el modelo suba o baje el gráfico respecto a la referencia.
+   - LÍMITE INFERIOR CRÍTICO: ¿el gráfico llega exactamente al ruedo de la prenda, o hay margen de tela en blanco entre el gráfico y el ruedo? Indicalo con número. Si llega al ruedo → "el gráfico llega hasta el ruedo exacto, 0 cm de tela en blanco debajo". Si hay margen → "quedan exactamente Xcm de tela en blanco entre el gráfico y el ruedo". Este dato es OBLIGATORIO y define si la prenda es cropped-look o full-coverage.
+   - POSICIÓN HORIZONTAL EXACTA: ¿centrado exactamente? ¿Descentrado? Si hay asimetría, describila — el generador DEBE respetar esa asimetría, no "corregirla".
+   - JERARQUÍA DE ELEMENTOS: si hay texto + gráfico, describí cuál está arriba y a qué distancia. Ej: "texto 'DRINK COFFEE' centrado a 3 cm arriba del gato, en tipografía negra bold de 2 cm de alto"
    - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición, y si hay variación de escala o color entre motivos
    Nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición relativa.
 
