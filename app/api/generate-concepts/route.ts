@@ -206,6 +206,13 @@ async function generateWithGptImage2(
   return fallback.data?.[0]?.b64_json || '';
 }
 
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`concept timeout after ${ms}ms: ${label}`)), ms);
+    promise.then(v => { clearTimeout(timer); resolve(v); }, e => { clearTimeout(timer); reject(e); });
+  });
+}
+
 export async function POST(req: NextRequest) {
   const {
     brief, brandKit, peopleMode = 'none',
@@ -366,7 +373,7 @@ REGLAS:
 ${isProductEcommerce ? `
 ⚠ ANTI-CONTAMINACIÓN DE MARCA EN image_prompt — CRÍTICO: cuando describas los productos en los image_prompt, referite a ellos EXCLUSIVAMENTE como "the product from reference image" o "the reference product" — NUNCA uses el nombre de marca del brief para describir el objeto visual (no escribas "Valvoline bottle", "Cummins filter", "filtro Fleetguard", etc.). El nombre de marca va SOLO en el copy tipográfico de la pieza. El generador de imagen ve las fotos directamente y reproduce el producto real — si el image_prompt nombra una marca distinta, genera un producto genérico de esa marca ignorando la foto real.
 ${productDetailImages.length === 1 ? `MODO E-COMMERCE 1 PRODUCTO (images.edit): cada image_prompt es una INSTRUCCIÓN DE EDICIÓN. Escribí "transform this product photo into...". Describí qué fondo agregar, qué texto y elementos de marca superponer, cómo componer. El producto DEBE quedar exactamente igual — solo agregar elementos alrededor.`
-: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como "product from reference image 2", "product from reference image 3"), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
+: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como ${productDetailImages.map((_, i) => `"product from reference image ${styleReferenceDataUrls.length + i + 1}"`).join(', ')}), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`
@@ -399,7 +406,7 @@ ${isEvents ? `MODO EVENTOS — PROHIBICIONES ABSOLUTAS EN CADA image_prompt:
 ${isProductEcommerce ? `
 ⚠ ANTI-CONTAMINACIÓN DE MARCA EN image_prompt — CRÍTICO: cuando describas los productos en los image_prompt, referite a ellos EXCLUSIVAMENTE como "the product from reference image" o "the reference product" — NUNCA uses el nombre de marca del brief para describir el objeto visual (no escribas "Valvoline bottle", "Cummins filter", "filtro Fleetguard", etc.). El nombre de marca va SOLO en el copy tipográfico de la pieza. El generador de imagen ve las fotos directamente y reproduce el producto real — si el image_prompt nombra una marca distinta, genera un producto genérico de esa marca ignorando la foto real.
 ${productDetailImages.length === 1 ? `MODO E-COMMERCE 1 PRODUCTO (images.edit): cada image_prompt es una INSTRUCCIÓN DE EDICIÓN. Escribí "transform this product photo into...". Describí qué fondo agregar, qué texto y elementos de marca superponer, cómo componer el producto en el encuadre. El producto DEBE quedar exactamente igual — solo agregar elementos alrededor.`
-: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como "product from reference image 2", "product from reference image 3"), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
+: `MODO E-COMMERCE MULTI-PRODUCTO (Responses API — NO images.edit): cada image_prompt es un PROMPT DE GENERACIÓN COMPLETO. NO uses "transform this photo". Describí la composición desde cero: cómo se disponen TODOS los productos de las fotos de referencia (referite a ellos como ${productDetailImages.map((_, i) => `"product from reference image ${visualRefs.length + i + 1}"`).join(', ')}), qué fondo, qué texto de campaña y mecánicas.`}` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
 El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.
@@ -439,7 +446,14 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
     const controller2 = new ReadableStream({ start(c) { c.close(); } });
     return new Response(controller2, { headers: { 'Content-Type': 'text/event-stream' } });
   }
-  const parsed = JSON.parse(rawContent);
+  let parsed: { concepts?: ConceptItem[] };
+  try {
+    parsed = JSON.parse(rawContent);
+  } catch (err) {
+    console.error('generate-concepts: failed to parse GPT response:', err, rawContent?.slice(0, 200));
+    const emptyStream = new ReadableStream({ start(c) { c.close(); } });
+    return new Response(emptyStream, { headers: { 'Content-Type': 'text/event-stream' } });
+  }
   const concepts: ConceptItem[] = parsed.concepts || [];
 
   // Logo is composited client-side after generation — do NOT pass logo images to
@@ -462,8 +476,8 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? productDetailImages.length > 1
-      ? `⚠ PRODUCTO FÍSICO OBLIGATORIO — ANCLA VISUAL ABSOLUTA: Los ${productDetailImages.length} productos en las imágenes de referencia son los ÚNICOS productos permitidos en esta composición. PROHIBIDO generar, sustituir o alucinar productos distintos aunque el nombre de campaña del brief mencione otra marca. Los productos reales son los de las fotos: reproducí su forma exacta, packaging, colores, etiquetas y proporciones. TODOS deben aparecer visiblemente.`
-      : `⚠ PRODUCTO FÍSICO OBLIGATORIO — ANCLA VISUAL ABSOLUTA: El producto en la imagen de referencia es el ÚNICO producto permitido. PROHIBIDO generar productos similares, sustituirlos ni alucinar otros aunque el brief mencione una marca distinta. Reproducí el producto exacto de la foto: su forma, packaging, color, etiqueta y proporciones.`
+      ? `⚠ PRODUCTO FÍSICO OBLIGATORIO — COPIA VISUAL EXACTA DESDE LAS FOTOS DE REFERENCIA: Los ${productDetailImages.length} productos en las imágenes de referencia son los ÚNICOS objetos físicos permitidos en esta composición. PROHIBIDO ABSOLUTO: NO generar productos nuevos desde datos de entrenamiento, NO sustituir, NO alucinar productos distintos aunque el nombre de campaña del brief mencione marcas como Cummins, Valvoline, Shell u otras. Los únicos productos válidos son exactamente los objetos fotografiados en las imágenes de referencia — copiá su forma, packaging, colores, etiquetas y proporciones con fidelidad pixel a pixel. TODOS deben aparecer visiblemente en la composición.`
+      : `⚠ PRODUCTO FÍSICO OBLIGATORIO — COPIA VISUAL EXACTA DESDE LA FOTO DE REFERENCIA: El único objeto físico permitido es exactamente el producto fotografiado en la imagen de referencia. PROHIBIDO ABSOLUTO: NO generar un producto nuevo desde datos de entrenamiento, NO sustituir por uno similar aunque el brief mencione un nombre de marca. Copiá el producto de la foto con fidelidad exacta: forma, packaging, color, etiqueta, proporciones.`
     : '';
 
   // Product description injected into every concept so gpt-image-2 replicates the exact
@@ -484,6 +498,14 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
   // Always write the brand name as plain typography — no invented graphic marks anywhere.
   const logoHint = `BRAND MARK — CRÍTICO: en el corner inferior derecho renderizá ÚNICAMENTE las letras "${brandKit.name}" como texto tipográfico limpio. PROHIBICIÓN ABSOLUTA en TODA la imagen: NO renderizar ningún ícono, símbolo gráfico, monograma, escudo, corazón, marca gráfica, lettermark, ni ningún elemento que no sea texto puro. El único elemento de identidad de marca permitido es la palabra "${brandKit.name}" escrita en tipografía sans-serif limpia. Cualquier gráfico inventado en el corner es incorrecto.`;
 
+  // Build image map hint so gpt-image-2 knows which input images are style refs vs product refs
+  const imageMapHint = isProductEcommerce && productDetailImages.length > 1
+    ? `IMAGE MAP — input images in order: [${[
+        ...(isSimilarMode ? styleReferenceDataUrls : visualRefs).map((_, i) => `image ${i + 1}: brand style reference`),
+        ...productDetailImages.map((_, i) => `image ${(isSimilarMode ? styleReferenceDataUrls : visualRefs).length + i + 1}: REAL PRODUCT ${i + 1} of ${productDetailImages.length} — reproduce exactly`),
+      ].join('; ')}]. ALL products must appear in the composition.`
+    : '';
+
   // Step 2: Stream each concept image as it completes
   const encoder = new TextEncoder();
   const send = (controller: ReadableStreamDefaultController, data: object) =>
@@ -503,7 +525,8 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
     async start(controller) {
       try {
         await Promise.allSettled(
-          concepts.map(async (concept: ConceptItem, conceptIdx: number) => {
+          concepts.map((concept: ConceptItem, conceptIdx: number) =>
+          withTimeout((async () => {
             const fashionModelHint = hasPeople && !isCorporate && !isEvents
               ? FASHION_MODEL_POOL[conceptIdx % FASHION_MODEL_POOL.length]
               : '';
@@ -516,6 +539,7 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
               : '';
 
             const fullPrompt = [
+              imageMapHint,
               productHint,
               productTypeContext,
               concept.image_prompt,
@@ -534,7 +558,9 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
               'LEGIBILIDAD — CRÍTICO: todo texto visible debe tener alto contraste con el fondo inmediato. Si el fondo es claro (beige, crema, blanco, gris claro) → texto oscuro (negro, gris oscuro, marino). Si el fondo es oscuro → texto blanco o muy claro. NUNCA texto claro sobre fondo claro ni texto oscuro sobre fondo oscuro. El número del descuento especialmente debe ser legible de un vistazo. Si hay riesgo de baja legibilidad, agregar un bloque de color sólido, sombra o área de contraste detrás del texto.',
               'ALL COMPOSITION TEXT MUST BE IN SPANISH: headlines, labels, CTAs, body copy — zero English in the composition. EXCEPTION: text printed ON the garment (estampados/prints) must be reproduced EXACTLY as it appears in the reference photo — do NOT translate garment print text.',
               'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
-              `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
+              // In e-commerce mode skip the raw brief snippet — it contaminates gpt-image-2 with brand names
+              // that cause it to hallucinate products from training data instead of copying the reference photos.
+              isProductEcommerce ? '' : `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
               'CAMPOS VACÍOS — CRÍTICO: si el brief dice "No Aplicable" o no tiene campaña/descuento/producto, esos campos están VACÍOS. CERO texto inventado: cero taglines aspiracionales, cero porcentajes de descuento, cero nombres de colección, cero mecánicas. En ese caso: solo nombre de la marca como texto opcional y composición visual pura.',
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
@@ -584,7 +610,8 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
               console.error(`concept "${concept.concept_name}" failed:`, err);
               send(controller, { error: concept.concept_name });
             }
-          })
+          })(), 55000, concept.concept_name)
+          )
         );
       } finally {
         send(controller, { done: true, productDescription, personDescription });

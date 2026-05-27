@@ -319,8 +319,8 @@ export default function Home() {
   const enterRefine = async () => {
     if (selectedConcepts.length === 0) return;
     const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
-    // Skip apply-product in e-commerce mode (product already embedded), corporate mode, and events mode
-    if (productDetailImages.length > 0 && !isProductEcommerce && peopleMode !== 'corporate' && peopleMode !== 'events') {
+    // Only run apply-product in 'real' fashion mode — product already embedded in e-commerce mode
+    if (productDetailImages.length > 0 && peopleMode === 'real') {
       const total = selectedConcepts.length;
       setApplyProgress({ done: 0, total });
       startLoading(`Aplicando producto...`);
@@ -534,11 +534,12 @@ export default function Home() {
 
       const now = new Date().toISOString();
       // Compress all base64 images before saving to stay under Vercel's 4MB body limit.
-      const [compSelectedConcepts, compProductImages, compRefineHistory, compAdaptedImages] = await Promise.all([
+      const [compSelectedConcepts, compProductImages, compRefineHistory, compAdaptedImages, compReferenceImages] = await Promise.all([
         compressImagesForStorage(selectedConcepts),
         Promise.all(productDetailImages.map(compressBase64ForStorage)),
         Promise.all(refineImageHistory.map(compressBase64ForStorage)),
         compressImagesForStorage(adaptedImages),
+        Promise.all(referenceImages.map(compressBase64ForStorage)),
       ]);
       const compRefineImage = refineImage
         ? { ...refineImage, base64: await compressBase64ForStorage(refineImage.base64) }
@@ -549,7 +550,7 @@ export default function Home() {
         peopleMode, selectedConcepts: compSelectedConcepts,
         productDescription, personDescription,
         refineImage: compRefineImage, refineHistory, refineImageHistory: compRefineHistory,
-        refineIndex, productDetailImages: compProductImages, referenceImages: [],
+        refineIndex, productDetailImages: compProductImages, referenceImages: compReferenceImages,
         adaptFormats, adaptedImages: compAdaptedImages,
       };
 

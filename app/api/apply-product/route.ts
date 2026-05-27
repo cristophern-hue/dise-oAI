@@ -19,6 +19,11 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ base64: conceptImageBase64, applied: false });
   }
 
+  // apply-product is only for fashion garment replacement in 'real' people mode
+  if (peopleMode !== 'real') {
+    return NextResponse.json({ base64: conceptImageBase64, applied: false });
+  }
+
   const hasPerson = peopleMode === 'real' && personDescription;
   const personPart = hasPerson ? ` El modelo debe coincidir con: ${personDescription}.` : '';
   const conceptContext = conceptName ? ` Estilo editorial: ${conceptName}.` : '';
