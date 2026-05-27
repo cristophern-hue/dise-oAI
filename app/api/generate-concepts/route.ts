@@ -411,9 +411,8 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
 
   // The actual logo is composited onto the image client-side after generation,
   // which is the only reliable way to guarantee logo fidelity.
-  // Always write the brand name as plain text — no invented icons or symbols.
-  // If a real logo image is available, canvas compositing will overlay it after generation.
-  const logoHint = `MARCA: escribe SOLO el nombre "${brandKit.name}" como texto tipográfico limpio en el corner inferior derecho (pequeño, ≈8% del ancho del frame). PROHIBIDO inventar íconos, monogramas, símbolos o marcas gráficas de ningún tipo — texto puro únicamente.${hasLogos ? ' (El logo real se superpondrá sobre el texto en post-proceso.)' : ''}`;
+  // Always write the brand name as plain typography — no invented graphic marks anywhere.
+  const logoHint = `MARCA: en el corner inferior derecho colocá SOLO el nombre "${brandKit.name}" como texto tipográfico limpio (pequeño, ≈8% del ancho del frame, usando la tipografía del brand kit). PROHIBIDO en toda la composición: inventar íconos de marca, monogramas, símbolos, lettermarks o cualquier elemento gráfico que represente un logo. Solo texto tipográfico — ni dentro ni fuera del producto.`;
 
   // Step 2: Stream each concept image as it completes
   const encoder = new TextEncoder();
