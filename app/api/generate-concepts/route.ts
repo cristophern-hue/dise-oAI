@@ -65,7 +65,39 @@ Describí en este orden exacto:
         - ¿O es ruedo simple recto sin ningún cuff? → escribí explícitamente "ruedo simple recto, SIN cuff ni dobladillo elástico"
      f) FIT SOBRE EL CUERPO: cómo cae el pantalón sobre la cadera, muslos y piernas. ¿Holgado en todo? ¿Ajustado en cadera y suelto abajo? ¿Cómo se comporta la tela al caminar? Describí con frase completa.
      g) ESTAMPADO EN PANTALÓN: si tiene print all-over, ¿el cuff/pretina/bolsillos son del mismo estampado o son lisos? Este contraste define la silueta.
-   - Para remeras/tops: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños (color y textura aunque sean iguales a la manga), dobladillo
+   - Para remeras/tops: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños (color y textura aunque sean iguales a la manga), dobladillo. LARGO OBLIGATORIO: "queda X cm arriba/abajo del ombligo" o "cubre la cadera" o "toca el muslo".
+   - Para vestidos/faldas — describí en este orden:
+     a) LARGO: distancia exacta desde cintura al ruedo — "mini: 15 cm por encima de la rodilla" / "midi: llega a la pantorrilla, 10 cm bajo la rodilla" / "maxi: roza el piso" / indicá cm exactos si podés.
+     b) ESCOTE: tipo exacto (redondo, V profundo, cuadrado, asimétrico, off-shoulder, halter) y profundidad estimada en cm desde el hombro.
+     c) SILUETA: ajustado al cuerpo (body-con), recto/columna, evasé (se abre en cadera), línea A, fluido con drapeado.
+     d) MANGA: sin mangas/sisa, manga corta, manga 3/4, manga larga — largo exacto en cm si es especial.
+     e) CINTURA: ¿hay cintura marcada? ¿elástico, cinto, corte en la cintura? ¿La cintura está en la cintura natural, bajo el busto (empire), o en la cadera?
+     f) TERMINACIÓN: ¿ruedo recto, asimétrico, con volado, deshilachado, aberturas laterales? Describí cada elemento.
+     g) CONSTRUCCIÓN: ¿tiene forro? ¿hay estructura/ballenas? ¿escote con boning o totalmente sin estructura?
+   - Para camperas/buzos/abrigos — describí en este orden:
+     a) TIPO: campera (corta, llega a cadera), buzo (sin cierre), hoodie (con capucha), abrigo (largo), chaleco, blazer.
+     b) LARGO: ¿hasta la cintura, cadera, muslo, rodilla? Indicá en cm si podés.
+     c) CIERRE: ¿tiene cierre (zipper)? ¿Completo o hasta la cintura? ¿Color del zipper: igual, contraste? ¿Con o sin botonera superpuesta? ¿Sin cierre (pullover)?
+     d) CAPUCHA: ¿tiene capucha? Si sí: ¿con cordón, ajustable, rígida, de punto? ¿Color igual o contraste?
+     e) MANGAS: largo exacto, ¿cuff elástico o ribeteado en el puño? Describí textura/color del cuff aunque sea igual a la manga.
+     f) BOLSILLOS: ¿canguro frontal único, bolsillos laterales con cierre, bolsillos de parche? Posición, tamaño, color.
+     g) ACABADOS: ¿con parche/bordado/estampado en el pecho o espalda? ¿Detalle de cuello (cuello alto, crew, V)?
+   - Para conjuntos y pijamas (2+ piezas) — CRÍTICO:
+     a) Describí CADA PIEZA por separado con todos los detalles de los apartados anteriores.
+     b) COORDINACIÓN DE ESTAMPADO: si ambas piezas tienen estampado all-over, ¿es el MISMO estampado exacto? ¿Misma escala? ¿O la parte de arriba tiene estampado y la de abajo es lisa? ¿Mismos colores?
+     c) COORDINACIÓN DE COLOR BASE: aunque el estampado sea igual, ¿el color de fondo es idéntico entre ambas piezas, o hay variación tonal?
+     d) CORTE DE CADA PIEZA: describí qué termina donde (ej: "top sin mangas recorte a 5 cm del ombligo + pantalón de tiro medio que tapa la cadera").
+   - Para lencería / ropa interior:
+     a) TIPO: bombacha (bikini, colaless, culotte, hilo dental, hipster), corpiño/corset (triángulo, push-up, bralette, bustier), body.
+     b) COBERTURA: qué partes cubre y qué deja al descubierto — describí exactamente.
+     c) MATERIALES: encaje (y patrón del encaje si es distintivo), microfibra (liso, satinado), algodón, punto.
+     d) TIRAS Y BRETELES: ancho en mm, ¿regulables? ¿de qué material? ¿Color igual o contraste al cuerpo principal?
+     e) DETALLES: aritos, lazos, bordados, entredós, elástico decorativo — posición exacta y color.
+   - Para ropa deportiva (calzas, tops deportivos, hoodies deportivos):
+     a) COMPRESIÓN: ¿segunda piel sin holgura (compresión alta)? ¿Ajustada con algo de elasticidad (media compresión)? ¿Solo ajustada sin compresión real?
+     b) WAISTBAND/PRETINA DEPORTIVA: ancho en cm, ¿liso o con folded-over design (tira plegada)? ¿Con logotipo de marca o sin texto?
+     c) PANELES DE CONTRASTE: si hay insertos de malla o tela distinta, describí: posición exacta (costado, espalda completa, axila, rodilla), color exacto del panel, y cómo se diferencia en textura o brillo de la tela principal.
+     d) LARGO EXACTO: para calza: "tobillos", "3/4 pantorrilla", "rodilla", "muslo alto (short)". Para top: "cubre busto completo" / "cropped 5 cm sobre cintura".
    - Para todas: costuras decorativas, piping, botones, cierres, terminaciones especiales
 
 6. ELEMENTOS ÚNICOS: cualquier detalle que diferencie esta prenda de una genérica del mismo color — una costura decorativa, un detalle en la pretina, una textura inusual, un corte asimétrico
@@ -93,7 +125,7 @@ async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): 
         { type: 'image_url', image_url: { url: imageDataUrl, detail: 'high' } },
       ],
     }],
-    max_tokens: 800,
+    max_tokens: 1200,
   });
   return response.choices[0].message.content || '';
 }
