@@ -407,14 +407,13 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ? 'Match the visual style, typography treatment and composition quality of the provided brand reference pieces.'
     : '';
 
-  // When logos are available: instruct gpt-image-2 to leave the corner clean.
   const hasLogos = !!(logos.dark || logos.light || brandKit.logoBase64);
 
   // The actual logo is composited onto the image client-side after generation,
   // which is the only reliable way to guarantee logo fidelity.
-  const logoHint = hasLogos
-    ? 'BRAND LOGO: do NOT attempt to draw or replicate the logo — leave the bottom-right corner area (≈12% wide × 8% tall) completely clean with no text, symbols, or graphic elements. The real logo will be placed there after generation.'
-    : `BRAND MARK — NO LOGO IMAGE PROVIDED: do NOT invent any graphic symbol, icon, monogram, lettermark, or decorative mark of any kind. Place ONLY the brand name "${brandKit.name}" as plain typographic text in the bottom-right corner (small, ≈8% of frame width, clear space around it). Zero invented graphic elements — text only.`;
+  // Always write the brand name as plain text — no invented icons or symbols.
+  // If a real logo image is available, canvas compositing will overlay it after generation.
+  const logoHint = `MARCA: escribe SOLO el nombre "${brandKit.name}" como texto tipográfico limpio en el corner inferior derecho (pequeño, ≈8% del ancho del frame). PROHIBIDO inventar íconos, monogramas, símbolos o marcas gráficas de ningún tipo — texto puro únicamente.${hasLogos ? ' (El logo real se superpondrá sobre el texto en post-proceso.)' : ''}`;
 
   // Step 2: Stream each concept image as it completes
   const encoder = new TextEncoder();
