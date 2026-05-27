@@ -48,27 +48,37 @@ export default function ConfigPage() {
   const [extracting, setExtracting] = useState(false);
   const [analyzingRefs, setAnalyzingRefs] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [newAdjustment, setNewAdjustment] = useState('');
 
   useEffect(() => {
     fetch('/api/brand-kits').then(r => r.json()).then(setClients).catch(console.error);
   }, []);
 
-  const persist = async (updated: BrandKit[], changed: BrandKit | null, deletedId?: string) => {
+  const persist = async (updated: BrandKit[], changed: BrandKit | null, deletedId?: string): Promise<boolean> => {
     setClients(updated);
     if (deletedId) {
-      await fetch('/api/brand-kits', {
+      const res = await fetch('/api/brand-kits', {
         method: 'DELETE',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: deletedId }),
       });
+      return res.ok;
     } else if (changed) {
-      await fetch('/api/brand-kits', {
+      const res = await fetch('/api/brand-kits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(changed),
       });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        setSaveError(body.error || `Error ${res.status} al guardar`);
+        setClients(clients); // revert local state
+        return false;
+      }
+      return true;
     }
+    return true;
   };
 
   const openNew = () => {
@@ -237,6 +247,7 @@ export default function ConfigPage() {
 
   const handleSave = async () => {
     if (!form.name.trim() || !form.styleDescription.trim()) return;
+    setSaveError('');
     let kit: BrandKit;
     let updated: BrandKit[];
     if (editing) {
@@ -246,9 +257,11 @@ export default function ConfigPage() {
       kit = { ...form, id: Math.random().toString(36).slice(2) };
       updated = [...clients, kit];
     }
-    await persist(updated, kit);
-    setSaved(true);
-    setTimeout(() => { setShowForm(false); setSaved(false); }, 800);
+    const ok = await persist(updated, kit);
+    if (ok) {
+      setSaved(true);
+      setTimeout(() => { setShowForm(false); setSaved(false); }, 800);
+    }
   };
 
   const handleDelete = (id: string) => {
@@ -575,17 +588,20 @@ export default function ConfigPage() {
             </div>
 
             {/* Actions */}
+            {saveError && (
+              <p className="text-red-400 text-sm px-1">{saveError}</p>
+            )}
             <div className="flex items-center gap-3 pt-2">
               <button
                 onClick={handleSave}
                 disabled={!form.name.trim() || !form.styleDescription.trim()}
                 className={`flex-1 font-medium px-4 py-3 rounded-xl transition-all flex items-center justify-center gap-2 ${
-                  saved ? 'bg-green-600 text-white' : 'bg-[#FA5A1E] hover:bg-[#FF912D] disabled:opacity-40 disabled:cursor-not-allowed text-white'
+                  saved ? 'bg-green-600 text-white' : saveError ? 'bg-red-600 text-white' : 'bg-[#FA5A1E] hover:bg-[#FF912D] disabled:opacity-40 disabled:cursor-not-allowed text-white'
                 }`}
               >
                 {saved ? (
                   <><svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2.5} d="M5 13l4 4L19 7" /></svg>Guardado</>
-                ) : (
+                ) : saveError ? 'Error al guardar — reintentar' : (
                   editing ? 'Guardar cambios' : 'Crear cliente'
                 )}
               </button>

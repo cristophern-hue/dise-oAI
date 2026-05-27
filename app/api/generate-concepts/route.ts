@@ -269,14 +269,13 @@ ${refStyleDirection}`
 ${refStyleDirection}`
       : `Direcciones (fashion/editorial) — 6 conceptos de layout, cada uno con mood, composición y pose RADICALMENTE distintos entre sí. La prenda es la misma en todos; la diferencia es el universo creativo.
 
-DIVERSIDAD OBLIGATORIA: si dos conceptos se parecen en pose, composición o mood, están mal. Libertad creativa total dentro de cada dirección — estas son inspiraciones, no plantillas.
-POSES: cada concepto debe tener una pose distinta. PROHIBIDO repetir "modelo parada de frente" en más de un concepto.
+DIVERSIDAD OBLIGATORIA: si dos conceptos se parecen en pose, composición o mood, están mal. La pose no es un requisito a cumplir — emerge naturalmente del espíritu de cada concepto. El modelo elige la pose que mejor exprese ese espíritu; no hay una pose "correcta" o "incorrecta" por dirección.
 
-1. Minimalista editorial — espíritu: quietud de lujo, silencio visual intencional, elegancia contenida. Pose sugerida: 3/4 o perfil. OBLIGATORIO: el nombre de campaña del brief DEBE aparecer como elemento tipográfico fino y espaciado — pequeño pero presente. Nunca pieza muda sin copy. La diferencia con catálogo: composición intencional, espacio negativo trabajado, tipografía de diseño.
-2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante ocupa 50-60% del frame, figura humana secundaria o fragmentada. Pose sugerida: sentada, recostada o en plano recortado — nunca parada de frente. Audaz y gráfico.
-3. Lifestyle aspiracional — espíritu: intimidad sensorial, calidez doméstica, momento privado. Pose OBLIGATORIA: sentada cómoda, recostada o acostada en entorno de hogar real (sillón, cama, sofá, alfombra) — NUNCA parada. COMPOSICIÓN: nombre de campaña + descuento en tipografía limpia en el tercio superior izquierdo; modelo en el centro-derecha ocupando 60-70% del frame; tercio inferior con espacio para una línea de copy de apoyo o descripción breve. Fondo: ambiente hogareño cálido, colores suaves.
-4. Composición geométrica — espíritu: arquitectura gráfica, tensión visual, formas que ordenan el caos. Pose sugerida: cuerpo en diagonal o movimiento. La persona y la geometría se integran como un solo sistema visual.
-5. Full promocional — espíritu: energía de oferta, jerarquía de información clara, todo visible de un vistazo. Pose sugerida: activa, con actitud — no simplemente parada. Diseño que informa y atrae.
+1. Minimalista editorial — espíritu: quietud de lujo, elegancia contenida. OBLIGATORIO: nombre de campaña como tipografía fina y espaciada, pequeña pero presente. Espacio negativo trabajado. No es una foto de catálogo — es composición intencional.
+2. Tipográfico editorial — espíritu: la tipografía ES la imagen. Texto dominante 50-60% del frame. Figura humana secundaria o fragmentada dentro del texto.
+3. Lifestyle aspiracional — espíritu: calidez doméstica, momento privado en entorno hogareño (sillón, sofá, cama, alfombra). Nombre de campaña + descuento en tercio superior; modelo centro-derecha; espacio inferior para copy de apoyo.
+4. KV retail full promocional — estructura de 3 zonas fijas: ZONA SUPERIOR (≈25% del frame): fondo blanco o color muy claro, nombre de campaña en tipografía fina arriba + nombre de la oferta/mecánica en tipografía bold XL que domina esta zona. ZONA CENTRAL (≈45%): foto de modelo o grupo familiar en contexto doméstico real, fondo integrado con las zonas. ZONA INFERIOR (≈30%): el porcentaje de descuento en tipografía heavy extrabold ultra-grande es el protagonista, debajo la condición en letra pequeña (ej: "en la de igual o menor valor"), fecha de vigencia, URL de la tienda. Todo en paleta del brand kit. Jerarquía retail clásica: campaña → producto → precio → condición.
+5. Full promocional — espíritu: energía de oferta, jerarquía clara. Actitud activa, presencia fuerte.
 ${refStyleDirection}`;
 
   // Step 1: GPT-4o generates concept prompts tailored to mode (or variations in similar mode).
@@ -320,6 +319,7 @@ ${conceptDirections}
 - Si hay descripción de producto, TODOS los conceptos muestran ESA MISMA prenda reproducida con fidelidad. La variedad viene exclusivamente de la COMPOSICIÓN, layout, jerarquía tipográfica y mood — no del producto.
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
+- REGLA CRÍTICA — CAMPOS VACÍOS: si el brief indica "No Aplicable", "N/A" o no especifica un valor para campaña, descuento, producto o mecánica, ese campo está VACÍO. CERO copy inventado para campos vacíos. Si no hay campaña → cero headline inventado. Si no hay descuento → cero porcentaje inventado. Si no hay producto → cero nombre de producto inventado. En ese caso el concepto es de IDENTIDAD DE MARCA PURA: composición fotográfica, paleta del brand kit, nombre de la marca como único texto opcional. Prohibido inventar "NUEVA COLECCIÓN", "BIENESTAR QUE SE SIENTE", "DUERME MEJOR" ni ningún tagline aspiracional si no está en el brief.
 - TODA pieza de e-commerce DEBE tener como mínimo: headline o nombre del producto visible + logo. Una imagen sin copy no es un anuncio.
 - NUNCA inventar logos gráficos — si no hay imagen de logo de referencia, solo colocar el nombre de la marca en texto tipográfico.
 ${isEvents ? `MODO EVENTOS — PROHIBICIONES ABSOLUTAS EN CADA image_prompt:
@@ -336,7 +336,9 @@ El modelo recibe la foto del producto y la transforma. Describí:
 El producto en la foto DEBE quedar exactamente igual — solo se agregan elementos alrededor.` : ''}
 
 Respondé SOLO con JSON: { "concepts": [ { "concept_name": "...", "image_prompt": "..." }, ... ] }
-El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.`;
+El image_prompt debe mencionar colores hex exactos, disposición, estilo y elementos concretos.
+OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con esta frase exacta (reemplazando [NOMBRE] con el nombre real de la marca): "Bottom-right corner: the text [NOMBRE] rendered as clean typographic text only — absolutely no invented logo icons, marks, symbols, monograms, hearts, or graphic elements of any kind. Text only."`;
+
 
   const userTextContent = [
     `BRAND KIT:\n${brandKitContext}`,
@@ -374,16 +376,12 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
   const parsed = JSON.parse(rawContent);
   const concepts: ConceptItem[] = parsed.concepts || [];
 
-  // Logo images to pass as visual references — gpt-image-2 can replicate them faithfully
-  const logoImages = [logos.dark, logos.light].filter(Boolean) as string[];
-
-  // Product images are passed as input_image so gpt-image-2 sees the actual print/design.
-  // Person cloning is prevented via prompt instruction, not by removing the image.
+  // Logo is composited client-side after generation — do NOT pass logo images to
+  // gpt-image-2 or it will attempt to replicate them despite prompt instructions.
   const inputImages = [
     ...(isSimilarMode ? styleReferenceDataUrls : visualRefs),
     ...productDetailImages,
     ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
-    ...logoImages,
   ];
 
   const hasPeople = peopleMode !== 'none';
@@ -392,7 +390,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     : isEvents
     ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. Portrait 4:5.'
     : hasPeople
-      ? 'Fashion editorial photography, natural skin tones, high-end campaign quality, photorealistic. SHOW THE FULL GARMENT — the entire pyjama/outfit must be visible so the product reads clearly; choose whatever pose best suits the concept direction (standing, sitting, lying, reclined, crouched — all valid). Do NOT default to standing: match the pose to the concept mood. Text elements composited naturally into the composition. Each concept must have a visually distinct layout, mood, and background treatment.'
+      ? 'Fotografía editorial de moda, tonos de piel naturales, calidad de campaña premium, fotorrealista. MOSTRAR LA PRENDA COMPLETA — todo el conjunto (top + pantalón completo, pies incluidos) debe verse. La pose, expresión y actitud emergen del espíritu del concepto. Elementos de texto integrados naturalmente en la composición. Cada concepto debe tener un layout, mood y tratamiento de fondo visualmente distinto. PROHIBIDO formato webinar/evento/corporativo: CERO badges "WEBINAR", CERO ícono de calendario/reloj/agenda, CERO bullet points con íconos de registro, CERO CTAs "Inscríbete/Registrate". Esto es campaña de moda — la tipografía es decorativa y editorial, no funcional de evento.'
       : isProductEcommerce
         ? 'Professional product photography or high-end retail graphic design, agency quality, photorealistic. If a person is shown: full body fully visible from head to toe, no leg or foot cropping.'
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
@@ -411,23 +409,12 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ? 'Match the visual style, typography treatment and composition quality of the provided brand reference pieces.'
     : '';
 
-  const logoHint = logoImages.length > 0
-    ? (() => {
-        const logoPosition = `The LAST ${logoImages.length} image(s) in the provided set are the brand logo — not product photos, not style references. `;
-        const base = 'Place the logo in the bottom-right corner (≈8% of frame width, clear space around it). ';
-        const replication = 'REPLICATION RULE: copy the logo pixel-faithfully — exact same shape, proportions, internal elements and colors as the reference image. Never distort, simplify, recolor, or reinvent it. If it does not contrast well with the background, place a small solid neutral rectangle behind it rather than changing the logo. ';
-        if (logos.dark && logos.light) {
-          return logoPosition + base + replication +
-            'VERSION SELECTION: the second-to-last image is the dark/colored logo (use on light or white backgrounds); the last image is the white/reversed logo (use on dark or saturated color backgrounds). Choose the version with the highest contrast against the local background area.';
-        }
-        if (logos.dark) {
-          return logoPosition + base + replication +
-            'This is the dark logo version — use it on light backgrounds. On dark backgrounds, place a small light-colored rectangle behind it for contrast.';
-        }
-        return logoPosition + base + replication +
-          'This is the white/light logo version — use it on dark or saturated backgrounds. On light backgrounds, place a small dark rectangle behind it for contrast.';
-      })()
-    : `BRAND MARK — NO LOGO IMAGE PROVIDED: do NOT invent any graphic symbol, icon, monogram, lettermark, or decorative mark of any kind. Place ONLY the brand name "${brandKit.name}" as plain typographic text in the bottom-right corner (small, ≈8% of frame width, clear space around it). Zero invented graphic elements — text only.`;
+  const hasLogos = !!(logos.dark || logos.light || brandKit.logoBase64);
+
+  // The actual logo is composited onto the image client-side after generation,
+  // which is the only reliable way to guarantee logo fidelity.
+  // Always write the brand name as plain typography — no invented graphic marks anywhere.
+  const logoHint = `BRAND MARK — CRÍTICO: en el corner inferior derecho renderizá ÚNICAMENTE las letras "${brandKit.name}" como texto tipográfico limpio. PROHIBICIÓN ABSOLUTA en TODA la imagen: NO renderizar ningún ícono, símbolo gráfico, monograma, escudo, corazón, marca gráfica, lettermark, ni ningún elemento que no sea texto puro. El único elemento de identidad de marca permitido es la palabra "${brandKit.name}" escrita en tipografía sans-serif limpia. Cualquier gráfico inventado en el corner es incorrecto.`;
 
   // Step 2: Stream each concept image as it completes
   const encoder = new TextEncoder();
@@ -476,10 +463,12 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               'ALL COMPOSITION TEXT MUST BE IN SPANISH: headlines, labels, CTAs, body copy — zero English in the composition. EXCEPTION: text printed ON the garment (estampados/prints) must be reproduced EXACTLY as it appears in the reference photo — do NOT translate garment print text.',
               'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
               `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
+              'CAMPOS VACÍOS — CRÍTICO: si el brief dice "No Aplicable" o no tiene campaña/descuento/producto, esos campos están VACÍOS. CERO texto inventado: cero taglines aspiracionales, cero porcentajes de descuento, cero nombres de colección, cero mecánicas. En ese caso: solo nombre de la marca como texto opcional y composición visual pura.',
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
               'PROHIBIDO: botones CTA tipo pill/badge ("Comprar ahora", "Ver más", "Shop Now") como elementos visuales gráficos. El copy va integrado tipográficamente en la composición, no como botón redondeado de e-commerce.',
               'ANTI-ALUCINACIÓN: no inventar detalles de prenda, colores, prints, bordados ni adornos que no estén en la foto de referencia o descripción. No agregar botones, logos, ni texto que no aparezca en el brief.',
+              'CRITERIOS DE CALIDAD VISUAL — no son reglas de layout, son principios de intención: (1) Jerarquía de peso: no todo puede competir al mismo nivel visual — hay un elemento dominante, uno secundario, y el resto es apoyo. (2) Tensión y dinamismo: las diagonales, el contraste de tamaños y el peso visual crean movimiento — evitar composiciones donde todo tiene el mismo tamaño y reposo. (3) Regla de 3 segundos: el mensaje principal debe leerse en 3 segundos; si hay duda, el diseño falló. (4) Espacio vacío como recurso: el aire intencional señala premium — no llenar por llenar. (5) Emoción antes que información: la pieza debe generar una reacción emocional inmediata antes de que se lea el copy.',
             ].filter(Boolean).join(' ');
 
             const generate = async (prompt: string): Promise<string> =>

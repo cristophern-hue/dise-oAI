@@ -8,6 +8,7 @@ import StepIndicator from './components/StepIndicator';
 import LoadingGrid from './components/LoadingGrid';
 import SessionDrawer from './components/SessionDrawer';
 import { dbSaveSession, dbGetAllSessions, dbDeleteSession, type SavedSession } from './lib/db';
+import { compressImagesForStorage, compressBase64ForStorage } from './lib/compressForStorage';
 
 const LAST_SESSION_KEY = 'disenoai_last_session_id';
 
@@ -122,7 +123,7 @@ export default function Home() {
     e.target.value = '';
   };
 
-  const parseConceptStream = async (res: Response, onImage: (img: GeneratedImage) => void): Promise<{ productDescription: string; personDescription: string }> => {
+  const parseConceptStream = async (res: Response, onImage: (img: GeneratedImage) => Promise<void>): Promise<{ productDescription: string; personDescription: string }> => {
     const reader = res.body!.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -138,7 +139,7 @@ export default function Home() {
         if (!part.startsWith('data: ')) continue;
         try {
           const data = JSON.parse(part.slice(6));
-          if (data.image) onImage(data.image);
+          if (data.image) await onImage(data.image);
           if (data.done) { productDesc = data.productDescription || ''; personDesc = data.personDescription || ''; }
         } catch { /* ignore malformed chunk */ }
       }
@@ -173,7 +174,7 @@ export default function Home() {
       });
       if (!res.ok) throw new Error(await res.text());
       let received = 0;
-      const { productDescription: pd, personDescription: prd } = await parseConceptStream(res, img => {
+      const { productDescription: pd, personDescription: prd } = await parseConceptStream(res, async img => {
         received++;
         setConcepts(prev => [...prev, img]);
       });
@@ -214,7 +215,7 @@ export default function Home() {
       });
       if (!res.ok) throw new Error(await res.text());
       let added = 0;
-      const { productDescription: pd } = await parseConceptStream(res, img => {
+      const { productDescription: pd } = await parseConceptStream(res, async img => {
         added++;
         setConcepts(prev => [...prev, img]);
       });
@@ -337,10 +338,10 @@ export default function Home() {
             }),
           });
           const result = res.ok
-            ? await res.json().then((data: { base64?: string; applied?: boolean; appliedVia?: string }) => {
+            ? await res.json().then(async (data: { base64?: string; applied?: boolean; appliedVia?: string }) => {
                 console.log(`apply-product [${concept.conceptName}]: applied=${data.applied} via=${data.appliedVia}`);
                 return {
-                  concept: data.base64 ? { ...concept, base64: data.base64 } : concept,
+                  concept: { ...concept, base64: data.base64 || concept.base64 },
                   applied: data.applied === true,
                 };
               })
@@ -528,16 +529,24 @@ export default function Home() {
       }
 
       const now = new Date().toISOString();
-      // Exclude full `concepts` array from save — base64 images make payload too large
-      // (exceeds Vercel 4MB body limit). Only selectedConcepts are needed to restore work.
+      // Compress all base64 images before saving to stay under Vercel's 4MB body limit.
+      const [compSelectedConcepts, compProductImages, compRefineHistory, compAdaptedImages] = await Promise.all([
+        compressImagesForStorage(selectedConcepts),
+        Promise.all(productDetailImages.map(compressBase64ForStorage)),
+        Promise.all(refineImageHistory.map(compressBase64ForStorage)),
+        compressImagesForStorage(adaptedImages),
+      ]);
+      const compRefineImage = refineImage
+        ? { ...refineImage, base64: await compressBase64ForStorage(refineImage.base64) }
+        : null;
       const data = {
         step, brief, clientRequest,
         selectedClientId: selectedClient?.id || null,
-        peopleMode, selectedConcepts,
+        peopleMode, selectedConcepts: compSelectedConcepts,
         productDescription, personDescription,
-        refineImage, refineHistory, refineImageHistory,
-        refineIndex, productDetailImages, referenceImages,
-        adaptFormats, adaptedImages,
+        refineImage: compRefineImage, refineHistory, refineImageHistory: compRefineHistory,
+        refineIndex, productDetailImages: compProductImages, referenceImages: [],
+        adaptFormats, adaptedImages: compAdaptedImages,
       };
 
       setSavedSessions(prev => {
