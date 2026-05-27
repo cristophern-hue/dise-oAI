@@ -411,22 +411,11 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
     ? 'Match the visual style, typography treatment and composition quality of the provided brand reference pieces.'
     : '';
 
+  // When logos are available: instruct gpt-image-2 to leave the corner clean.
+  // The actual logo is composited onto the image client-side after generation,
+  // which is the only reliable way to guarantee logo fidelity.
   const logoHint = logoImages.length > 0
-    ? (() => {
-        const logoPosition = `The LAST ${logoImages.length} image(s) in the provided set are the brand logo — not product photos, not style references. `;
-        const base = 'Place the logo in the bottom-right corner (≈8% of frame width, clear space around it). ';
-        const replication = 'REPLICATION RULE: copy the logo pixel-faithfully — exact same shape, proportions, internal elements and colors as the reference image. Never distort, simplify, recolor, or reinvent it. If it does not contrast well with the background, place a small solid neutral rectangle behind it rather than changing the logo. ';
-        if (logos.dark && logos.light) {
-          return logoPosition + base + replication +
-            'VERSION SELECTION: the second-to-last image is the dark/colored logo (use on light or white backgrounds); the last image is the white/reversed logo (use on dark or saturated color backgrounds). Choose the version with the highest contrast against the local background area.';
-        }
-        if (logos.dark) {
-          return logoPosition + base + replication +
-            'This is the dark logo version — use it on light backgrounds. On dark backgrounds, place a small light-colored rectangle behind it for contrast.';
-        }
-        return logoPosition + base + replication +
-          'This is the white/light logo version — use it on dark or saturated backgrounds. On light backgrounds, place a small dark rectangle behind it for contrast.';
-      })()
+    ? 'BRAND LOGO: do NOT attempt to draw or replicate the logo — leave the bottom-right corner area (≈12% wide × 8% tall) completely clean with no text, symbols, or graphic elements. The real logo will be placed there after generation.'
     : `BRAND MARK — NO LOGO IMAGE PROVIDED: do NOT invent any graphic symbol, icon, monogram, lettermark, or decorative mark of any kind. Place ONLY the brand name "${brandKit.name}" as plain typographic text in the bottom-right corner (small, ≈8% of frame width, clear space around it). Zero invented graphic elements — text only.`;
 
   // Step 2: Stream each concept image as it completes
