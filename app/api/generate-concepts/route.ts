@@ -320,6 +320,7 @@ ${conceptDirections}
 - Si hay descripción de producto, TODOS los conceptos muestran ESA MISMA prenda reproducida con fidelidad. La variedad viene exclusivamente de la COMPOSICIÓN, layout, jerarquía tipográfica y mood — no del producto.
 - Si hay referencias visuales de marca, los image_prompts deben seguir ese estilo visual
 - PROHIBIDO inventar: precios, descuentos, porcentajes, cupones, promos, mecánicas. Solo lo que esté EXPLÍCITAMENTE en el brief.
+- REGLA CRÍTICA — CAMPOS VACÍOS: si el brief indica "No Aplicable", "N/A" o no especifica un valor para campaña, descuento, producto o mecánica, ese campo está VACÍO. CERO copy inventado para campos vacíos. Si no hay campaña → cero headline inventado. Si no hay descuento → cero porcentaje inventado. Si no hay producto → cero nombre de producto inventado. En ese caso el concepto es de IDENTIDAD DE MARCA PURA: composición fotográfica, paleta del brand kit, nombre de la marca como único texto opcional. Prohibido inventar "NUEVA COLECCIÓN", "BIENESTAR QUE SE SIENTE", "DUERME MEJOR" ni ningún tagline aspiracional si no está en el brief.
 - TODA pieza de e-commerce DEBE tener como mínimo: headline o nombre del producto visible + logo. Una imagen sin copy no es un anuncio.
 - NUNCA inventar logos gráficos — si no hay imagen de logo de referencia, solo colocar el nombre de la marca en texto tipográfico.
 ${isEvents ? `MODO EVENTOS — PROHIBICIONES ABSOLUTAS EN CADA image_prompt:
@@ -465,6 +466,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               'ALL COMPOSITION TEXT MUST BE IN SPANISH: headlines, labels, CTAs, body copy — zero English in the composition. EXCEPTION: text printed ON the garment (estampados/prints) must be reproduced EXACTLY as it appears in the reference photo — do NOT translate garment print text.',
               'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
               `FOR CONTEXT ONLY — do NOT copy or render this text verbatim in the image. Use only the campaign name and discount number as text elements: ${brief.slice(0, 300)}`,
+              'CAMPOS VACÍOS — CRÍTICO: si el brief dice "No Aplicable" o no tiene campaña/descuento/producto, esos campos están VACÍOS. CERO texto inventado: cero taglines aspiracionales, cero porcentajes de descuento, cero nombres de colección, cero mecánicas. En ese caso: solo nombre de la marca como texto opcional y composición visual pura.',
               'do NOT include any invented text, prices, discounts, coupons, promo codes, or promotional copy that is not explicitly in the brief.',
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
               'PROHIBIDO: botones CTA tipo pill/badge ("Comprar ahora", "Ver más", "Shop Now") como elementos visuales gráficos. El copy va integrado tipográficamente en la composición, no como botón redondeado de e-commerce.',
