@@ -172,7 +172,8 @@ async function editProductForConcept(
 async function generateWithGptImage2(
   openai: OpenAI,
   prompt: string,
-  inputImages: string[] = []
+  inputImages: string[] = [],
+  instructions?: string,
 ): Promise<string> {
   const content = [
     ...inputImages.map(img => ({ type: 'input_image', image_url: img, detail: 'high' })),
@@ -186,6 +187,7 @@ async function generateWithGptImage2(
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.responses.create as any)({
       model: 'gpt-4o',
+      ...(instructions ? { instructions } : {}),
       input: [{ role: 'user', content }],
       tools: [{
         type: 'image_generation',
@@ -202,6 +204,10 @@ async function generateWithGptImage2(
   } catch (err) {
     console.error('Responses API failed:', err);
   }
+
+  // Fallback: for e-commerce the visual reference matters — skip fallback and return empty
+  // so the caller can retry or report error rather than generate a brand-hallucinated image.
+  if (inputImages.length > 0) return '';
 
   const fallback = await openai.images.generate({
     model: 'gpt-image-2',
@@ -625,11 +631,25 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
             const productDataUrls = productDetailImages.map(img =>
               img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`
             );
+
+            // System instruction for the Responses API gpt-4o orchestrator in e-commerce mode.
+            // This controls what gpt-4o writes in its internal image_generation tool call —
+            // the most direct lever to prevent brand-name hallucination.
+            const ecommerceOrchestatorInstruction = isProductEcommerce
+              ? `You are an image composition orchestrator. Your sole job: translate the composition description into an image_generation prompt.
+
+ABSOLUTE RULES for the image_generation prompt you write:
+1. NEVER use brand names, product names, or model numbers (no "Cummins", no "Valvoline", no "Fleetguard", no "Shell", no model codes). These words are FORBIDDEN.
+2. Refer to products ONLY by their visual appearance from the input reference images: "the dark bucket with blue lid from the reference photo", "the silver bottle from the reference photo", "product 1 from the reference image", etc.
+3. The ONLY things you describe: product positioning in the frame, background/environment around the products, lighting, and typographic campaign elements.
+4. If the composition description mentions any brand or product name, silently replace it with "the product from the reference photo" — never copy brand names into the image_generation prompt.`
+              : undefined;
+
             const generate = async (prompt: string): Promise<string> =>
               isProductEcommerce && productDetailImages.length === 1
                 ? await editProductForConcept(openai, productDetailImages[0], prompt)
                 : isProductEcommerce
-                  ? await generateWithGptImage2(openai, prompt, productDataUrls)
+                  ? await generateWithGptImage2(openai, prompt, productDataUrls, ecommerceOrchestatorInstruction)
                   : await generateWithGptImage2(openai, prompt, inputImages);
 
             try {
