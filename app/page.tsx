@@ -469,8 +469,10 @@ export default function Home() {
     setBrief((d.brief as string) || '');
     setClientRequest((d.clientRequest as string) || '');
     setPeopleMode((d.peopleMode as PeopleMode) || 'none');
-    setConcepts((d.concepts as GeneratedImage[]) || []);
-    setSelectedConcepts((d.selectedConcepts as GeneratedImage[]) || []);
+    const restored = (d.selectedConcepts as GeneratedImage[]) || [];
+    // concepts array is not persisted (too large); restore grid from selectedConcepts
+    setConcepts(restored);
+    setSelectedConcepts(restored);
     setProductDescription((d.productDescription as string) || '');
     setPersonDescription((d.personDescription as string) || '');
     setRefineImage((d.refineImage as GeneratedImage | null) || null);
@@ -526,10 +528,12 @@ export default function Home() {
       }
 
       const now = new Date().toISOString();
+      // Exclude full `concepts` array from save — base64 images make payload too large
+      // (exceeds Vercel 4MB body limit). Only selectedConcepts are needed to restore work.
       const data = {
         step, brief, clientRequest,
         selectedClientId: selectedClient?.id || null,
-        peopleMode, concepts, selectedConcepts,
+        peopleMode, selectedConcepts,
         productDescription, personDescription,
         refineImage, refineHistory, refineImageHistory,
         refineIndex, productDetailImages, referenceImages,
