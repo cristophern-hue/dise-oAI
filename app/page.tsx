@@ -200,6 +200,7 @@ export default function Home() {
     startLoading(`Generando ${newCount} similar${newCount > 1 ? 'es' : ''}...`);
     setError('');
     try {
+      const compressedRefs = await Promise.all(pinned.map(c => compressBase64ForStorage(c.base64)));
       const res = await fetch('/api/generate-concepts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -209,7 +210,7 @@ export default function Home() {
           peopleMode,
           productDetailImages,
           referenceImages,
-          styleReferenceImages: pinned.map(c => c.base64),
+          styleReferenceImages: compressedRefs,
           count: newCount,
         }),
       });
