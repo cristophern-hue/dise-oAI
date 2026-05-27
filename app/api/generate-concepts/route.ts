@@ -469,6 +469,7 @@ El image_prompt debe mencionar colores hex exactos, disposición, estilo y eleme
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
               'PROHIBIDO: botones CTA tipo pill/badge ("Comprar ahora", "Ver más", "Shop Now") como elementos visuales gráficos. El copy va integrado tipográficamente en la composición, no como botón redondeado de e-commerce.',
               'ANTI-ALUCINACIÓN: no inventar detalles de prenda, colores, prints, bordados ni adornos que no estén en la foto de referencia o descripción. No agregar botones, logos, ni texto que no aparezca en el brief.',
+              'CRITERIOS DE CALIDAD VISUAL — no son reglas de layout, son principios de intención: (1) Jerarquía de peso: no todo puede competir al mismo nivel visual — hay un elemento dominante, uno secundario, y el resto es apoyo. (2) Tensión y dinamismo: las diagonales, el contraste de tamaños y el peso visual crean movimiento — evitar composiciones donde todo tiene el mismo tamaño y reposo. (3) Regla de 3 segundos: el mensaje principal debe leerse en 3 segundos; si hay duda, el diseño falló. (4) Espacio vacío como recurso: el aire intencional señala premium — no llenar por llenar. (5) Emoción antes que información: la pieza debe generar una reacción emocional inmediata antes de que se lea el copy.',
             ].filter(Boolean).join(' ');
 
             const generate = async (prompt: string): Promise<string> =>
