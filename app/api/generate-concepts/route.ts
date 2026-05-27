@@ -458,8 +458,8 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
         : 'Premium graphic design, agency quality, NOT generic AI art, portrait 4:5.';
   const productHint = isProductEcommerce && productDetailImages.length > 0
     ? productDetailImages.length > 1
-      ? `⚠ PRODUCTO FÍSICO OBLIGATORIO — ANCLA VISUAL ABSOLUTA: Los ${productDetailImages.length} productos en las imágenes de referencia son los ÚNICOS productos permitidos en esta composición. PROHIBIDO generar, sustituir o alucicar productos distintos aunque el nombre de campaña del brief mencione otra marca. Los productos reales son los de las fotos: reproducí su forma exacta, packaging, colores, etiquetas y proporciones. TODOS deben aparecer visiblemente.`
-      : `⚠ PRODUCTO FÍSICO OBLIGATORIO — ANCLA VISUAL ABSOLUTA: El producto en la imagen de referencia es el ÚNICO producto permitido. PROHIBIDO generar productos similares, sustituirlos ni alucicar otros aunque el brief mencione una marca distinta. Reproducí el producto exacto de la foto: su forma, packaging, color, etiqueta y proporciones.`
+      ? `⚠ PRODUCTO FÍSICO OBLIGATORIO — ANCLA VISUAL ABSOLUTA: Los ${productDetailImages.length} productos en las imágenes de referencia son los ÚNICOS productos permitidos en esta composición. PROHIBIDO generar, sustituir o alucinar productos distintos aunque el nombre de campaña del brief mencione otra marca. Los productos reales son los de las fotos: reproducí su forma exacta, packaging, colores, etiquetas y proporciones. TODOS deben aparecer visiblemente.`
+      : `⚠ PRODUCTO FÍSICO OBLIGATORIO — ANCLA VISUAL ABSOLUTA: El producto en la imagen de referencia es el ÚNICO producto permitido. PROHIBIDO generar productos similares, sustituirlos ni alucinar otros aunque el brief mencione una marca distinta. Reproducí el producto exacto de la foto: su forma, packaging, color, etiqueta y proporciones.`
     : '';
 
   // Product description injected into every concept so gpt-image-2 replicates the exact
