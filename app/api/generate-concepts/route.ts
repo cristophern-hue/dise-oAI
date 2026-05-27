@@ -55,8 +55,17 @@ Describí en este orden exacto:
 4. MATERIALES Y TEXTURA: tipo de tela inferido (denim, punto, tela plana, etc.), acabado (mate, satinado, brillante), peso visual (liviano, pesado, estructurado), transparencia, textura superficial visible
 
 5. DETALLES DE CONFECCIÓN:
-   - Para pantalones: pretina (elástica, con presillas para cinturón, ancho), tiro (bajo, medio, alto), bolsillos (cantidad, tipo, posición), bota (angosta, recta, acampanada, ancho exacto estimado), cierre (visible/invisible, color), terminación del ruedo — CRÍTICO: ¿tiene puño/cuff elástico o de punto en el tobillo (tipo jogger)? ¿De qué color es ese puño si difiere del pantalón? ¿O es ruedo simple recto sin puño? Este detalle define la silueta completa.
-   - Para remeras/tops: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños, dobladillo
+   - Para pantalones — describí en este orden:
+     a) PRETINA: ¿elástica, con cordón, con presillas? ¿Ancho? ¿Color igual o distinto al pantalón?
+     b) TIRO: bajo, medio o alto
+     c) BOLSILLOS: cantidad, tipo y posición exacta (o ausencia total)
+     d) BOTA: angosta, recta, acampanada — ancho estimado en el tobillo
+     e) TERMINACIÓN DEL RUEDO — CRÍTICO SIEMPRE, sin excepción:
+        - ¿Tiene puño/cuff elástico o de punto en el tobillo (tipo jogger)? → SI/NO. Si SÍ: describí el color EXACTO del cuff aunque sea igual al pantalón (ej: "cuff elástico rosa palo, MISMO color que el pantalón, ancho aprox 5 cm"), la textura (¿liso aunque el pantalón tenga estampado?), y si es más oscuro/claro que el resto.
+        - ¿O es ruedo simple recto sin ningún cuff? → escribí explícitamente "ruedo simple recto, SIN cuff ni dobladillo elástico"
+     f) FIT SOBRE EL CUERPO: cómo cae el pantalón sobre la cadera, muslos y piernas. ¿Holgado en todo? ¿Ajustado en cadera y suelto abajo? ¿Cómo se comporta la tela al caminar? Describí con frase completa.
+     g) ESTAMPADO EN PANTALÓN: si tiene print all-over, ¿el cuff/pretina/bolsillos son del mismo estampado o son lisos? Este contraste define la silueta.
+   - Para remeras/tops: cuello (redondo, V, polo, etc.), mangas (largo, corte), puños (color y textura aunque sean iguales a la manga), dobladillo
    - Para todas: costuras decorativas, piping, botones, cierres, terminaciones especiales
 
 6. ELEMENTOS ÚNICOS: cualquier detalle que diferencie esta prenda de una genérica del mismo color — una costura decorativa, un detalle en la pretina, una textura inusual, un corte asimétrico
