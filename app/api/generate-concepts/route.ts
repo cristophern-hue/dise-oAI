@@ -542,7 +542,7 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
   } catch (err) {
     console.error('generate-concepts: Stage 1 GPT call failed:', err);
     const enc2 = new TextEncoder();
-    const errStream = new ReadableStream({ start(c) { c.enqueue(enc2.encode(`data: ${JSON.stringify({ done: true, productDescription, personDescription })}\n\n`)); c.close(); } });
+    const errStream = new ReadableStream({ start(c) { c.enqueue(enc2.encode(`data: ${JSON.stringify({ done: true, productDescription: productDescription || fashionReferenceGarmentDesc, personDescription })}\n\n`)); c.close(); } });
     return new Response(errStream, { headers: { 'Content-Type': 'text/event-stream' } });
   }
 
@@ -550,7 +550,7 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
   const enc = new TextEncoder();
   const doneStream = (extra?: object) => new ReadableStream({
     start(c) {
-      c.enqueue(enc.encode(`data: ${JSON.stringify({ done: true, productDescription, personDescription, ...extra })}\n\n`));
+      c.enqueue(enc.encode(`data: ${JSON.stringify({ done: true, productDescription: productDescription || fashionReferenceGarmentDesc, personDescription, ...extra })}\n\n`));
       c.close();
     }
   });
@@ -762,11 +762,11 @@ RULES for the image_generation prompt:
               console.error(`concept "${concept.concept_name}" failed:`, err);
               send(controller, { error: concept.concept_name });
             }
-          })(), 55000, concept.concept_name)
+          })(), 80000, concept.concept_name)
           )
         );
       } finally {
-        send(controller, { done: true, productDescription, personDescription });
+        send(controller, { done: true, productDescription: productDescription || fashionReferenceGarmentDesc, personDescription });
         controller.close();
       }
     },
