@@ -263,8 +263,10 @@ export async function POST(req: NextRequest) {
     for (let attempt = 0; attempt < 2; attempt++) {
       try {
         let desc: string;
+        // compressBase64ForStorage strips the data: prefix — restore it before passing to Vision API
+        const toDataUrl = (img: string) => img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
         if (productDetailImages.length === 1) {
-          desc = await describeProductWithVision(openai, productDetailImages[0]);
+          desc = await describeProductWithVision(openai, toDataUrl(productDetailImages[0]));
         } else {
           // Multiple products: describe each one with the appropriate framework (fashion vs packaging)
           const multiPrompt = `Hay ${productDetailImages.length} productos distintos en las imágenes (una imagen por producto). Describí CADA UNO por separado, numerándolos (PRODUCTO 1:, PRODUCTO 2:, etc.). Para cada uno, determiná primero si es prenda de vestir o producto no-fashion y aplicá el framework correspondiente.\n\n${PRODUCT_DESCRIPTION_PROMPT}`;
@@ -274,7 +276,7 @@ export async function POST(req: NextRequest) {
               role: 'user',
               content: [
                 { type: 'text', text: multiPrompt },
-                ...productDetailImages.map(img => ({ type: 'image_url' as const, image_url: { url: img, detail: 'high' as const } })),
+                ...productDetailImages.map(img => ({ type: 'image_url' as const, image_url: { url: toDataUrl(img), detail: 'high' as const } })),
               ],
             }],
             max_tokens: 1200 * productDetailImages.length,
@@ -479,14 +481,22 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
     })),
   ];
 
-  const conceptsResponse = await openai.chat.completions.create({
-    model: 'gpt-4o',
-    messages: [
-      { role: 'system', content: systemInstructions },
-      { role: 'user', content: userMessageContent },
-    ],
-    response_format: { type: 'json_object' },
-  });
+  let conceptsResponse: Awaited<ReturnType<typeof openai.chat.completions.create>>;
+  try {
+    conceptsResponse = await openai.chat.completions.create({
+      model: 'gpt-4o',
+      messages: [
+        { role: 'system', content: systemInstructions },
+        { role: 'user', content: userMessageContent },
+      ],
+      response_format: { type: 'json_object' },
+    });
+  } catch (err) {
+    console.error('generate-concepts: Stage 1 GPT call failed:', err);
+    const enc2 = new TextEncoder();
+    const errStream = new ReadableStream({ start(c) { c.enqueue(enc2.encode(`data: ${JSON.stringify({ done: true, productDescription, personDescription })}\n\n`)); c.close(); } });
+    return new Response(errStream, { headers: { 'Content-Type': 'text/event-stream' } });
+  }
 
   const rawContent = conceptsResponse.choices[0].message.content;
   const enc = new TextEncoder();
