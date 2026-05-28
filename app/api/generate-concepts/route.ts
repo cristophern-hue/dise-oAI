@@ -181,12 +181,14 @@ async function generateWithGptImage2(
   ];
 
   try {
-    // gpt-4o as orchestrator: analyzes reference images and text, then calls
-    // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
-    // reference images and hallucinates products from text associations.
+    // gpt-image-2 as outer model always calls its own image_generation tool.
+    // gpt-4o as orchestrator sometimes responds with text instead of calling the tool,
+    // causing 0 images for PRODUCTO mode (where the fallback is disabled).
+    // Stage 1 already strips brand names from image_prompts, so gpt-image-2 receives
+    // clean "product from reference photo" prompts + the actual reference photos.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.responses.create as any)({
-      model: 'gpt-4o',
+      model: 'gpt-image-2',
       ...(orchestratorInstruction ? { instructions: orchestratorInstruction } : {}),
       input: [{ role: 'user', content }],
       tools: [{
@@ -204,10 +206,6 @@ async function generateWithGptImage2(
   } catch (err) {
     console.error('Responses API failed:', err);
   }
-
-  // Fallback: for e-commerce the visual reference matters — skip fallback and return empty
-  // so the caller can retry or report error rather than generate a brand-hallucinated image.
-  if (inputImages.length > 0) return '';
 
   const fallback = await openai.images.generate({
     model: 'gpt-image-2',
