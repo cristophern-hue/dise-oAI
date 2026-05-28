@@ -77,14 +77,13 @@ export async function POST(req: NextRequest) {
 
   const responsesTool = [{ type: 'image_generation', model: 'gpt-image-2', quality: 'medium', size: '1024x1536' }];
 
-  const tryResponses = async (promptText: string, label: string, model: 'gpt-4o' | 'gpt-image-2'): Promise<string | null> => {
+  const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
     for (let i = 0; i < 2; i++) {
       try {
+        // gpt-image-2 as outer model always calls image_generation tool — no orchestrator needed
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response = await (openai.responses.create as any)({
-          model,
-          // gpt-4o: instructions nudges it to call the tool; gpt-image-2 always calls it automatically
-          ...(model === 'gpt-4o' ? { instructions: 'You MUST call the image_generation tool immediately. Never respond with text only.' } : {}),
+          model: 'gpt-image-2',
           input: responsesInput(promptText),
           tools: responsesTool,
         });
@@ -108,11 +107,11 @@ export async function POST(req: NextRequest) {
     return null;
   };
 
-  // ── PATH 1: gpt-4o orchestrator — best quality, may occasionally skip tool call ──
-  const result1 = await tryResponses(applyPrompt, 'path1-gpt4o', 'gpt-4o');
-  if (result1) return NextResponse.json({ base64: result1, applied: true, appliedVia: 'responses-gpt4o' });
+  // ── PATH 1: Responses API — full prompt ─────────────────────────────────
+  const result1 = await tryResponses(applyPrompt, 'path1');
+  if (result1) return NextResponse.json({ base64: result1, applied: true, appliedVia: 'responses' });
 
-  // ── PATH 2: gpt-image-2 — always calls tool, reliable fallback ──────────
+  // ── PATH 2: Responses API — simplified prompt (avoids content filter) ───
   const simplifiedPrompt = [
     'Replace the clothing on the person in the concept image with the exact garment shown in the product reference photos.',
     'Keep everything else completely unchanged: background, text, composition, pose, face, hair, lighting.',
@@ -120,8 +119,8 @@ export async function POST(req: NextRequest) {
     multiProductRule,
   ].filter(Boolean).join('\n');
 
-  const result2 = await tryResponses(simplifiedPrompt, 'path2-gpt-image-2', 'gpt-image-2');
-  if (result2) return NextResponse.json({ base64: result2, applied: true, appliedVia: 'responses-gpt-image-2' });
+  const result2 = await tryResponses(simplifiedPrompt, 'path2');
+  if (result2) return NextResponse.json({ base64: result2, applied: true, appliedVia: 'responses-simplified' });
 
   // ── PATH 3: images.edit — last resort, no product photo reference ────────
   try {
