@@ -256,6 +256,7 @@ export async function POST(req: NextRequest) {
   // Generate product + person descriptions — returned to frontend for the apply-product step
   let productDescription = '';
   let personDescription = '';
+  let fashionReferenceGarmentDesc = '';
 
   if (productDetailImages.length > 0) {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -296,13 +297,17 @@ export async function POST(req: NextRequest) {
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: 'Describí brevemente las características físicas de las personas en estas imágenes: tono de piel, cabello, complexión, edad aproximada. Máximo 2 oraciones.' },
-          ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: img, detail: 'low' as const } })),
+          { type: 'text', text: 'Analizá la imagen y respondé en DOS secciones:\n\nFÍSICO: En máximo 2 oraciones: tono de piel, cabello, complexión, edad aproximada.\n\nPRENDA: Describí con precisión técnica la prenda que lleva puesta para que un AI generativo la reproduzca EXACTAMENTE. Incluí: tipo de prenda, color base (con hex aproximado), estampado (motivos, colores, escala del print), y especialmente las terminaciones críticas — ¿tiene puño/cuff en el tobillo o en los puños? → indicá si es liso aunque el resto sea estampado, color exacto, ancho aprox, textura. También pretina y fit. Máximo 5 oraciones.' },
+          ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: img, detail: 'high' as const } })),
         ],
       }],
-      max_tokens: 150,
+      max_tokens: 500,
     });
-    personDescription = visionResponse.choices[0].message.content || '';
+    const rawPersonDesc = visionResponse.choices[0].message.content || '';
+    const fisicoMatch = rawPersonDesc.match(/FÍSICO:\s*([\s\S]*?)(?=\n*PRENDA:|$)/i);
+    const prendaMatch = rawPersonDesc.match(/PRENDA:\s*([\s\S]*)/i);
+    personDescription = fisicoMatch ? fisicoMatch[1].trim() : rawPersonDesc.split('\n').slice(0, 2).join(' ');
+    fashionReferenceGarmentDesc = prendaMatch ? prendaMatch[1].trim() : '';
   }
 
   const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
@@ -553,8 +558,9 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
 
   // Product description injected into every concept so gpt-image-2 replicates the exact
   // garment consistently. Person cloning prevented via prompt, not by removing the image.
-  const productDescHint = hasPeople && !isEvents && !isCorporate && productDescription
-    ? `Garment to feature (reproduce EXACTLY — same print, color, silhouette): ${productDescription}`
+  const garmentRef = productDescription || fashionReferenceGarmentDesc;
+  const productDescHint = hasPeople && !isEvents && !isCorporate && garmentRef
+    ? `Garment to feature (reproduce EXACTLY — same print, color, silhouette, and ALL terminations like cuffs/puños): ${garmentRef}`
     : '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
