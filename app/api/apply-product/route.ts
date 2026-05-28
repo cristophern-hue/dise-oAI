@@ -77,15 +77,14 @@ export async function POST(req: NextRequest) {
 
   const responsesTool = [{ type: 'image_generation', model: 'gpt-image-2', quality: 'medium', size: '1024x1536' }];
 
-  const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
+  const tryResponses = async (promptText: string, label: string, model: 'gpt-4o' | 'gpt-image-2'): Promise<string | null> => {
     for (let i = 0; i < 2; i++) {
       try {
-        // gpt-4o as orchestrator produces better image sub-prompts than gpt-image-2 alone.
-        // Force tool call via instructions to avoid gpt-4o responding with text instead.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response = await (openai.responses.create as any)({
-          model: 'gpt-4o',
-          instructions: 'You are an image generation orchestrator. You MUST immediately call the image_generation tool — never respond with text only. Translate the task description into a precise image_generation prompt that respects every detail.',
+          model,
+          // gpt-4o: instructions nudges it to call the tool; gpt-image-2 always calls it automatically
+          ...(model === 'gpt-4o' ? { instructions: 'You MUST call the image_generation tool immediately. Never respond with text only.' } : {}),
           input: responsesInput(promptText),
           tools: responsesTool,
         });
@@ -94,28 +93,26 @@ export async function POST(req: NextRequest) {
           if (block.type === 'image_generation_call' && block.result) return block.result;
         }
         console.error(`apply-product ${label}: no image block`);
-        return null; // content filter — retrying same prompt won't help
+        return null;
       } catch (err: unknown) {
         const status = (err as { status?: number })?.status;
         if (status === 429 && i === 0) {
           console.warn(`apply-product ${label}: rate limited, waiting 10s`);
           await new Promise(r => setTimeout(r, 10000));
-          continue; // one retry on 429 only
+          continue;
         }
         console.error(`apply-product ${label} failed:`, err);
-        return null; // any other error — exit immediately
+        return null;
       }
     }
     return null;
   };
 
-  // ── PATH 1: Responses API — full prompt ─────────────────────────────────
-  // tryResponses already retries once on 429; no outer loop needed.
-  const result1 = await tryResponses(applyPrompt, 'path1');
-  if (result1) return NextResponse.json({ base64: result1, applied: true, appliedVia: 'responses' });
+  // ── PATH 1: gpt-4o orchestrator — best quality, may occasionally skip tool call ──
+  const result1 = await tryResponses(applyPrompt, 'path1-gpt4o', 'gpt-4o');
+  if (result1) return NextResponse.json({ base64: result1, applied: true, appliedVia: 'responses-gpt4o' });
 
-  // ── PATH 2: Responses API — simplified prompt (avoids content filter) ───
-  // Still passes concept + product photos so gpt-image-2 sees the actual garment.
+  // ── PATH 2: gpt-image-2 — always calls tool, reliable fallback ──────────
   const simplifiedPrompt = [
     'Replace the clothing on the person in the concept image with the exact garment shown in the product reference photos.',
     'Keep everything else completely unchanged: background, text, composition, pose, face, hair, lighting.',
@@ -123,8 +120,8 @@ export async function POST(req: NextRequest) {
     multiProductRule,
   ].filter(Boolean).join('\n');
 
-  const result2 = await tryResponses(simplifiedPrompt, 'path2');
-  if (result2) return NextResponse.json({ base64: result2, applied: true, appliedVia: 'responses-simplified' });
+  const result2 = await tryResponses(simplifiedPrompt, 'path2-gpt-image-2', 'gpt-image-2');
+  if (result2) return NextResponse.json({ base64: result2, applied: true, appliedVia: 'responses-gpt-image-2' });
 
   // ── PATH 3: images.edit — last resort, no product photo reference ────────
   try {
