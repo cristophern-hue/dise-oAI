@@ -484,7 +484,9 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
       ? `PRODUCTOS: ${productDetailImages.length} producto(s) adjuntos como imágenes de referencia. Podés ver los productos directamente en las fotos. NO los nombres ni los describas en los image_prompts — referite a ellos ÚNICAMENTE como "the product from the reference photo" o "product 1 / product 2 from the reference photos".`
       : productDescription
         ? `PRODUCTOS (describí exactamente estos en los conceptos que los incluyan):\n${productDescription}`
-        : '',
+        : peopleMode !== 'none' && !isProductEcommerce && fashionReferenceGarmentDesc
+          ? `PRENDA DE REFERENCIA — la persona en la foto lleva esta prenda. TODOS los image_prompts deben describirla EXACTAMENTE igual, incluyendo explícitamente las terminaciones (puños/cuffs, ruedo, pretina). La variedad entre conceptos viene del mood, composición y layout — NO de la prenda:\n${fashionReferenceGarmentDesc}`
+          : '',
     isSimilarMode ? `CONCEPTOS DE REFERENCIA (generá variaciones de esta línea visual):` : '',
   ].filter(Boolean).join('\n\n');
 
