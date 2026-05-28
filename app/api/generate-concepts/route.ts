@@ -184,7 +184,7 @@ async function generateWithGptImage2(
   // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
   // reference images and hallucinates products from text associations.
   // orchestratorInstruction uses 'system' role (valid in Responses API input array).
-  // 'developer' is only valid in Chat Completions, not here.
+  // 'developer' is only valid in Chat Completions, not here — using it caused 500 errors.
   const input = orchestratorInstruction
     ? [{ role: 'system', content: orchestratorInstruction }, { role: 'user', content }]
     : [{ role: 'user', content }];
