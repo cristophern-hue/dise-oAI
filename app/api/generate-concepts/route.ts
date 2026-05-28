@@ -186,7 +186,6 @@ async function generateWithGptImage2(
     // causing 0 images for PRODUCTO mode (where the fallback is disabled).
     // Stage 1 already strips brand names from image_prompts, so gpt-image-2 receives
     // clean "product from reference photo" prompts + the actual reference photos.
-    // The instructions param guides how gpt-image-2 interprets the reference images.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const response = await (openai.responses.create as any)({
       model: 'gpt-image-2',
