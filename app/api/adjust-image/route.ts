@@ -7,8 +7,9 @@ const EDIT_PROMPT = (instruction: string) =>
   `Apply ONLY this specific adjustment: "${instruction}".
 
 CRITICAL — preserve EXACTLY as-is:
+- ALL human faces, skin tones, facial features, expressions, and body proportions — do NOT redraw, soften, blur, or alter any person's face or body in any way
 - ALL text, headlines, titles, dates, promotional copy, percentages, prices, icons, and graphic elements
-- The product / garment (same appearance, position, size)
+- The product / garment (same appearance, position, size, print details, cuffs, terminations)
 - The overall layout and composition structure
 - Brand logos and typography style
 
@@ -33,7 +34,7 @@ export async function POST(req: NextRequest) {
       image: imageFile,
       prompt: EDIT_PROMPT(instruction),
       size: '1024x1536',
-      quality: 'medium',
+      quality: 'high',
     });
     const base64 = response.data?.[0]?.b64_json || '';
     if (base64) return NextResponse.json({ base64 });

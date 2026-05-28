@@ -297,11 +297,29 @@ export async function POST(req: NextRequest) {
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: 'Analizá la imagen y respondé en DOS secciones:\n\nFÍSICO: En máximo 2 oraciones: tono de piel, cabello, complexión, edad aproximada.\n\nPRENDA: Describí con precisión técnica la prenda que lleva puesta para que un AI generativo la reproduzca EXACTAMENTE. Incluí: tipo de prenda, color base (con hex aproximado), estampado (motivos, colores, escala del print), y especialmente las terminaciones críticas — ¿tiene puño/cuff en el tobillo o en los puños? → indicá si es liso aunque el resto sea estampado, color exacto, ancho aprox, textura. También pretina y fit. Máximo 5 oraciones.' },
+          { type: 'text', text: `Analizá la imagen y respondé en DOS secciones:
+
+FÍSICO: En máximo 2 oraciones: tono de piel, cabello, complexión, edad aproximada.
+
+PRENDA: Describí con precisión técnica CADA prenda visible para que un AI generativo la reproduzca EXACTAMENTE. Para cada pieza:
+
+1. TIPO Y SILUETA: categoría, largo, fit (ceñido/holgado/relajado), cómo cae sobre el cuerpo.
+2. COLOR BASE: color exacto con hex aproximado, temperatura, acabado (mate/satinado).
+3. ESTAMPADO — CRÍTICO:
+   - Describí cada elemento gráfico: qué es, color exacto, tamaño proporcional (% del frente).
+   - DISTANCIA DESDE EL CUELLO: a cuántos cm empieza el gráfico desde el cuello.
+   - LÍMITE INFERIOR CRÍTICO: ¿el gráfico llega exactamente al ruedo de la prenda o hay margen de tela sin gráfico entre el borde inferior del estampado y el ruedo? Indicá con número exacto. Si llega al ruedo → "0 cm de tela en blanco debajo del gráfico". Si hay margen → "Xcm de tela sin gráfico entre el estampado y el ruedo".
+   - LÍMITES LATERALES: ¿el gráfico ocupa todo el ancho de la prenda o hay márgenes laterales de tela sin estampado?
+   - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición.
+4. TERMINACIONES CRÍTICAS:
+   - Mangas/puños: ¿tienen cuff de color distinto al cuerpo? → color exacto con hex, ancho en cm, textura (liso/punto).
+   - Ruedo: ¿termina en ruedo recto, elástico, o cuff tipo jogger?
+   - Pretina del pantalón: ¿elástica, con cordón? ¿Color igual o distinto?
+5. AUSENCIAS: qué NO tiene (ej: "SIN bolsillos", "ruedo simple SIN cuff elástico").` },
           ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: img, detail: 'high' as const } })),
         ],
       }],
-      max_tokens: 500,
+      max_tokens: 900,
     });
     const rawPersonDesc = visionResponse.choices[0].message.content || '';
     const fisicoMatch = rawPersonDesc.match(/FÍSICO:\s*([\s\S]*?)(?=\n*PRENDA:|$)/i);
