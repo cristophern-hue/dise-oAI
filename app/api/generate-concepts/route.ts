@@ -292,12 +292,15 @@ export async function POST(req: NextRequest) {
   }
 
   if (peopleMode === 'real' && referenceImages.length > 0) {
-    const visionResponse = await openai.chat.completions.create({
-      model: 'gpt-4o',
-      messages: [{
-        role: 'user',
-        content: [
-          { type: 'text', text: `Analizá la imagen y respondé en DOS secciones:
+    try {
+      // compressBase64ForStorage may strip the data: prefix — restore before passing to Vision API
+      const toRefDataUrl = (img: string) => img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`;
+      const visionResponse = await openai.chat.completions.create({
+        model: 'gpt-4o',
+        messages: [{
+          role: 'user',
+          content: [
+            { type: 'text', text: `Analizá la imagen y respondé en DOS secciones:
 
 FÍSICO: En máximo 2 oraciones: tono de piel, cabello, complexión, edad aproximada.
 
@@ -316,16 +319,19 @@ PRENDA: Describí con precisión técnica CADA prenda visible para que un AI gen
    - Ruedo: ¿termina en ruedo recto, elástico, o cuff tipo jogger?
    - Pretina del pantalón: ¿elástica, con cordón? ¿Color igual o distinto?
 5. AUSENCIAS: qué NO tiene (ej: "SIN bolsillos", "ruedo simple SIN cuff elástico").` },
-          ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: img, detail: 'high' as const } })),
-        ],
-      }],
-      max_tokens: 900,
-    });
-    const rawPersonDesc = visionResponse.choices[0].message.content || '';
-    const fisicoMatch = rawPersonDesc.match(/FÍSICO:\s*([\s\S]*?)(?=\n*PRENDA:|$)/i);
-    const prendaMatch = rawPersonDesc.match(/PRENDA:\s*([\s\S]*)/i);
-    personDescription = fisicoMatch ? fisicoMatch[1].trim() : rawPersonDesc.split('\n').slice(0, 2).join(' ');
-    fashionReferenceGarmentDesc = prendaMatch ? prendaMatch[1].trim() : '';
+            ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: toRefDataUrl(img), detail: 'high' as const } })),
+          ],
+        }],
+        max_tokens: 900,
+      });
+      const rawPersonDesc = visionResponse.choices[0].message.content || '';
+      const fisicoMatch = rawPersonDesc.match(/FÍSICO:\s*([\s\S]*?)(?=\n*PRENDA:|$)/i);
+      const prendaMatch = rawPersonDesc.match(/PRENDA:\s*([\s\S]*)/i);
+      personDescription = fisicoMatch ? fisicoMatch[1].trim() : rawPersonDesc.split('\n').slice(0, 2).join(' ');
+      fashionReferenceGarmentDesc = prendaMatch ? prendaMatch[1].trim() : '';
+    } catch (err) {
+      console.error('describe-person: vision call failed:', err);
+    }
   }
 
   const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
