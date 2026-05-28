@@ -341,7 +341,7 @@ Si omitiste alguno de estos en las secciones anteriores, corregilo ahora.` },
             ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: toRefDataUrl(img), detail: 'high' as const } })),
           ],
         }],
-        max_tokens: 900,
+        max_tokens: 1500,
       });
       const rawPersonDesc = visionResponse.choices[0].message.content || '';
       const fisicoMatch = rawPersonDesc.match(/FÍSICO:\s*([\s\S]*?)(?=\n*PRENDA:|$)/i);
