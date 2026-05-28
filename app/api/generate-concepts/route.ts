@@ -56,12 +56,14 @@ Describí en este orden exacto:
    - Para prendas con una sola trama de color, el hex es TODO — sin él el generador produce su propio "beige genérico"
 
 3. ESTAMPADO / PRINT (cuando existe, es lo más crítico): describí CADA elemento gráfico individualmente — qué forma tiene, de qué color exacto, y además:
-   - TAMAÑO PROPORCIONAL — NÚMERO EXACTO OBLIGATORIO: qué porcentaje del frente de la prenda ocupa el gráfico. Ej: "el gato ocupa el 65% del frente de la remera, desde 6 cm abajo del cuello hasta el ruedo exacto sin margen de tela en blanco". NUNCA escribir "aproximadamente" ni "unos" — usar números concretos porque el generador los replicará literalmente.
-   - DISTANCIA DESDE EL CUELLO — CRÍTICO: a cuántos cm del cuello empieza el gráfico. Ej: "empieza a 5 cm del cuello" o "empieza justo debajo del pecho, a 18 cm del cuello". Este dato evita que el modelo suba o baje el gráfico respecto a la referencia.
-   - LÍMITE INFERIOR CRÍTICO: ¿el gráfico llega exactamente al ruedo de la prenda, o hay margen de tela en blanco entre el gráfico y el ruedo? Indicalo con número. Si llega al ruedo → "el gráfico llega hasta el ruedo exacto, 0 cm de tela en blanco debajo". Si hay margen → "quedan exactamente Xcm de tela en blanco entre el gráfico y el ruedo". Este dato es OBLIGATORIO y define si la prenda es cropped-look o full-coverage.
-   - POSICIÓN HORIZONTAL EXACTA: ¿centrado exactamente? ¿Descentrado? Si hay asimetría, describila — el generador DEBE respetar esa asimetría, no "corregirla".
-   - JERARQUÍA DE ELEMENTOS: si hay texto + gráfico, describí cuál está arriba y a qué distancia. Ej: "texto 'DRINK COFFEE' centrado a 3 cm arriba del gato, en tipografía negra bold de 2 cm de alto"
-   - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición, y si hay variación de escala o color entre motivos
+   - ESTILO ARTÍSTICO — OBLIGATORIO PRIMERO: ¿es ilustración kawaii/cartoon (línea gruesa negra, ojos grandes, expresión tierna)? ¿Realista? ¿Geométrico? ¿Tipográfico puro? Este dato define cómo debe renderizarse todo el gráfico.
+   - PERSONAJE O MOTIVO EN DETALLE: describí cada sub-elemento con color hex — partes del cuerpo, ropa que viste el personaje, accesorios, expresión facial, estilo de línea (contorno grueso/fino/sin contorno). Ej: "gato blanco (#FFFFFF) con rayas grises (#888888), lleva sweater rosa tejido (#F2A0B0) con rayas negras cortas, sostiene taza blanca (#FFFFFF) con café marrón (#7B4F2E), mejillas rosas circulares (#FFB0B0), ojos negros grandes con pestañas tipo cartoon, contorno negro grueso 3px estilo line art".
+   - TEXTO IMPRESO — CRÍTICO: si hay texto en el estampado, describí: contenido literal exacto entre comillas, posición respecto al personaje (encima/debajo/dentro), color, estilo tipográfico (bold sans-serif, handwritten, serif), tamaño relativo al personaje.
+   - TAMAÑO PROPORCIONAL — NÚMERO EXACTO OBLIGATORIO: qué porcentaje del frente de la prenda ocupa el gráfico completo (texto + personaje juntos). NUNCA escribir "aproximadamente" ni "unos" — usar números concretos.
+   - DISTANCIA DESDE EL CUELLO — CRÍTICO: a cuántos cm del cuello empieza el gráfico (o el texto si está arriba). Este dato evita que el modelo suba o baje el gráfico.
+   - LÍMITE INFERIOR CRÍTICO: ¿el gráfico llega exactamente al ruedo de la prenda, o hay margen de tela en blanco entre el gráfico y el ruedo? Indicalo con número. Si llega al ruedo → "el gráfico llega hasta el ruedo exacto, 0 cm de tela en blanco debajo". Si hay margen → "quedan exactamente Xcm de tela en blanco entre el gráfico y el ruedo". Este dato es OBLIGATORIO.
+   - POSICIÓN HORIZONTAL EXACTA: ¿centrado exactamente? ¿Descentrado? Si hay asimetría, describila.
+   - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición, estilo artístico de cada motivo, y si hay variación de escala o color entre motivos.
    Nunca escribas "estampado floral" — describí cada flor, su color, tamaño y posición relativa.
 
 4. MATERIALES Y TEXTURA: tipo de tela inferido (denim, punto, tela plana, etc.), acabado (mate, satinado, brillante), peso visual (liviano, pesado, estructurado), transparencia, textura superficial visible
@@ -125,7 +127,14 @@ Describí en este orden exacto:
    Para cualquier prenda: siempre describí qué pockets NO tiene además de los que SÍ tiene.
    Una prenda bien descrita dice tanto lo que ES como lo que NO ES.
 
-REGLA CLAVE: Para prendas de color sólido (pantalones, remeras básicas, camisas lisas), el color es el único diferenciador. Dedicá mínimo 3 oraciones al color exacto con todos sus matices, temperatura, comportamiento con la luz y acabado. Una descripción vaga del color ("pantalón negro") producirá resultados incorrectos.`;
+REGLA CLAVE: Para prendas de color sólido (pantalones, remeras básicas, camisas lisas), el color es el único diferenciador. Dedicá mínimo 3 oraciones al color exacto con todos sus matices, temperatura, comportamiento con la luz y acabado. Una descripción vaga del color ("pantalón negro") producirá resultados incorrectos.
+
+VERIFICACIÓN FINAL OBLIGATORIA — antes de cerrar tu respuesta, confirmá estos puntos para cada prenda de vestir:
+□ Estampado con personaje: ¿describiste el ESTILO ARTÍSTICO (kawaii/cartoon/realista)? ¿Describiste CADA elemento del personaje con hex (cuerpo, ropa que lleva el personaje, accesorios, expresión facial, estilo de línea)? ¿Describiste el TEXTO IMPRESO en la prenda (contenido literal, posición respecto al personaje, color, tipografía)?
+□ Tobillo del pantalón — ANTI-CONTRADICCIÓN: elegí UNA opción: (A) "cuff elástico tipo jogger, color [hex], ancho [X] cm, liso/estampado" O (B) "ruedo simple recto, SIN cuff". NUNCA escribir ambas.
+□ Puño de manga: ¿cuff SÍ o NO? → si SÍ: color con hex, ancho en cm
+□ Límite inferior del estampado: ¿llega al ruedo (0 cm) o hay margen? → número exacto en cm
+Si hay contradicción o dato faltante en las secciones anteriores, corregilo ahora.`;
 
 async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): Promise<string> {
   const response = await openai.chat.completions.create({
@@ -309,16 +318,26 @@ PRENDA: Describí con precisión técnica CADA prenda visible para que un AI gen
 1. TIPO Y SILUETA: categoría, largo, fit (ceñido/holgado/relajado), cómo cae sobre el cuerpo.
 2. COLOR BASE: color exacto con hex aproximado, temperatura, acabado (mate/satinado).
 3. ESTAMPADO — CRÍTICO:
-   - Describí cada elemento gráfico: qué es, color exacto, tamaño proporcional (% del frente).
-   - DISTANCIA DESDE EL CUELLO: a cuántos cm empieza el gráfico desde el cuello.
+   - ESTILO ARTÍSTICO DEL GRÁFICO — OBLIGATORIO: ¿es ilustración kawaii/cartoon (línea gruesa, ojos grandes, mejillas redondeadas)? ¿Realista? ¿Geométrico? ¿Tipográfico puro? Describí el estilo con precisión porque define cómo debe renderizarse el personaje.
+   - PERSONAJE O MOTIVO: describí CADA elemento del gráfico individualmente — forma, colores exactos con hex, accesorios del personaje (ej: "gato blanco con rayas grises, lleva sweater rosa tejido con rayas negras cortas, sostiene taza blanca con café marrón, mejillas rosas, ojos negros grandes con pestañas, contorno negro grueso estilo cartoon").
+   - TEXTO IMPRESO EN LA PRENDA: si hay texto en el estampado, describí: contenido exacto, posición relativa al gráfico (arriba/abajo/dentro), color, estilo tipográfico (bold, serif, handwritten), tamaño relativo.
+   - TAMAÑO PROPORCIONAL: qué porcentaje del frente ocupa el gráfico completo (texto + personaje).
+   - DISTANCIA DESDE EL CUELLO: a cuántos cm empieza el gráfico (o el texto si está arriba) desde el cuello.
    - LÍMITE INFERIOR CRÍTICO: ¿el gráfico llega exactamente al ruedo de la prenda o hay margen de tela sin gráfico entre el borde inferior del estampado y el ruedo? Indicá con número exacto. Si llega al ruedo → "0 cm de tela en blanco debajo del gráfico". Si hay margen → "Xcm de tela sin gráfico entre el estampado y el ruedo".
    - LÍMITES LATERALES: ¿el gráfico ocupa todo el ancho de la prenda o hay márgenes laterales de tela sin estampado?
-   - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición.
+   - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición, estilo de cada motivo.
 4. TERMINACIONES CRÍTICAS:
    - Mangas/puños: ¿tienen cuff de color distinto al cuerpo? → color exacto con hex, ancho en cm, textura (liso/punto).
    - Ruedo: ¿termina en ruedo recto, elástico, o cuff tipo jogger?
    - Pretina del pantalón: ¿elástica, con cordón? ¿Color igual o distinto?
-5. AUSENCIAS: qué NO tiene (ej: "SIN bolsillos", "ruedo simple SIN cuff elástico").` },
+5. AUSENCIAS: qué NO tiene (ej: "SIN bolsillos", "ruedo simple SIN cuff elástico").
+
+VERIFICACIÓN FINAL OBLIGATORIA — antes de cerrar tu respuesta, confirmá estos puntos para cada pieza visible:
+□ Estampado del top: ¿describiste el ESTILO ARTÍSTICO (kawaii/cartoon/realista/geométrico)? ¿Describiste CADA elemento del personaje con hex (partes del cuerpo, ropa que lleva el personaje, accesorios, expresión)? ¿Describiste el TEXTO IMPRESO (contenido literal, posición relativa al personaje, color, tipografía)?
+□ Tobillo del pantalón — ANTI-CONTRADICCIÓN: elegí UNA opción y escribila explícitamente: (A) "cuff elástico tipo jogger en tobillo, color [hex], ancho [X] cm, liso/estampado" O (B) "ruedo simple recto, SIN cuff elástico". NUNCA escribir ambas.
+□ Puño de manga: ¿cuff SÍ o NO? → si SÍ: color con hex (igual o contraste), ancho en cm
+□ Límite inferior del estampado principal: ¿llega al ruedo (0 cm) o hay margen? → número exacto en cm
+Si omitiste alguno de estos en las secciones anteriores, corregilo ahora.` },
             ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: toRefDataUrl(img), detail: 'high' as const } })),
           ],
         }],
