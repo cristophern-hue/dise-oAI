@@ -79,9 +79,11 @@ export async function POST(req: NextRequest) {
   const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
     for (let i = 0; i < 2; i++) {
       try {
+        // gpt-image-2 as outer model always calls image_generation tool.
+        // gpt-4o sometimes responds with text instead, causing "no image block".
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response = await (openai.responses.create as any)({
-          model: 'gpt-4o',
+          model: 'gpt-image-2',
           input: responsesInput(promptText),
           tools: responsesTool,
         });
