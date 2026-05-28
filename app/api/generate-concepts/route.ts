@@ -183,10 +183,10 @@ async function generateWithGptImage2(
   // gpt-4o as orchestrator: analyzes reference images and text, then calls
   // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
   // reference images and hallucinates products from text associations.
-  // orchestratorInstruction goes as a developer-role message (highest priority,
-  // controls how gpt-4o writes the internal image_generation prompt).
+  // orchestratorInstruction uses 'system' role (valid in Responses API input array).
+  // 'developer' is only valid in Chat Completions, not here — using it caused 500 errors.
   const input = orchestratorInstruction
-    ? [{ role: 'developer', content: orchestratorInstruction }, { role: 'user', content }]
+    ? [{ role: 'system', content: orchestratorInstruction }, { role: 'user', content }]
     : [{ role: 'user', content }];
 
   for (let attempt = 0; attempt < 2; attempt++) {
