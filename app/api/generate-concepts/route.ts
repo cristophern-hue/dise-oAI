@@ -575,8 +575,8 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
   // gpt-image-2 or it will attempt to replicate them despite prompt instructions.
   const inputImages = [
     ...(isSimilarMode ? styleReferenceDataUrls : visualRefs),
-    ...productDetailImages,
-    ...(peopleMode === 'real' ? referenceImages.slice(0, 1) : []),
+    ...productDetailImages.map(img => img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`),
+    ...(peopleMode === 'real' ? referenceImages.slice(0, 1).map(img => img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`) : []),
   ];
 
   const hasPeople = peopleMode !== 'none';
@@ -689,6 +689,9 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
               brandKit.typography ? `Use ${brandKit.typography} typeface for all text elements — no generic system fonts, no random serif italics.` : '',
               'PROHIBIDO: botones CTA tipo pill/badge ("Comprar ahora", "Ver más", "Shop Now") como elementos visuales gráficos. El copy va integrado tipográficamente en la composición, no como botón redondeado de e-commerce.',
               'ANTI-ALUCINACIÓN: no inventar detalles de prenda, colores, prints, bordados ni adornos que no estén en la foto de referencia o descripción. No agregar botones, logos, ni texto que no aparezca en el brief.',
+              hasPeople && !isCorporate && !isEvents
+                ? 'LÍMITE INFERIOR DEL ESTAMPADO — ERROR MÁS COMÚN: si la foto de referencia muestra que el gráfico/print llega exactamente al ruedo de la prenda (0 cm de tela sin estampado debajo), REPRODUCIR ESO EXACTAMENTE — CERO tela sin estampado debajo del gráfico. La IA generativa tiende a agregar márgenes artificiales en la parte inferior del estampado. PROHIBIDO ABSOLUTO agregar espacio de tela que no existe en la referencia. Si el gato llega al ruedo → en la imagen generada el gato llega al ruedo, sin excepción.'
+                : '',
               'CRITERIOS DE CALIDAD VISUAL — no son reglas de layout, son principios de intención: (1) Jerarquía de peso: no todo puede competir al mismo nivel visual — hay un elemento dominante, uno secundario, y el resto es apoyo. (2) Tensión y dinamismo: las diagonales, el contraste de tamaños y el peso visual crean movimiento — evitar composiciones donde todo tiene el mismo tamaño y reposo. (3) Regla de 3 segundos: el mensaje principal debe leerse en 3 segundos; si hay duda, el diseño falló. (4) Espacio vacío como recurso: el aire intencional señala premium — no llenar por llenar. (5) Emoción antes que información: la pieza debe generar una reacción emocional inmediata antes de que se lea el copy.',
             ].filter(Boolean).join(' ');
 

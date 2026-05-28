@@ -77,13 +77,12 @@ export async function POST(req: NextRequest) {
 
   const responsesTool = [{ type: 'image_generation', model: 'gpt-image-2', quality: 'medium', size: '1024x1536' }];
 
-  const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
+  const tryResponses = async (promptText: string, label: string, model: string = 'gpt-image-2'): Promise<string | null> => {
     for (let i = 0; i < 2; i++) {
       try {
-        // gpt-image-2 as outer model always calls image_generation tool — no orchestrator needed
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response = await (openai.responses.create as any)({
-          model: 'gpt-image-2',
+          model,
           input: responsesInput(promptText),
           tools: responsesTool,
         });
@@ -107,8 +106,8 @@ export async function POST(req: NextRequest) {
     return null;
   };
 
-  // ── PATH 1: Responses API — full prompt ─────────────────────────────────
-  const result1 = await tryResponses(applyPrompt, 'path1');
+  // ── PATH 1: Responses API — gpt-4o orchestrator, full prompt ────────────
+  const result1 = await tryResponses(applyPrompt, 'path1', 'gpt-4o');
   if (result1) return NextResponse.json({ base64: result1, applied: true, appliedVia: 'responses' });
 
   // ── PATH 2: Responses API — simplified prompt (avoids content filter) ───
@@ -119,7 +118,8 @@ export async function POST(req: NextRequest) {
     multiProductRule,
   ].filter(Boolean).join('\n');
 
-  const result2 = await tryResponses(simplifiedPrompt, 'path2');
+  // ── PATH 2: gpt-image-2 direct — guaranteed to call image_generation tool ─
+  const result2 = await tryResponses(simplifiedPrompt, 'path2', 'gpt-image-2');
   if (result2) return NextResponse.json({ base64: result2, applied: true, appliedVia: 'responses-simplified' });
 
   // ── PATH 3: images.edit — last resort, no product photo reference ────────
