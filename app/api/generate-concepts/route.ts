@@ -125,7 +125,13 @@ Describí en este orden exacto:
    Para cualquier prenda: siempre describí qué pockets NO tiene además de los que SÍ tiene.
    Una prenda bien descrita dice tanto lo que ES como lo que NO ES.
 
-REGLA CLAVE: Para prendas de color sólido (pantalones, remeras básicas, camisas lisas), el color es el único diferenciador. Dedicá mínimo 3 oraciones al color exacto con todos sus matices, temperatura, comportamiento con la luz y acabado. Una descripción vaga del color ("pantalón negro") producirá resultados incorrectos.`;
+REGLA CLAVE: Para prendas de color sólido (pantalones, remeras básicas, camisas lisas), el color es el único diferenciador. Dedicá mínimo 3 oraciones al color exacto con todos sus matices, temperatura, comportamiento con la luz y acabado. Una descripción vaga del color ("pantalón negro") producirá resultados incorrectos.
+
+VERIFICACIÓN FINAL OBLIGATORIA — antes de cerrar tu respuesta, confirmá estos puntos para cada prenda de vestir:
+□ Tobillo del pantalón: ¿cuff elástico SÍ o NO? → si SÍ: color exacto con hex (aunque sea igual al pantalón), ancho aprox en cm, ¿liso aunque el pantalón tenga estampado?
+□ Puño de manga: ¿cuff SÍ o NO? → si SÍ: color (igual o contraste con hex), ancho en cm
+□ Límite inferior del estampado principal: ¿llega al ruedo (0 cm) o hay margen de tela? → número exacto en cm
+Si omitiste alguno de estos en las secciones anteriores, agregalo ahora antes de terminar.`;
 
 async function describeProductWithVision(openai: OpenAI, imageDataUrl: string): Promise<string> {
   const response = await openai.chat.completions.create({
@@ -318,7 +324,13 @@ PRENDA: Describí con precisión técnica CADA prenda visible para que un AI gen
    - Mangas/puños: ¿tienen cuff de color distinto al cuerpo? → color exacto con hex, ancho en cm, textura (liso/punto).
    - Ruedo: ¿termina en ruedo recto, elástico, o cuff tipo jogger?
    - Pretina del pantalón: ¿elástica, con cordón? ¿Color igual o distinto?
-5. AUSENCIAS: qué NO tiene (ej: "SIN bolsillos", "ruedo simple SIN cuff elástico").` },
+5. AUSENCIAS: qué NO tiene (ej: "SIN bolsillos", "ruedo simple SIN cuff elástico").
+
+VERIFICACIÓN FINAL OBLIGATORIA — antes de cerrar tu respuesta, confirmá estos puntos para cada pieza visible:
+□ Tobillo del pantalón: ¿cuff elástico SÍ o NO? → si SÍ: color exacto (aunque sea igual al pantalón), ancho aprox en cm, ¿liso aunque el pantalón tenga estampado?
+□ Puño de manga: ¿cuff SÍ o NO? → si SÍ: color (igual o contraste), ancho en cm
+□ Límite inferior del estampado principal: ¿llega al ruedo (0 cm) o hay margen? → número exacto
+Si omitiste alguno de estos en las secciones anteriores, agregalo ahora.` },
             ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: toRefDataUrl(img), detail: 'high' as const } })),
           ],
         }],
