@@ -83,8 +83,6 @@ export async function POST(req: NextRequest) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response = await (openai.responses.create as any)({
           model,
-          // gpt-4o: instructions nudges it to call the tool; gpt-image-2 always calls it automatically
-          ...(model === 'gpt-4o' ? { instructions: 'You MUST call the image_generation tool immediately. Never respond with text only.' } : {}),
           input: responsesInput(promptText),
           tools: responsesTool,
         });
@@ -92,8 +90,8 @@ export async function POST(req: NextRequest) {
         for (const block of (response.output || [])) {
           if (block.type === 'image_generation_call' && block.result) return block.result;
         }
-        console.error(`apply-product ${label}: no image block`);
-        return null;
+        console.warn(`apply-product ${label} attempt ${i + 1}: no image block — retrying`);
+        // don't return null here, let the loop retry once before giving up
       } catch (err: unknown) {
         const status = (err as { status?: number })?.status;
         if (status === 429 && i === 0) {
