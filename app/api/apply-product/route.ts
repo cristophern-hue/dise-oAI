@@ -28,9 +28,10 @@ export async function POST(req: NextRequest) {
   const personPart = hasPerson ? ` El modelo debe coincidir con: ${personDescription}.` : '';
   const conceptContext = conceptName ? ` Estilo editorial: ${conceptName}.` : '';
 
+  // Product photos are the primary reference — text description is supplementary only.
   const garmentDesc = productDescription
-    ? `Prenda a reproducir EXACTAMENTE:\n${productDescription}`
-    : 'Reproduce the exact garment shown in the input product photo.';
+    ? `PRENDA — FUENTE PRIMARIA: LA FOTO DE REFERENCIA. Reproducí la prenda exactamente como se ve en las fotos de producto. El texto a continuación es apoyo para confirmar detalles específicos (hex, medidas) que pueden ser difíciles de leer visualmente. Si hay conflicto entre texto y foto, LA FOTO GANA:\n${productDescription}`
+    : 'PRIMARY REFERENCE: the product photo(s). Reproduce the garment exactly as it appears visually in the input product photo(s).';
 
   const allProductImages = productDetailImages.slice(0, 4);
   const multiProductRule = allProductImages.length > 1

@@ -601,11 +601,10 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
       : `PRODUCTS FROZEN — DO NOT TOUCH any of the ${productDetailImages.length} products: NEVER alter colors, label text, packaging text, product shape, proportions. NEVER apply logos or extra marks ON any product surface. Reproduce each product pixel-perfect from its reference photo.`
     : '';
 
-  // Product description injected into every concept so gpt-image-2 replicates the exact
-  // garment consistently. Person cloning prevented via prompt, not by removing the image.
+  // Garment hint: the reference PHOTOS are the primary source — text confirms measurements/hex only.
   const garmentRef = productDescription || fashionReferenceGarmentDesc;
   const productDescHint = hasPeople && !isEvents && !isCorporate && garmentRef
-    ? `Garment to feature (reproduce EXACTLY — same print, color, silhouette, and ALL terminations like cuffs/puños): ${garmentRef}`
+    ? `GARMENT REFERENCE — PRIMARY SOURCE IS THE PHOTO(S): Look at the input reference photo(s) and reproduce the garment EXACTLY as it appears visually. The text below is supplementary — use it only to confirm specific details (hex colors, cuff widths, print margins) that may be hard to read from the photo. If there is any conflict between the text and the photo, THE PHOTO WINS.\n${garmentRef}`
     : '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
