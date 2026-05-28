@@ -175,25 +175,25 @@ async function generateWithGptImage2(
   inputImages: string[] = [],
   orchestratorInstruction?: string,
 ): Promise<string> {
+  // detail: 'high' is a Chat Completions field — not valid in Responses API input_image
   const content = [
-    ...inputImages.map(img => ({ type: 'input_image', image_url: img, detail: 'high' })),
+    ...inputImages.map(img => ({ type: 'input_image', image_url: img })),
     { type: 'input_text', text: prompt },
   ];
 
   // gpt-4o as orchestrator: analyzes reference images and text, then calls
   // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
   // reference images and hallucinates products from text associations.
-  // orchestratorInstruction uses 'system' role (valid in Responses API input array).
-  // 'developer' is only valid in Chat Completions, not here — using it caused 500 errors.
-  const input = orchestratorInstruction
-    ? [{ role: 'system', content: orchestratorInstruction }, { role: 'user', content }]
-    : [{ role: 'user', content }];
+  // Responses API: system-level instruction goes in top-level `instructions` param.
+  // Only user/assistant roles are valid in the input array.
+  const input = [{ role: 'user', content }];
 
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await (openai.responses.create as any)({
         model: 'gpt-4o',
+        ...(orchestratorInstruction ? { instructions: orchestratorInstruction } : {}),
         input,
         tools: [{
           type: 'image_generation',
