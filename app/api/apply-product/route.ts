@@ -79,11 +79,12 @@ export async function POST(req: NextRequest) {
   const tryResponses = async (promptText: string, label: string): Promise<string | null> => {
     for (let i = 0; i < 2; i++) {
       try {
-        // gpt-image-2 as outer model always calls image_generation tool.
-        // gpt-4o sometimes responds with text instead, causing "no image block".
+        // gpt-4o as orchestrator produces better image sub-prompts than gpt-image-2 alone.
+        // Force tool call via instructions to avoid gpt-4o responding with text instead.
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const response = await (openai.responses.create as any)({
-          model: 'gpt-image-2',
+          model: 'gpt-4o',
+          instructions: 'You are an image generation orchestrator. You MUST immediately call the image_generation tool — never respond with text only. Translate the task description into a precise image_generation prompt that respects every detail.',
           input: responsesInput(promptText),
           tools: responsesTool,
         });
