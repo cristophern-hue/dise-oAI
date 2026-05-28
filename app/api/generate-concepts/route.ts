@@ -175,56 +175,38 @@ async function generateWithGptImage2(
   inputImages: string[] = [],
   orchestratorInstruction?: string,
 ): Promise<string> {
-  // detail:'high' is valid in Responses API ResponseInputImageContent (defined in SDK types)
   const content = [
     ...inputImages.map(img => ({ type: 'input_image', image_url: img, detail: 'high' })),
     { type: 'input_text', text: prompt },
   ];
 
-  // gpt-4o as orchestrator: analyzes reference images and text, then calls
-  // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
-  // reference images and hallucinates products from text associations.
-  // Responses API: system-level instruction goes in top-level `instructions` param.
-  // Only user/assistant roles are valid in the input array.
-  const input = [{ role: 'user', content }];
-
-  for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await (openai.responses.create as any)({
-        model: 'gpt-4o',
-        ...(orchestratorInstruction ? { instructions: orchestratorInstruction } : {}),
-        input,
-        tools: [{
-          type: 'image_generation',
-          model: 'gpt-image-2',
-          quality: 'medium',
-          size: '1024x1536',
-        }],
-      });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      for (const block of (response.output || [])) {
-        if (block.type === 'image_generation_call') {
-          if (block.result) return block.result;
-          console.error('image_generation_call returned null result — status:', block.status, 'error:', block.error);
-        }
-      }
-      console.error('Responses API output blocks:', JSON.stringify((response.output || []).map((b: { type: string }) => b.type)));
-      return '';
-    } catch (err: unknown) {
-      const status = (err as { status?: number })?.status;
-      if (status === 429 && attempt === 0) {
-        console.warn('generateWithGptImage2: rate limited, waiting 12s before retry');
-        await new Promise(r => setTimeout(r, 12000));
-        continue;
-      }
-      console.error('Responses API failed:', err);
-      break;
+  try {
+    // gpt-4o as orchestrator: analyzes reference images and text, then calls
+    // gpt-image-2 tool. Using gpt-image-2 directly as orchestrator ignores
+    // reference images and hallucinates products from text associations.
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const response = await (openai.responses.create as any)({
+      model: 'gpt-4o',
+      ...(orchestratorInstruction ? { instructions: orchestratorInstruction } : {}),
+      input: [{ role: 'user', content }],
+      tools: [{
+        type: 'image_generation',
+        model: 'gpt-image-2',
+        quality: 'medium',
+        size: '1024x1536',
+      }],
+    });
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    for (const block of (response.output || [])) {
+      if (block.type === 'image_generation_call' && block.result) return block.result;
     }
+    console.error('Responses API returned no image block');
+  } catch (err) {
+    console.error('Responses API failed:', err);
   }
 
-  // Fallback: for e-commerce the visual reference matters — skip text-only fallback
-  // to avoid generating brand-hallucinated images from training data.
+  // Fallback: for e-commerce the visual reference matters — skip fallback and return empty
+  // so the caller can retry or report error rather than generate a brand-hallucinated image.
   if (inputImages.length > 0) return '';
 
   const fallback = await openai.images.generate({
