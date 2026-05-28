@@ -175,9 +175,9 @@ async function generateWithGptImage2(
   inputImages: string[] = [],
   orchestratorInstruction?: string,
 ): Promise<string> {
-  // detail: 'high' is a Chat Completions field — not valid in Responses API input_image
+  // detail:'high' is valid in Responses API ResponseInputImageContent (defined in SDK types)
   const content = [
-    ...inputImages.map(img => ({ type: 'input_image', image_url: img })),
+    ...inputImages.map(img => ({ type: 'input_image', image_url: img, detail: 'high' })),
     { type: 'input_text', text: prompt },
   ];
 
@@ -204,9 +204,12 @@ async function generateWithGptImage2(
       });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       for (const block of (response.output || [])) {
-        if (block.type === 'image_generation_call' && block.result) return block.result;
+        if (block.type === 'image_generation_call') {
+          if (block.result) return block.result;
+          console.error('image_generation_call returned null result — status:', block.status, 'error:', block.error);
+        }
       }
-      console.error('Responses API returned no image block');
+      console.error('Responses API output blocks:', JSON.stringify((response.output || []).map((b: { type: string }) => b.type)));
       return '';
     } catch (err: unknown) {
       const status = (err as { status?: number })?.status;
@@ -504,20 +507,29 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
   });
 
   const rawContent = conceptsResponse.choices[0].message.content;
+  const enc = new TextEncoder();
+  const doneStream = (extra?: object) => new ReadableStream({
+    start(c) {
+      c.enqueue(enc.encode(`data: ${JSON.stringify({ done: true, productDescription, personDescription, ...extra })}\n\n`));
+      c.close();
+    }
+  });
   if (!rawContent) {
     console.error('generate-concepts: GPT returned null content (possible content filter)');
-    const controller2 = new ReadableStream({ start(c) { c.close(); } });
-    return new Response(controller2, { headers: { 'Content-Type': 'text/event-stream' } });
+    return new Response(doneStream(), { headers: { 'Content-Type': 'text/event-stream' } });
   }
   let parsed: { concepts?: ConceptItem[] };
   try {
     parsed = JSON.parse(rawContent);
   } catch (err) {
     console.error('generate-concepts: failed to parse GPT response:', err, rawContent?.slice(0, 200));
-    const emptyStream = new ReadableStream({ start(c) { c.close(); } });
-    return new Response(emptyStream, { headers: { 'Content-Type': 'text/event-stream' } });
+    return new Response(doneStream(), { headers: { 'Content-Type': 'text/event-stream' } });
   }
   const concepts: ConceptItem[] = parsed.concepts || [];
+  if (concepts.length === 0) {
+    console.error('generate-concepts: Stage 1 returned empty concepts array. Raw:', rawContent?.slice(0, 300));
+    return new Response(doneStream(), { headers: { 'Content-Type': 'text/event-stream' } });
+  }
 
   // Logo is composited client-side after generation — do NOT pass logo images to
   // gpt-image-2 or it will attempt to replicate them despite prompt instructions.
