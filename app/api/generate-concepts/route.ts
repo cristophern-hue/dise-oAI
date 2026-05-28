@@ -256,6 +256,7 @@ export async function POST(req: NextRequest) {
   // Generate product + person descriptions — returned to frontend for the apply-product step
   let productDescription = '';
   let personDescription = '';
+  let fashionReferenceGarmentDesc = '';
 
   if (productDetailImages.length > 0) {
     for (let attempt = 0; attempt < 2; attempt++) {
@@ -296,13 +297,35 @@ export async function POST(req: NextRequest) {
       messages: [{
         role: 'user',
         content: [
-          { type: 'text', text: 'Describí brevemente las características físicas de las personas en estas imágenes: tono de piel, cabello, complexión, edad aproximada. Máximo 2 oraciones.' },
-          ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: img, detail: 'low' as const } })),
+          { type: 'text', text: `Analizá la imagen y respondé en DOS secciones:
+
+FÍSICO: En máximo 2 oraciones: tono de piel, cabello, complexión, edad aproximada.
+
+PRENDA: Describí con precisión técnica CADA prenda visible para que un AI generativo la reproduzca EXACTAMENTE. Para cada pieza:
+
+1. TIPO Y SILUETA: categoría, largo, fit (ceñido/holgado/relajado), cómo cae sobre el cuerpo.
+2. COLOR BASE: color exacto con hex aproximado, temperatura, acabado (mate/satinado).
+3. ESTAMPADO — CRÍTICO:
+   - Describí cada elemento gráfico: qué es, color exacto, tamaño proporcional (% del frente).
+   - DISTANCIA DESDE EL CUELLO: a cuántos cm empieza el gráfico desde el cuello.
+   - LÍMITE INFERIOR CRÍTICO: ¿el gráfico llega exactamente al ruedo de la prenda o hay margen de tela sin gráfico entre el borde inferior del estampado y el ruedo? Indicá con número exacto. Si llega al ruedo → "0 cm de tela en blanco debajo del gráfico". Si hay margen → "Xcm de tela sin gráfico entre el estampado y el ruedo".
+   - LÍMITES LATERALES: ¿el gráfico ocupa todo el ancho de la prenda o hay márgenes laterales de tela sin estampado?
+   - Para estampados all-over: tamaño de cada motivo individual, densidad de repetición.
+4. TERMINACIONES CRÍTICAS:
+   - Mangas/puños: ¿tienen cuff de color distinto al cuerpo? → color exacto con hex, ancho en cm, textura (liso/punto).
+   - Ruedo: ¿termina en ruedo recto, elástico, o cuff tipo jogger?
+   - Pretina del pantalón: ¿elástica, con cordón? ¿Color igual o distinto?
+5. AUSENCIAS: qué NO tiene (ej: "SIN bolsillos", "ruedo simple SIN cuff elástico").` },
+          ...referenceImages.map(img => ({ type: 'image_url' as const, image_url: { url: img, detail: 'high' as const } })),
         ],
       }],
-      max_tokens: 150,
+      max_tokens: 900,
     });
-    personDescription = visionResponse.choices[0].message.content || '';
+    const rawPersonDesc = visionResponse.choices[0].message.content || '';
+    const fisicoMatch = rawPersonDesc.match(/FÍSICO:\s*([\s\S]*?)(?=\n*PRENDA:|$)/i);
+    const prendaMatch = rawPersonDesc.match(/PRENDA:\s*([\s\S]*)/i);
+    personDescription = fisicoMatch ? fisicoMatch[1].trim() : rawPersonDesc.split('\n').slice(0, 2).join(' ');
+    fashionReferenceGarmentDesc = prendaMatch ? prendaMatch[1].trim() : '';
   }
 
   const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
@@ -553,8 +576,9 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
 
   // Product description injected into every concept so gpt-image-2 replicates the exact
   // garment consistently. Person cloning prevented via prompt, not by removing the image.
-  const productDescHint = hasPeople && !isEvents && !isCorporate && productDescription
-    ? `Garment to feature (reproduce EXACTLY — same print, color, silhouette): ${productDescription}`
+  const garmentRef = productDescription || fashionReferenceGarmentDesc;
+  const productDescHint = hasPeople && !isEvents && !isCorporate && garmentRef
+    ? `Garment to feature (reproduce EXACTLY — same print, color, silhouette, and ALL terminations like cuffs/puños): ${garmentRef}`
     : '';
   const styleHint = isSimilarMode
     ? 'IMPORTANT: The provided reference image is the approved Key Visual — maintain its exact graphic style, color palette, typography treatment, layout approach, and mood. Create a variation, not a copy: same DNA, different composition.'
