@@ -708,6 +708,12 @@ export default function Home() {
             <input type="file" accept=".json" onChange={importSession} className="hidden" />
           </label>
           <Link
+            href="/brand-offer"
+            className="text-sm text-white/50 hover:text-white/80 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg"
+          >
+            Campaña Oferta
+          </Link>
+          <Link
             href="/config"
             className="text-sm text-white/50 hover:text-white/80 transition-colors border border-white/10 hover:border-white/20 px-3 py-1.5 rounded-lg"
           >
