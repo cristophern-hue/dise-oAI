@@ -1,0 +1,142 @@
+import { NextRequest, NextResponse } from 'next/server';
+import OpenAI, { toFile } from 'openai';
+
+export const maxDuration = 300;
+
+export async function POST(req: NextRequest) {
+  const { conceptImageBase64, productDetailImages, productDescription, peopleMode, personDescription, conceptName }: {
+    conceptImageBase64: string;
+    productDetailImages: string[];
+    productDescription: string;
+    peopleMode: 'none' | 'real';
+    personDescription: string;
+    conceptName?: string;
+  } = await req.json();
+
+  const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+
+  if (!productDetailImages.length) {
+    return NextResponse.json({ base64: conceptImageBase64, applied: false });
+  }
+
+  // apply-product is only for fashion garment replacement in 'real' people mode
+  if (peopleMode !== 'real') {
+    return NextResponse.json({ base64: conceptImageBase64, applied: false });
+  }
+
+  const hasPerson = peopleMode === 'real' && personDescription;
+  const personPart = hasPerson ? ` El modelo debe coincidir con: ${personDescription}.` : '';
+  const conceptContext = conceptName ? ` Estilo editorial: ${conceptName}.` : '';
+
+  // Product photos are the primary reference — text description is supplementary only.
+  const garmentDesc = productDescription
+    ? `PRENDA — FUENTE PRIMARIA: LA FOTO DE REFERENCIA. Reproducí la prenda exactamente como se ve en las fotos de producto. El texto a continuación es apoyo para confirmar detalles específicos (hex, medidas) que pueden ser difíciles de leer visualmente. Si hay conflicto entre texto y foto, LA FOTO GANA:\n${productDescription}`
+    : 'PRIMARY REFERENCE: the product photo(s). Reproduce the garment exactly as it appears visually in the input product photo(s).';
+
+  const allProductImages = productDetailImages.slice(0, 4);
+  const multiProductRule = allProductImages.length > 1
+    ? `PRENDAS A APLICAR (${allProductImages.length} piezas): aplicá TODAS las prendas de referencia que correspondan — por ejemplo si hay remera + pantalón, la persona debe vestir ambas prendas simultáneamente. No omitir ninguna prenda de referencia.`
+    : '';
+
+  const applyPrompt = [
+    '═══ TAREA ÚNICA: cambiar SOLO la ropa. El concepto de entrada es SAGRADO. ═══',
+    'LO QUE CAMBIA: las prendas que viste la persona, reemplazadas por las prendas de las fotos de referencia.',
+    'LO QUE NO CAMBIA (PIXEL-PERFECT):',
+    '- POSICIÓN Y POSE: la persona queda en el MISMO lugar del frame, misma pose, mismo tamaño, mismo ángulo. Inamovible.',
+    '- FONDO Y COMPOSICIÓN: colores, geometrías, bloques, gradientes — idénticos. CERO armonización con la prenda nueva.',
+    '- TEXTO Y TIPOGRAFÍA: todo el copy, logos y números quedan exactos. CERO texto nuevo, CERO texto eliminado.',
+    '- ILUMINACIÓN Y ENCUADRE: idénticos al concepto original.',
+    multiProductRule,
+    'CÓMO REPRODUCIR LA PRENDA — LEÉ LA DESCRIPCIÓN DE PRODUCTO Y RESPETÁ CADA NÚMERO EXACTO:',
+    '- Color: usá el hex exacto de la descripción si existe. Beige ≠ blanco (#C4B49A). Negro ≠ gris (#0A0A0A).',
+    '- Calce: holgado→holgado, slim→slim. No ajustar ni entallar respecto a cómo cae en la referencia.',
+    '- Remates de pantalón — CRÍTICO: si la descripción o la foto de referencia muestra cuff/puño elástico en el tobillo (tipo jogger), DEBE aparecer en la imagen generada aunque sea del mismo color que el pantalón. NUNCA simplificar a ruedo recto si la referencia tiene cuff. Si el pantalón tiene estampado all-over y el cuff es liso del mismo color base → reproducir ese contraste exactamente.',
+    '- Estampado — 4 reglas no negociables: (1) ESCALA: si la descripción dice "65% del frente", el gráfico DEBE ocupar exactamente ese 65% — no lo achicar, no lo "centrar", no lo "balancear". (2) DISTANCIA DEL CUELLO: si dice "empieza a 5 cm del cuello", respetar esa distancia exacta — PROHIBIDO subir o bajar el gráfico. (3) LÍMITE INFERIOR: si el gráfico llega al ruedo en la referencia → toca el ruedo en la imagen, 0 cm de tela en blanco debajo. Si hay espacio → reproducir exactamente esa cantidad de cm. PROHIBICIÓN ABSOLUTA de agregar espacio blanco que no existe en la referencia. (4) POSICIÓN HORIZONTAL: si está centrado, déjalo centrado. Si está descentrado, respeta esa asimetría exactamente — PROHIBIDO "corregir" posiciones.',
+    '- ANTI-ALUCINACIÓN: no inventar bolsillos, botones, bordados ni adornos ausentes en la referencia.',
+    '- Texto del estampado (ej: "DRINK COFFEE"): queda SOLO en la prenda, no se extrae como copy de la composición.',
+    garmentDesc,
+    personPart,
+    conceptContext,
+  ].filter(Boolean).join('\n');
+
+  const conceptDataUrl = `data:image/png;base64,${conceptImageBase64}`;
+  const productImageContent = allProductImages.map(img => ({
+    type: 'input_image' as const,
+    image_url: img.startsWith('data:') ? img : `data:image/jpeg;base64,${img}`,
+    detail: 'high' as const,
+  }));
+
+  const responsesInput = (promptText: string) => [{
+    role: 'user' as const,
+    content: [
+      { type: 'input_image' as const, image_url: conceptDataUrl, detail: 'high' as const },
+      ...productImageContent,
+      { type: 'input_text' as const, text: promptText },
+    ],
+  }];
+
+  const responsesTool = [{ type: 'image_generation', model: 'gpt-image-2', quality: 'medium', size: '1024x1536' }];
+
+  const tryResponses = async (promptText: string, label: string, model: 'gpt-4o' | 'gpt-image-2'): Promise<string | null> => {
+    for (let i = 0; i < 2; i++) {
+      try {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const response = await (openai.responses.create as any)({
+          model,
+          input: responsesInput(promptText),
+          tools: responsesTool,
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const block of (response.output || [])) {
+          if (block.type === 'image_generation_call' && block.result) return block.result;
+        }
+        console.warn(`apply-product ${label} attempt ${i + 1}: no image block — retrying`);
+        // don't return null here, let the loop retry once before giving up
+      } catch (err: unknown) {
+        const status = (err as { status?: number })?.status;
+        if (status === 429 && i === 0) {
+          console.warn(`apply-product ${label}: rate limited, waiting 10s`);
+          await new Promise(r => setTimeout(r, 10000));
+          continue;
+        }
+        console.error(`apply-product ${label} failed:`, err);
+        return null;
+      }
+    }
+    return null;
+  };
+
+  // ── PATH 1: gpt-4o orchestrator — best quality, may occasionally skip tool call ──
+  const result1 = await tryResponses(applyPrompt, 'path1-gpt4o', 'gpt-4o');
+  if (result1) return NextResponse.json({ base64: result1, applied: true, appliedVia: 'responses-gpt4o' });
+
+  // ── PATH 2: gpt-image-2 — always calls tool, reliable fallback ──────────
+  const simplifiedPrompt = [
+    'Replace the clothing on the person in the concept image with the exact garment shown in the product reference photos.',
+    'Keep everything else completely unchanged: background, text, composition, pose, face, hair, lighting.',
+    garmentDesc,
+    multiProductRule,
+  ].filter(Boolean).join('\n');
+
+  const result2 = await tryResponses(simplifiedPrompt, 'path2-gpt-image-2', 'gpt-image-2');
+  if (result2) return NextResponse.json({ base64: result2, applied: true, appliedVia: 'responses-gpt-image-2' });
+
+  // ── PATH 3: images.edit — last resort, no product photo reference ────────
+  try {
+    const file = await toFile(Buffer.from(conceptImageBase64, 'base64'), 'concept.png', { type: 'image/png' });
+    const res = await openai.images.edit({
+      model: 'gpt-image-2',
+      image: file,
+      prompt: simplifiedPrompt,
+      size: '1024x1536',
+      quality: 'high',
+    });
+    const base64 = res.data?.[0]?.b64_json || '';
+    if (base64) return NextResponse.json({ base64, applied: true, appliedVia: 'edit-concept-base' });
+    console.error('apply-product path3 (edit) returned empty');
+  } catch (err) {
+    console.error('apply-product path3 (edit) failed:', err);
+  }
+
+  return NextResponse.json({ base64: conceptImageBase64, applied: false, appliedVia: 'none' });
+}

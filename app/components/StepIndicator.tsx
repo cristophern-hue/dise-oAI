@@ -5,12 +5,11 @@ import { Step } from '@/app/types';
 const STEPS: { key: Step; label: string }[] = [
   { key: 'brief', label: 'Brief' },
   { key: 'concepts', label: '6 Conceptos' },
-  { key: 'variations', label: '4 Variaciones' },
-  { key: 'adjust', label: 'Ajustes' },
+  { key: 'refine', label: 'Afinación' },
   { key: 'done', label: 'Listo' },
 ];
 
-const ORDER: Step[] = ['brief', 'concepts', 'variations', 'adjust', 'done'];
+const ORDER: Step[] = ['brief', 'concepts', 'refine', 'done'];
 
 interface Props {
   currentStep: Step;
@@ -30,9 +29,9 @@ export default function StepIndicator({ currentStep }: Props) {
               <div
                 className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-colors ${
                   done
-                    ? 'bg-indigo-500 text-white'
+                    ? 'bg-[#FF912D] text-white'
                     : active
-                    ? 'bg-indigo-500/20 border border-indigo-500 text-indigo-400'
+                    ? 'bg-[#FA5A1E]/20 border border-[#FF912D] text-[#FF912D]'
                     : 'bg-white/5 border border-white/10 text-white/30'
                 }`}
               >
@@ -49,7 +48,7 @@ export default function StepIndicator({ currentStep }: Props) {
               </span>
             </div>
             {idx < STEPS.length - 1 && (
-              <div className={`w-6 h-px ${idx < currentIdx ? 'bg-indigo-500' : 'bg-white/10'}`} />
+              <div className={`w-6 h-px ${idx < currentIdx ? 'bg-[#FF912D]' : 'bg-white/10'}`} />
             )}
           </div>
         );
