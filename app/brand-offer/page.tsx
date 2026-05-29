@@ -87,7 +87,7 @@ export default function BrandOfferPage() {
         body: JSON.stringify({
           brief,
           brandKit: selectedClient,
-          peopleMode: 'corporate',
+          peopleMode: 'none',
           productDetailImages: [],
           referenceImages: [],
           count: 6,

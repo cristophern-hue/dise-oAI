@@ -354,11 +354,14 @@ Si omitiste alguno de estos en las secciones anteriores, corregilo ahora.` },
   }
 
   const isProductEcommerce = peopleMode === 'none' && productDetailImages.length > 0;
+  const isPromoOnly = peopleMode === 'none' && productDetailImages.length === 0;
   const isCorporate = peopleMode === 'corporate';
   const isEvents = peopleMode === 'events';
 
   // People instruction for concept generation
-  const peopleInstruction = peopleMode === 'none'
+  const peopleInstruction = isPromoOnly
+    ? 'CERO personas, CERO stock photos, CERO ilustraciones humanas. Diseño gráfico tipográfico puro: el descuento, el nombre de campaña y los colores del brand kit son los protagonistas.'
+    : peopleMode === 'none'
     ? 'NO incluir personas. Enfocarse en producto, composición, elementos gráficos y copy.'
     : isCorporate
       ? 'Personas opcionales: si aparecen deben ser profesionales en contexto corporativo (reunión, oficina, ciudad). No es obligatorio incluirlas — priorizá composición gráfica y tipografía.'
@@ -369,9 +372,24 @@ Si omitiste alguno de estos en las secciones anteriores, corregilo ahora.` },
   const hasVisualRefs = visualRefs.length > 0;
   const refStyleDirection = hasVisualRefs
     ? `6. Réplica de estilo de marca — seguí EXACTAMENTE el estilo visual, composición tipográfica y tratamiento gráfico de las piezas de referencia de la marca que se incluyen como imágenes`
-    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Impacto y presencia digital — composición tipográfica bold, elementos gráficos de transmisión en vivo, paleta del brand kit con máximo contraste' : 'Superposición gráfica — MITAD fotografía MITAD diseño gráfico. La persona está físicamente integrada dentro de los elementos gráficos: franjas de color sólido que atraviesan el frame y cruzan el cuerpo, formas geométricas que envuelven o encuadran la figura, overlays de color semitransparente sobre partes del cuerpo. POSE OBLIGATORIA: cuerpo en diagonal pronunciada, en movimiento o girado — PROHIBIDO pose estática parada de frente. El nombre de campaña y descuento son parte de la arquitectura gráfica (no flotando encima), integrados en las franjas o bloques de color.'}`;
+    : `6. ${isProductEcommerce ? 'Lifestyle del segmento — ambiente y elementos visuales que representan el segmento objetivo con el producto prominente' : isPromoOnly ? 'Composición de marca pura — nombre de marca como elemento visual central que ocupa 60-70% del frame en tipografía extrabold. Descuento y categorías como elementos secundarios flotantes. Fondo con textura sutil o patrón abstracto en paleta del brand kit. Estilo aspiracional de identidad.' : isCorporate ? 'Fotografía corporativa aspiracional — espacio de trabajo premium, ciudad o arquitectura moderna como fondo, tipografía institucional' : isEvents ? 'Impacto y presencia digital — composición tipográfica bold, elementos gráficos de transmisión en vivo, paleta del brand kit con máximo contraste' : 'Superposición gráfica — MITAD fotografía MITAD diseño gráfico. La persona está físicamente integrada dentro de los elementos gráficos: franjas de color sólido que atraviesan el frame y cruzan el cuerpo, formas geométricas que envuelven o encuadran la figura, overlays de color semitransparente sobre partes del cuerpo. POSE OBLIGATORIA: cuerpo en diagonal pronunciada, en movimiento o girado — PROHIBIDO pose estática parada de frente. El nombre de campaña y descuento son parte de la arquitectura gráfica (no flotando encima), integrados en las franjas o bloques de color.'}`;
 
-  const conceptDirections = isProductEcommerce
+  const conceptDirections = isPromoOnly
+    ? `Direcciones (campaña oferta / retail sin producto) — CADA UNA visualmente DISTINTA, diseño gráfico retail premium.
+REGLAS ABSOLUTAS PARA TODAS LAS DIRECCIONES:
+- CERO personas, CERO stock photos, CERO ilustraciones humanas de ningún tipo
+- Si el brief tiene descuento (ej: "70% OFF") → ese número debe ser el protagonista visual en AL MENOS 4 de los 6 conceptos
+- SOLO los hex exactos del brand kit como colores — no inventar paletas
+- TODO el copy viene del brief: nombre de campaña, descuento, categorías, CTA. PROHIBIDO inventar texto
+- El nombre de campaña del brief DEBE aparecer como texto visible en AL MENOS 4 conceptos
+
+1. IMPACTO NUMÉRICO — el porcentaje/descuento en tipografía ultragrande heavy ocupa 50-60% del frame como arquitectura visual estructural. Nombre de campaña en tipografía bold arriba. Categorías del brief listadas en tipografía pequeña abajo. Fondo en color primario del brand kit. Composición solo tipografía y color, sin imágenes.
+2. GRID DE CATEGORÍAS — layout de lista visual: cada categoría del brief tiene su fila con línea separadora y bullet o número de orden. Porcentaje de descuento grande anclado a zona superior o lateral derecho. Fondo blanco o muy claro del brand kit. Tipografía sans-serif bold. Estilo: catálogo editorial premium.
+3. BLOQUES DE COLOR EN DIAGONAL — frame dividido en 3 bloques diagonales en colores del brand kit. Bloque superior: nombre de campaña tipografía bold. Bloque central: descuento en tipografía heavy black ultra-grande con color contrastante. Bloque inferior: categorías en tipografía pequeña + nombre de marca. Sin fotografías, solo geometría, color y tipo.
+4. CÍRCULO DOMINANTE — forma circular grande (80% del frame) en color secundario del brand kit sobre fondo del primario. Dentro del círculo: descuento en tipografía extrabold + categorías en tipografía pequeña. Nombre de campaña fuera del círculo en tipografía fina. Estilo: poster retail moderno.
+5. MINIMALISTA DE MARCA — fondo muy limpio blanco o crema. Nombre de marca en tipografía extralarge ocupa 40% del frame. Descuento como badge circular flotante sobre el nombre. Categorías como lista tipográfica pequeña con bullet. Estilo: anuncio premium minimalista Scandinavian.
+${refStyleDirection}`
+    : isProductEcommerce
     ? `Direcciones (e-commerce de producto) — FOCO PROMOCIONAL. CADA UNA visualmente DISTINTA.
 REGLAS OBLIGATORIAS PARA TODAS LAS DIRECCIONES:
 - TODO el copy DEBE venir EXCLUSIVAMENTE del brief: nombre de campaña, descuento, mecánicas, claim. PROHIBIDO inventar taglines, slogans o copy que no esté en el brief.
@@ -580,7 +598,9 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
   ];
 
   const hasPeople = peopleMode !== 'none';
-  const styleSuffix = isCorporate
+  const styleSuffix = isPromoOnly
+    ? 'Retail promotional graphic design, bold typography-first layout. The discount number IS the hero visual. Zero people, zero stock photography. Agency-quality retail brand identity. Portrait 4:5.'
+    : isCorporate
     ? 'Premium institutional design, B2B advertising quality, clean and trustworthy. NOT generic stock photo aesthetic. If people appear: professional business context, diverse team, confident expression. Portrait 4:5.'
     : isEvents
     ? 'Event marketing design, bold typography, high-contrast layout, digital-first aesthetic. CTA-driven composition. Portrait 4:5.'
@@ -676,8 +696,9 @@ OBLIGATORIO — MARCA EN CADA image_prompt: cada image_prompt DEBE terminar con 
                 : '',
               styleHint,
               logoHint,
-              isEvents ? 'ABSOLUTELY NO HUMANS, NO PEOPLE, NO SILHOUETTES, NO AUDIENCE, NO SPEAKER FIGURES. Pure typographic and geometric graphic design only.' : '',
+              (isEvents || isPromoOnly) ? 'ABSOLUTELY NO HUMANS, NO PEOPLE, NO SILHOUETTES, NO STOCK PHOTOS OF PEOPLE. Pure typographic and geometric graphic design only.' : '',
               isEvents ? `USE ONLY THESE EXACT HEX COLORS: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT add purple, violet, neon, or any color not in this brand kit.` : '',
+              isPromoOnly ? `USE ONLY THESE EXACT HEX COLORS FROM THE BRAND KIT: ${brandKit.primary1}, ${brandKit.primary2}, ${brandKit.primary3}. Do NOT use colors outside this brand kit palette.` : '',
               'LEGIBILIDAD — CRÍTICO: todo texto visible debe tener alto contraste con el fondo inmediato. Si el fondo es claro (beige, crema, blanco, gris claro) → texto oscuro (negro, gris oscuro, marino). Si el fondo es oscuro → texto blanco o muy claro. NUNCA texto claro sobre fondo claro ni texto oscuro sobre fondo oscuro. El número del descuento especialmente debe ser legible de un vistazo. Si hay riesgo de baja legibilidad, agregar un bloque de color sólido, sombra o área de contraste detrás del texto.',
               'ALL COMPOSITION TEXT MUST BE IN SPANISH: headlines, labels, CTAs, body copy — zero English in the composition. EXCEPTION: text printed ON the garment (estampados/prints) must be reproduced EXACTLY as it appears in the reference photo — do NOT translate garment print text.',
               'Use the EXACT campaign or event name from the brief verbatim as the headline — do NOT invent, translate, or replace it with a different name.',
